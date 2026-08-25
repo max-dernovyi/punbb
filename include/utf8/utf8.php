@@ -31,16 +31,11 @@ if ( !defined('UTF8') ) {
 }
 
 /**
-* If string overloading is active, it will break many of the
-* native implementations. mbstring.func_overload must be set
-* to 0, 1 or 4 in php.ini (string overloading disabled).
-* Also need to check we have the correct internal mbstring
-* encoding
+* Need to check we have the correct internal mbstring encoding.
+* The mbstring.func_overload check is gone: string overloading was removed
+* in PHP 8.0 along with the MB_OVERLOAD_* constants.
 */
 if ( extension_loaded('mbstring')) {
-    if ( ini_get('mbstring.func_overload') & MB_OVERLOAD_STRING ) {
-        trigger_error('String functions are overloaded by mbstring',E_USER_ERROR);
-    }
     mb_internal_encoding('UTF-8');
 }
 

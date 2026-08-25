@@ -964,7 +964,7 @@ else
 	$d = dir(FORUM_ROOT.'extensions');
 	while (($entry = $d->read()) !== false)
 	{
-		if ($entry{0} != '.' && is_dir(FORUM_ROOT.'extensions/'.$entry))
+		if ($entry[0] != '.' && is_dir(FORUM_ROOT.'extensions/'.$entry))
 		{
 			if (preg_match('/[^0-9a-z_]/', $entry))
 			{

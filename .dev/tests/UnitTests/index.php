@@ -43,14 +43,8 @@
 				<h1>Unit tests</h1>
 			</header>
 
-			<pre>
-			<?php
-				define('PHPUnit_MAIN_METHOD', 'AllTests::runAndReturnResultAsJSON');
-				require_once 'AllTests.php';
-
-				AllTests::runAndReturnResultAsJSON();
-			?>
-			</pre>
+			<p>The unit tests are run from the command line, not the browser:</p>
+			<pre>composer test</pre>
 
 			<footer>
       		    <hr>

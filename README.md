@@ -5,12 +5,15 @@ PunBB is a fast and lightweight PHP-powered discussion board. It is released und
 ## Quick install
  1. [Download the latest revision of PunBB](https://punbb.informer.com/downloads.php). Decompress the PunBB archive to a directory.
  2. Copy (or upload) all the files contained in this archive into the directory where you want to run your forums. (e.g. /home/user/www/punbb/)
- 3. Run install.php from the forum admin directory (e.g. open http://example.com/punbb/admin/install.php in your browser). Follow the instructions.
+ 3. Run `composer install --no-dev` in that directory to generate `vendor/autoload.php`. PunBB does not start without it.
+ 4. Copy `.htaccess.dist` to `.htaccess` (merge into it if you already have one). It denies access to `vendor/`, `.dev/` and the tooling manifests, and holds the SEF rewrite rules.
+ 5. Run install.php from the forum admin directory (e.g. open http://example.com/punbb/admin/install.php in your browser). Follow the instructions.
 
 ## Requirements
  - A webserver
- - PHP 5
- - A database where forum data is to be stored, created in one of: MySQL 4.1.2 or later, PostgreSQL 7.0 or later or SQLite 2
+ - PHP 8.4 or later, with the `mbstring` and `intl` extensions
+ - [Composer 2](https://getcomposer.org/)
+ - A database where forum data is to be stored, created in one of: MySQL 8.0 or later, PostgreSQL 13 or later or SQLite 3
 
 ## Extension installation
  1. Download an extension's archive from the PunBB extensions repository or any other place. Extract it into your forum’s extensions directory. (e.g. /home/user/example.com/punbb/extensions)

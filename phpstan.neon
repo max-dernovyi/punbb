@@ -1,0 +1,35 @@
+includes:
+	- phpstan-baseline.neon
+
+parameters:
+	level: 0
+	paths:
+		- admin
+		- include
+		- delete.php
+		- edit.php
+		- extern.php
+		- footer.php
+		- header.php
+		- help.php
+		- index.php
+		- login.php
+		- misc.php
+		- moderate.php
+		- post.php
+		- profile.php
+		- register.php
+		- rewrite.php
+		- search.php
+		- userlist.php
+		- viewforum.php
+		- viewtopic.php
+	excludePaths:
+		analyseAndScan:
+			- vendor
+			- .dev/build
+			- cache
+			- extensions
+			- include/js
+	bootstrapFiles:
+		- .dev/phpstan/bootstrap.php

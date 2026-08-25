@@ -1,0 +1,373 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Path in require\(\) "\./cache/cache_censors\.php" is not a file or it does not exist\.$#'
+			identifier: require.fileNotFound
+			count: 1
+			path: admin/censoring.php
+
+		-
+			message: '#^Path in include\(\) "\./cache/cache_ext_version_notifications\.php" is not a file or it does not exist\.$#'
+			identifier: include.fileNotFound
+			count: 1
+			path: admin/extensions.php
+
+		-
+			message: '#^Path in require\(\) "\./cache/cache_ranks\.php" is not a file or it does not exist\.$#'
+			identifier: require.fileNotFound
+			count: 1
+			path: admin/ranks.php
+
+		-
+			message: '#^Path in require\(\) "\./cache/cache_bans\.php" is not a file or it does not exist\.$#'
+			identifier: require.fileNotFound
+			count: 1
+			path: include/common.php
+
+		-
+			message: '#^Path in require\(\) "\./cache/cache_updates\.php" is not a file or it does not exist\.$#'
+			identifier: require.fileNotFound
+			count: 1
+			path: include/common.php
+
+		-
+			message: '#^Inner named functions are not supported by PHPStan\. Consider refactoring to an anonymous function, class method, or a top\-level\-defined function\. See issue \#165 \(https\://github\.com/phpstan/phpstan/issues/165\) for more details\.$#'
+			identifier: function.inner
+			count: 1
+			path: include/common_admin.php
+
+		-
+			message: '#^Function mysql_affected_rows not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: include/dblayer/mysql.php
+
+		-
+			message: '#^Function mysql_close not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: include/dblayer/mysql.php
+
+		-
+			message: '#^Function mysql_errno not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: include/dblayer/mysql.php
+
+		-
+			message: '#^Function mysql_error not found\.$#'
+			identifier: function.notFound
+			count: 3
+			path: include/dblayer/mysql.php
+
+		-
+			message: '#^Function mysql_escape_string not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: include/dblayer/mysql.php
+
+		-
+			message: '#^Function mysql_fetch_assoc not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: include/dblayer/mysql.php
+
+		-
+			message: '#^Function mysql_fetch_row not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: include/dblayer/mysql.php
+
+		-
+			message: '#^Function mysql_free_result not found\.$#'
+			identifier: function.notFound
+			count: 2
+			path: include/dblayer/mysql.php
+
+		-
+			message: '#^Function mysql_insert_id not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: include/dblayer/mysql.php
+
+		-
+			message: '#^Function mysql_num_rows not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: include/dblayer/mysql.php
+
+		-
+			message: '#^Function mysql_pconnect not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: include/dblayer/mysql.php
+
+		-
+			message: '#^Function mysql_query not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: include/dblayer/mysql.php
+
+		-
+			message: '#^Function mysql_result not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: include/dblayer/mysql.php
+
+		-
+			message: '#^Function mysql_select_db not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: include/dblayer/mysql.php
+
+		-
+			message: '#^Function mysql_unbuffered_query not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: include/dblayer/mysql.php
+
+		-
+			message: '#^Function mysql_affected_rows not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: include/dblayer/mysql_innodb.php
+
+		-
+			message: '#^Function mysql_close not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: include/dblayer/mysql_innodb.php
+
+		-
+			message: '#^Function mysql_errno not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: include/dblayer/mysql_innodb.php
+
+		-
+			message: '#^Function mysql_error not found\.$#'
+			identifier: function.notFound
+			count: 3
+			path: include/dblayer/mysql_innodb.php
+
+		-
+			message: '#^Function mysql_escape_string not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: include/dblayer/mysql_innodb.php
+
+		-
+			message: '#^Function mysql_fetch_assoc not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: include/dblayer/mysql_innodb.php
+
+		-
+			message: '#^Function mysql_fetch_row not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: include/dblayer/mysql_innodb.php
+
+		-
+			message: '#^Function mysql_free_result not found\.$#'
+			identifier: function.notFound
+			count: 2
+			path: include/dblayer/mysql_innodb.php
+
+		-
+			message: '#^Function mysql_insert_id not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: include/dblayer/mysql_innodb.php
+
+		-
+			message: '#^Function mysql_num_rows not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: include/dblayer/mysql_innodb.php
+
+		-
+			message: '#^Function mysql_pconnect not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: include/dblayer/mysql_innodb.php
+
+		-
+			message: '#^Function mysql_query not found\.$#'
+			identifier: function.notFound
+			count: 5
+			path: include/dblayer/mysql_innodb.php
+
+		-
+			message: '#^Function mysql_result not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: include/dblayer/mysql_innodb.php
+
+		-
+			message: '#^Function mysql_select_db not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: include/dblayer/mysql_innodb.php
+
+		-
+			message: '#^Function mysql_unbuffered_query not found\.$#'
+			identifier: function.notFound
+			count: 1
+			path: include/dblayer/mysql_innodb.php
+
+		-
+			message: '#^Result of function mysqli_free_result \(void\) is used\.$#'
+			identifier: function.void
+			count: 1
+			path: include/dblayer/mysqli.php
+
+		-
+			message: '#^Result of function mysqli_free_result \(void\) is used\.$#'
+			identifier: function.void
+			count: 1
+			path: include/dblayer/mysqli_innodb.php
+
+		-
+			message: '#^Result of function sqlite_close \(void\) is used\.$#'
+			identifier: function.void
+			count: 1
+			path: include/dblayer/sqlite.php
+
+		-
+			message: '#^Undefined variable\: \$sqlite_error$#'
+			identifier: variable.undefined
+			count: 3
+			path: include/dblayer/sqlite.php
+
+		-
+			message: '#^Path in require\(\) "\./cache/cache_config\.php" is not a file or it does not exist\.$#'
+			identifier: require.fileNotFound
+			count: 1
+			path: include/essentials.php
+
+		-
+			message: '#^Path in require\(\) "\./cache/cache_hooks\.php" is not a file or it does not exist\.$#'
+			identifier: require.fileNotFound
+			count: 1
+			path: include/essentials.php
+
+		-
+			message: '#^Function _csrf_confirm_form not found\.$#'
+			identifier: function.notFound
+			count: 3
+			path: include/functions.php
+
+		-
+			message: '#^Function _forum_remove_bad_characters not found\.$#'
+			identifier: function.notFound
+			count: 4
+			path: include/functions.php
+
+		-
+			message: '#^Inner named functions are not supported by PHPStan\. Consider refactoring to an anonymous function, class method, or a top\-level\-defined function\. See issue \#165 \(https\://github\.com/phpstan/phpstan/issues/165\) for more details\.$#'
+			identifier: function.inner
+			count: 3
+			path: include/functions.php
+
+		-
+			message: '#^Path in require\(\) "\./cache/cache_censors\.php" is not a file or it does not exist\.$#'
+			identifier: require.fileNotFound
+			count: 1
+			path: include/functions.php
+
+		-
+			message: '#^Path in require\(\) "\./cache/cache_ranks\.php" is not a file or it does not exist\.$#'
+			identifier: require.fileNotFound
+			count: 1
+			path: include/functions.php
+
+		-
+			message: '#^Access to an undefined property idna_convert\:\:\$slast\.$#'
+			identifier: property.notFound
+			count: 1
+			path: include/idna/idna_convert.class.php
+
+		-
+			message: '#^Access to an undefined static property idna_convert\:\:\$safe_char\.$#'
+			identifier: staticProperty.notFound
+			count: 1
+			path: include/idna/idna_convert.class.php
+
+		-
+			message: '#^Access to an undefined static property idna_convert\:\:\$safe_mode\.$#'
+			identifier: staticProperty.notFound
+			count: 1
+			path: include/idna/idna_convert.class.php
+
+		-
+			message: '#^Deprecated in PHP 8\.0\: Required parameter \$errors follows optional parameter \$type\.$#'
+			identifier: parameter.requiredAfterOptional
+			count: 1
+			path: include/parser.php
+
+		-
+			message: '#^Array has 2 duplicate keys with value 1031 \(0x407, 0x407\)\.$#'
+			identifier: array.duplicateKey
+			count: 1
+			path: include/utf8/native/core.php
+
+		-
+			message: '#^Array has 2 duplicate keys with value 1111 \(0x457, 0x457\)\.$#'
+			identifier: array.duplicateKey
+			count: 1
+			path: include/utf8/native/core.php
+
+		-
+			message: '#^Array has 2 duplicate keys with value 923 \(0x39b, 0x39b\)\.$#'
+			identifier: array.duplicateKey
+			count: 1
+			path: include/utf8/native/core.php
+
+		-
+			message: '#^Array has 2 duplicate keys with value 955 \(0x3bb, 0x3bb\)\.$#'
+			identifier: array.duplicateKey
+			count: 1
+			path: include/utf8/native/core.php
+
+		-
+			message: '#^Array has 3 duplicate keys with value 208 \(0xd0, 0xd0, 0xd0\)\.$#'
+			identifier: array.duplicateKey
+			count: 1
+			path: include/utf8/native/core.php
+
+		-
+			message: '#^Array has 3 duplicate keys with value 222 \(0xde, 0xde, 0xde\)\.$#'
+			identifier: array.duplicateKey
+			count: 1
+			path: include/utf8/native/core.php
+
+		-
+			message: '#^Array has 3 duplicate keys with value 240 \(0xf0, 0xf0, 0xf0\)\.$#'
+			identifier: array.duplicateKey
+			count: 1
+			path: include/utf8/native/core.php
+
+		-
+			message: '#^Array has 3 duplicate keys with value 254 \(0xfe, 0xfe, 0xfe\)\.$#'
+			identifier: array.duplicateKey
+			count: 1
+			path: include/utf8/native/core.php
+
+		-
+			message: '#^Function utf8_ord\(\) should return int but return statement is missing\.$#'
+			identifier: return.missing
+			count: 1
+			path: include/utf8/ord.php
+
+		-
+			message: '#^Undefined variable\: \$xml_array$#'
+			identifier: variable.undefined
+			count: 3
+			path: include/xml.php
+
+		-
+			message: '#^Path in require\(\) "\./cache/cache_stats\.php" is not a file or it does not exist\.$#'
+			identifier: require.fileNotFound
+			count: 1
+			path: index.php

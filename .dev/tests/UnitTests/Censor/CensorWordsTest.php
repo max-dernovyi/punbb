@@ -1,16 +1,18 @@
 <?php
 
-class CensorWordsTest extends PHPUnit_Framework_TestCase {
+use PHPUnit\Framework\TestCase;
 
-    public function testCensorWordsWithUnicode() {
+class CensorWordsTest extends TestCase {
+
+    public function testCensorWordsWithUnicode(): void {
 		$this->do_test(TRUE);
     }
 
-    public function testCensorWordsWithoutUnicode() {
+    public function testCensorWordsWithoutUnicode(): void {
 		$this->do_test(FALSE);
     }
 
-	private function create_censor($search_for, $replace) {
+	private function create_censor($search_for, $replace): array {
 		return array(
 			0 => array(
 				'id' => '1',
@@ -20,7 +22,7 @@ class CensorWordsTest extends PHPUnit_Framework_TestCase {
 		);
 	}
 
-	private function do_test($unicode) {
+	private function do_test($unicode): void {
 		$this->assertEquals('f***e', censor_words_do($this->create_censor('false', 'f***e'), 'false', $unicode));
 		$this->assertEquals('i have a f***e apple', censor_words_do($this->create_censor('false', 'f***e'), 'i have a false apple', $unicode));
 		$this->assertEquals('i have a TRUE apple', censor_words_do($this->create_censor('false', 'TRUE'), 'i have a false apple', $unicode));

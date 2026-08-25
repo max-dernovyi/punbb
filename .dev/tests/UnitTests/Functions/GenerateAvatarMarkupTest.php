@@ -1,7 +1,9 @@
 <?php
 
-class GenerateAvatarMarkupTest extends PHPUnit_Framework_TestCase {
-    public function testGenerateAvatarMarkup() {
+use PHPUnit\Framework\TestCase;
+
+class GenerateAvatarMarkupTest extends TestCase {
+    public function testGenerateAvatarMarkup(): void {
         global $forum_config, $base_url;
 
         $this->assertEquals('<img src="'.$base_url.'/'.$forum_config['o_avatars_dir'].'/1.gif" width="60" height="60" alt="" />', generate_avatar_markup(1, FORUM_AVATAR_GIF, 60, 60));

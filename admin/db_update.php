@@ -26,6 +26,7 @@ if (!function_exists('version_compare') || version_compare(PHP_VERSION, '5.0.0',
 
 define('FORUM_ROOT', '../');
 
+require FORUM_ROOT.'include/autoload.php';
 require FORUM_ROOT.'include/constants.php';
 
 // Attempt to load the configuration file config.php

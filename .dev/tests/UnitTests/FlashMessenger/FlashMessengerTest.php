@@ -1,7 +1,9 @@
 <?php
 
-class FlashMessengerTest extends PHPUnit_Framework_TestCase {
-    public function testAddError() {
+use PHPUnit\Framework\TestCase;
+
+class FlashMessengerTest extends TestCase {
+    public function testAddError(): void {
         global $forum_flash;
 
         $this->expectOutputString('<span class="message_error">Error message</span>');
@@ -9,7 +11,7 @@ class FlashMessengerTest extends PHPUnit_Framework_TestCase {
         $forum_flash->show();
     }
 
-    public function testShowOnlyReturn() {
+    public function testShowOnlyReturn(): void {
         global $forum_flash;
 
         $this->expectOutputString('');
@@ -17,7 +19,7 @@ class FlashMessengerTest extends PHPUnit_Framework_TestCase {
         $forum_flash->show(TRUE);
     }
 
-    public function testShow() {
+    public function testShow(): void {
         global $forum_flash;
 
         $this->expectOutputString('<span class="message_error">Error message</span>');
@@ -25,7 +27,7 @@ class FlashMessengerTest extends PHPUnit_Framework_TestCase {
         $forum_flash->show(FALSE);
     }
 
-    public function testClear() {
+    public function testClear(): void {
         global $forum_flash;
 
         $this->expectOutputString("");
