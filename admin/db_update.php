@@ -19,9 +19,9 @@ define('PER_PAGE', 300);
 define('MIN_MYSQL_VERSION', '4.1.2');
 
 
-// Make sure we are running at least PHP 5.0.0
-if (!function_exists('version_compare') || version_compare(PHP_VERSION, '5.0.0', '<'))
-	exit('You are running PHP version '.PHP_VERSION.'. '.UPDATE_TO.' requires at least PHP 5.0.0 to run properly. You must upgrade your PHP installation before you can continue.');
+// Make sure we are running at least PHP 8.4.0
+if (version_compare(PHP_VERSION, '8.4.0', '<'))
+	exit('You are running PHP version '.PHP_VERSION.'. '.UPDATE_TO.' requires at least PHP 8.4.0 to run properly. You must upgrade your PHP installation before you can continue.');
 
 
 define('FORUM_ROOT', '../');
@@ -48,10 +48,6 @@ if (!defined('FORUM_DEBUG'))
 // Turn on full PHP error reporting
 error_reporting(E_ALL);
 
-// Turn off magic_quotes_runtime
-if (get_magic_quotes_runtime())
-	@ini_set('magic_quotes_runtime', false);
-
 // Turn off PHP time limit
 @set_time_limit(0);
 
@@ -74,9 +70,20 @@ require FORUM_ROOT.'include/utf8/trim.php';
 // Strip out "bad" UTF-8 characters
 forum_remove_bad_characters();
 
+// Everything else this release needs: extensions and a database driver
+$php_requirement_errors = check_php_requirements();
+if (!empty($php_requirement_errors))
+	exit('PunBB cannot be updated on this PHP installation:'."\n".'<ul><li>'.implode('</li><li>', $php_requirement_errors).'</li></ul>');
+
 // If the request_uri is invalid try fix it
 if (!defined('FORUM_IGNORE_REQUEST_URI'))
 	forum_fix_request_uri();
+
+// Drivers removed with their PHP extension: config.php has to be fixed by hand
+// before an upgrade, otherwise the dblayer would just fail to load below.
+$db_replacement = forum_removed_db_type_replacement($db_type);
+if ($db_replacement !== null)
+	exit('Your config.php uses the \''.$db_type.'\' database driver, which was removed along with the PHP extension it needs. Set $db_type to \''.$db_replacement.'\' in config.php and run this script again.');
 
 // Instruct DB abstraction layer that we don't want it to "SET NAMES". If we need to, we'll do it ourselves below.
 define('FORUM_NO_SET_NAMES', 1);
@@ -104,7 +111,7 @@ if (version_compare($cur_version, '1.2', '<'))
 $forum_db->set_names(version_compare($cur_version, '1.3', '>=') ? 'utf8' : 'latin1');
 
 // If MySQL, make sure it's at least 4.1.2
-if (in_array($db_type, array('mysql', 'mysqli', 'mysql_innodb', 'mysqli_innodb')))
+if (in_array($db_type, array('mysqli', 'mysqli_innodb')))
 {
 	$mysql_info = $forum_db->get_version();
 	if (version_compare($mysql_info['version'], MIN_MYSQL_VERSION, '<'))
@@ -245,7 +252,7 @@ function convert_to_utf8(&$str, $old_charset)
 	$save = $str;
 
 	// Replace literal entities (for non-UTF-8 compliant html_entity_encode)
-	if (version_compare(PHP_VERSION, '5.0.0', '<') && $old_charset == 'ISO-8859-1' || $old_charset == 'ISO-8859-15')
+	if ($old_charset == 'ISO-8859-15')
 		$str = html_entity_decode($str, ENT_QUOTES, $old_charset);
 
 	if (!seems_utf8($str))
@@ -259,8 +266,7 @@ function convert_to_utf8(&$str, $old_charset)
 	}
 
 	// Replace literal entities (for UTF-8 compliant html_entity_encode)
-	if (version_compare(PHP_VERSION, '5.0.0', '>='))
-		$str = html_entity_decode($str, ENT_QUOTES, 'UTF-8');
+	$str = html_entity_decode($str, ENT_QUOTES, 'UTF-8');
 
 	// Replace numeric entities
 	$str = preg_replace_callback('/&#([0-9]+);/', 'utf8_callback_1', $str);
@@ -582,7 +588,7 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 	// Start by updating the database structure
 	case 'start':
 		// Put back dropped search tables
-		if (!$forum_db->table_exists('search_cache') && in_array($db_type, array('mysql', 'mysqli', 'mysql_innodb', 'mysqli_innodb')))
+		if (!$forum_db->table_exists('search_cache') && in_array($db_type, array('mysqli', 'mysqli_innodb')))
 		{
 			$schema = array(
 				'FIELDS'		=> array(
@@ -714,7 +720,7 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 		}
 
 		// Make sure the collation on "word" in the search_words table is utf8_bin
-		if (in_array($db_type, array('mysql', 'mysqli', 'mysql_innodb', 'mysqli_innodb')))
+		if (in_array($db_type, array('mysqli', 'mysqli_innodb')))
 		{
 			$result = $forum_db->query('SHOW FULL COLUMNS FROM '.$forum_db->prefix.'search_words') or error(__FILE__, __LINE__);
 			while ($cur_column = $forum_db->fetch_assoc($result))
@@ -834,7 +840,7 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 
 
 		// Drop fulltext indexes (should only apply to SVN installs)
-		if (in_array($db_type, array('mysql', 'mysqli', 'mysql_innodb', 'mysqli_innodb')))
+		if (in_array($db_type, array('mysqli', 'mysqli_innodb')))
 		{
 			$forum_db->drop_index('topics', 'subject_idx');
 			$forum_db->drop_index('posts', 'message_idx');
@@ -1203,8 +1209,6 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 
 			switch ($db_type)
 			{
-				case 'mysql':
-				case 'mysql_innodb':
 				case 'mysqli':
 				case 'mysqli_innodb':
 					$forum_db->add_index('online', 'user_id_ident_idx', array('user_id', 'ident(25)'), true);
@@ -1222,8 +1226,6 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 		// Add an index to ident on the online table
 		switch ($db_type)
 		{
-			case 'mysql':
-			case 'mysql_innodb':
 			case 'mysqli':
 			case 'mysqli_innodb':
 				$forum_db->add_index('online', 'ident_idx', array('ident(25)'));
@@ -1920,7 +1922,7 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 	// Convert table columns to utf8 (MySQL only)
 	case 'conv_tables':
 		// Do the cumbersome charset conversion of MySQL tables/columns
-		if (in_array($db_type, array('mysql', 'mysqli', 'mysql_innodb', 'mysqli_innodb')))
+		if (in_array($db_type, array('mysqli', 'mysqli_innodb')))
 		{
 			echo 'Converting table '.$forum_db->prefix.'bans…<br />'."\n"; flush();
 			convert_table_utf8($forum_db->prefix.'bans');

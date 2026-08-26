@@ -1,0 +1,22 @@
+===== message =====
+<p>paragraph one</p><p>paragraph two after a blank line</p><br /><p>paragraph three after two blank lines</p>
+===== message-errors =====
+
+===== signature =====
+paragraph one<br /><br />paragraph two after a blank line<br /><br /><br />paragraph three after two blank lines
+===== signature-errors =====
+
+===== clickable-unicode =====
+paragraph one
+
+paragraph two after a blank line
+
+
+paragraph three after two blank lines
+===== clickable-ascii =====
+paragraph one
+
+paragraph two after a blank line
+
+
+paragraph three after two blank lines

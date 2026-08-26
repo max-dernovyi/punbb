@@ -1,0 +1,5 @@
+Ampersands & angle <brackets> and "quotes" and O'Reilly
+A backslash \ and a pipe |
+[b]bold & <escaped>[/b]
+tabs	and    multiple   spaces
+trailing line

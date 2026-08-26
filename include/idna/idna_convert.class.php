@@ -75,6 +75,7 @@ class idna_convert
     protected $_ncount = 588;   // _vcount * _tcount
     protected $_scount = 11172; // _lcount * _tcount * _vcount
     protected $_error = false;
+    protected $slast = 0;
 
     protected static $_mb_string_overload = null;
 

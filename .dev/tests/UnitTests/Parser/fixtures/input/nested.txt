@@ -1,0 +1,3 @@
+[b][i][u]nested simple[/u][/i][/b]
+[quote=Nested][b]bold in quote[/b] and http://example.com/x[/quote]
+[list][*][b]bold[/b] item with :) smiley[/list]

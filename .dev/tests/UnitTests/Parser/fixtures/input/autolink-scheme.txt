@@ -1,0 +1,4 @@
+bare http://example.com/page here
+secure https://example.com/a?b=c&d=e here
+ftp ftp://files.example.com/pub/file.txt here
+news news://news.example.com/group here

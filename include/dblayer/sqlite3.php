@@ -287,9 +287,17 @@ class DBLayer
 
 	public function free_result($query_id = false)
 	{
-		if ($query_id)
+		// PHP 8+ throws on an already-finalised SQLite3Result; @ does not suppress it.
+		if ($query_id instanceof SQLite3Result)
 		{
-			@/**/$query_id->finalize();
+			try
+			{
+				@/**/$query_id->finalize();
+			}
+			catch (Error $e)
+			{
+				return false;
+			}
 		}
 
 		return true;
@@ -321,7 +329,20 @@ class DBLayer
 				$this->link_id->exec('COMMIT');
 			}
 
-			return @/**/$this->link_id->close();
+			$link_id = $this->link_id;
+			$this->link_id = null;
+			$this->in_transaction = 0;
+
+			// PHP 8+ throws on an already-closed SQLite3 object; close() is called
+			// explicitly (footer.php) and again from __destruct().
+			try
+			{
+				return @/**/$link_id->close();
+			}
+			catch (Error $e)
+			{
+				return false;
+			}
 		}
 		else
 			return false;

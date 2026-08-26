@@ -19,8 +19,7 @@ require FORUM_ROOT.'include/autoload.php';
 require FORUM_ROOT.'include/constants.php';
 
 // Record the start time (will be used to calculate the generation time for the page)
-list($usec, $sec) = explode(' ', microtime());
-$forum_start = ((float)$usec + (float)$sec);
+$forum_start = microtime(true);
 
 // Load the functions script
 require FORUM_ROOT.'include/functions.php';
@@ -71,7 +70,7 @@ else
 	error_reporting(E_ALL ^ E_NOTICE);
 
 // Detect UTF-8 support in PCRE
-if ((version_compare(PHP_VERSION, '5.1.0', '>=') || (version_compare(PHP_VERSION, '5.0.0-dev', '<=') && version_compare(PHP_VERSION, '4.4.0', '>='))) && @/**/preg_match('/\p{L}/u', 'a') !== FALSE)
+if (@/**/preg_match('/\p{L}/u', 'a') !== FALSE)
 {
 	define('FORUM_SUPPORT_PCRE_UNICODE', 1);
 }

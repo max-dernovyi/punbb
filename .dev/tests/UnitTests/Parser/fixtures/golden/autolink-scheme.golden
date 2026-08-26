@@ -1,0 +1,18 @@
+===== message =====
+<p>bare <a href="http://example.com/page">http://example.com/page</a> here<br />secure <a href="https://example.com/a?b=c&amp;d=e">https://example.com/a?b=c&amp;d=e</a> here<br />ftp <a href="ftp://files.example.com/pub/file.txt">ftp://files.example.com/pub/file.txt</a> here<br />news <a href="news://news.example.com/group">news://news.example.com/group</a> here</p>
+===== message-errors =====
+
+===== signature =====
+bare <a href="http://example.com/page">http://example.com/page</a> here<br />secure <a href="https://example.com/a?b=c&amp;d=e">https://example.com/a?b=c&amp;d=e</a> here<br />ftp <a href="ftp://files.example.com/pub/file.txt">ftp://files.example.com/pub/file.txt</a> here<br />news <a href="news://news.example.com/group">news://news.example.com/group</a> here
+===== signature-errors =====
+
+===== clickable-unicode =====
+bare [url]http://example.com/page[/url] here
+secure [url]https://example.com/a?b=c&d=e[/url] here
+ftp [url]ftp://files.example.com/pub/file.txt[/url] here
+news [url]news://news.example.com/group[/url] here
+===== clickable-ascii =====
+bare [url]http://example.com/page[/url] here
+secure [url]https://example.com/a?b=c&d=e[/url] here
+ftp [url]ftp://files.example.com/pub/file.txt[/url] here
+news [url]news://news.example.com/group[/url] here

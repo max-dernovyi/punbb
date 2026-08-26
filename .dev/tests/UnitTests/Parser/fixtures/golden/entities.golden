@@ -1,0 +1,20 @@
+===== message =====
+<p>Ampersands &amp; angle &lt;brackets&gt; and &quot;quotes&quot; and O&#039;Reilly<br />A backslash \ and a pipe |<br /><strong>bold &amp; &lt;escaped&gt;</strong><br />tabs&nbsp; &nbsp; and&nbsp; &nbsp; multiple&nbsp; &nbsp;spaces<br />trailing line</p>
+===== message-errors =====
+
+===== signature =====
+Ampersands &amp; angle &lt;brackets&gt; and &quot;quotes&quot; and O&#039;Reilly<br />A backslash \ and a pipe |<br /><strong>bold &amp; &lt;escaped&gt;</strong><br />tabs&nbsp; &nbsp; and&nbsp; &nbsp; multiple&nbsp; &nbsp;spaces<br />trailing line
+===== signature-errors =====
+
+===== clickable-unicode =====
+Ampersands & angle <brackets> and "quotes" and O'Reilly
+A backslash \ and a pipe |
+[b]bold & <escaped>[/b]
+tabs	and    multiple   spaces
+trailing line
+===== clickable-ascii =====
+Ampersands & angle <brackets> and "quotes" and O'Reilly
+A backslash \ and a pipe |
+[b]bold & <escaped>[/b]
+tabs	and    multiple   spaces
+trailing line

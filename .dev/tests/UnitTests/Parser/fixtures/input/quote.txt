@@ -1,0 +1,3 @@
+[quote]plain quote[/quote]
+[quote=Someone]attributed quote[/quote]
+[quote="Some One"]quoted attribution with [brackets][/quote]

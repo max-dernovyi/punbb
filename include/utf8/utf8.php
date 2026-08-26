@@ -31,9 +31,8 @@ if ( !defined('UTF8') ) {
 }
 
 /**
-* Need to check we have the correct internal mbstring encoding.
-* The mbstring.func_overload check is gone: string overloading was removed
-* in PHP 8.0 along with the MB_OVERLOAD_* constants.
+* Make sure the internal mbstring encoding is UTF-8. The string overloading
+* guard that used to sit here is gone: PHP 8.0 removed the feature.
 */
 if ( extension_loaded('mbstring')) {
     mb_internal_encoding('UTF-8');

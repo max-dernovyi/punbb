@@ -1,0 +1,12 @@
+===== message =====
+<p><strong>bold</strong> <em>italic</em> <span class="bbu">underline</span> [s]struck[/s] </p><h5>heading</h5>
+===== message-errors =====
+
+===== signature =====
+<strong>bold</strong> <em>italic</em> <span class="bbu">underline</span> [s]struck[/s] </p><h5>heading</h5><p>
+===== signature-errors =====
+
+===== clickable-unicode =====
+[b]bold[/b] [i]italic[/i] [u]underline[/u] [s]struck[/s] [h]heading[/h]
+===== clickable-ascii =====
+[b]bold[/b] [i]italic[/i] [u]underline[/u] [s]struck[/s] [h]heading[/h]

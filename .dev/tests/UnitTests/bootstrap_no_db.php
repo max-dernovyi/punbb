@@ -6,8 +6,8 @@
  * cache and the hooks cache. $forum_config holds the installer defaults for
  * the options the tested functions read.
  *
- * Drop this in favour of the real bootstrap once the test environment has an
- * installed forum (plan 06).
+ * Always used, never conditionally: the unit suite must not change behaviour
+ * because the checkout happens to have a forum installed in it.
  *
  * @copyright (C) 2008-2012 PunBB, partially based on code (C) 2008-2009 FluxBB.org
  * @license http://www.gnu.org/licenses/gpl.html GPL version 2 or higher

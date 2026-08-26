@@ -1,0 +1,3 @@
+[list][*]one[*]two[/list]
+[list=1][*]first[*]second[/list]
+[list=a][*]alpha[*]beta[/list]

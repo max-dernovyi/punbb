@@ -1,0 +1,2 @@
+[quote=Outer][quote=Inner][quote=Deepest][quote=TooDeep]depth limit[/quote][/quote][/quote][/quote]
+tail

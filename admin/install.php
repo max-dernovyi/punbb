@@ -10,7 +10,7 @@
  */
 
 
-define('MIN_PHP_VERSION', '5.4.0');
+define('MIN_PHP_VERSION', '8.4.0');
 define('MIN_MYSQL_VERSION', '4.1.2');
 
 define('FORUM_ROOT', '../');
@@ -22,7 +22,7 @@ if (file_exists(FORUM_ROOT.'config.php'))
 
 
 // Make sure we are running at least MIN_PHP_VERSION
-if (!function_exists('version_compare') || version_compare(PHP_VERSION, MIN_PHP_VERSION, '<'))
+if (version_compare(PHP_VERSION, MIN_PHP_VERSION, '<'))
 	exit('You are running PHP version '.PHP_VERSION.'. PunBB requires at least PHP '.MIN_PHP_VERSION.' to run properly. You must upgrade your PHP installation before you can continue.');
 
 // Disable error reporting for uninitialized variables
@@ -43,6 +43,11 @@ require FORUM_ROOT.'include/utf8/trim.php';
 
 // Strip out "bad" UTF-8 characters
 forum_remove_bad_characters();
+
+// Everything else this release needs: extensions and a database driver
+$php_requirement_errors = check_php_requirements();
+if (!empty($php_requirement_errors))
+	exit('PunBB cannot be installed on this PHP installation:'."\n".'<ul><li>'.implode('</li><li>', $php_requirement_errors).'</li></ul>');
 
 //
 // Generate output to be used for config.php
@@ -98,29 +103,18 @@ header('Cache-Control: cache-control: no-store', false);
 
 if (!isset($_POST['form_sent']))
 {
-	// Determine available database extensions
+	// Determine available database extensions — one source of truth with the dispatcher
+	$db_labels = array(
+		'mysqli'		=> 'MySQL Improved',
+		'mysqli_innodb'	=> 'MySQL Improved (InnoDB)',
+		'pgsql'			=> 'PostgreSQL',
+		'sqlite3'		=> 'SQLite3',
+	);
+
 	$db_extensions = array();
 
-	if (function_exists('mysqli_connect'))
-	{
-		$db_extensions[] = array('mysqli', 'MySQL Improved');
-		$db_extensions[] = array('mysqli_innodb', 'MySQL Improved (InnoDB)');
-	}
-
-	if (function_exists('mysql_connect'))
-	{
-		$db_extensions[] = array('mysql', 'MySQL Standard');
-		$db_extensions[] = array('mysql_innodb', 'MySQL Standard (InnoDB)');
-	}
-
-	if (function_exists('sqlite_open'))
-		$db_extensions[] = array('sqlite', 'SQLite');
-
-	if (class_exists('SQLite3'))
-		$db_extensions[] = array('sqlite3', 'SQLite3');
-
-	if (function_exists('pg_connect'))
-		$db_extensions[] = array('pgsql', 'PostgreSQL');
+	foreach (forum_available_db_types() as $db_type)
+		$db_extensions[] = array($db_type, $db_labels[$db_type]);
 
 	if (empty($db_extensions))
 		error($lang_install['No database support']);
@@ -204,7 +198,7 @@ if (!isset($_POST['form_sent']))
 		<div class="ct-box info-box">
 			<p><?php echo $lang_install['Part1 intro'] ?></p>
 			<ul class="spaced list-clean">
-				<li><span><strong><?php echo $lang_install['Database type'] ?></strong> <?php echo $lang_install['Database type info']; if (count($db_extensions) > 1) echo ' '.$lang_install['Mysql type info'] ?></span></li>
+				<li><span><strong><?php echo $lang_install['Database type'] ?></strong> <?php echo $lang_install['Database type info']; if (count(array_intersect(array('mysqli', 'mysqli_innodb'), array_column($db_extensions, 0))) == 2) echo ' '.$lang_install['Mysql type info'] ?></span></li>
 				<li><span><strong><?php echo $lang_install['Database server'] ?></strong> <?php echo $lang_install['Database server info'] ?></span></li>
 				<li><span><strong><?php echo $lang_install['Database name'] ?></strong> <?php echo $lang_install['Database name info'] ?></span></li>
 				<li><span><strong><?php echo $lang_install['Database user pass'] ?></strong> <?php echo $lang_install['Database username info'] ?></span></li>
@@ -370,25 +364,16 @@ if (!isset($_POST['form_sent']))
 }
 else
 {
-	//
-	// Strip slashes only if magic_quotes_gpc is on.
-	//
-	function unescape($str)
-	{
-		return (get_magic_quotes_gpc() == 1) ? stripslashes($str) : $str;
-	}
-
-
 	$db_type = $_POST['req_db_type'];
 	$db_host = forum_trim($_POST['req_db_host']);
 	$db_name = forum_trim($_POST['req_db_name']);
-	$db_username = unescape(forum_trim($_POST['db_username']));
-	$db_password = unescape(forum_trim($_POST['db_password']));
+	$db_username = forum_trim($_POST['db_username']);
+	$db_password = forum_trim($_POST['db_password']);
 	$db_prefix = forum_trim($_POST['db_prefix']);
-	$username = unescape(forum_trim($_POST['req_username']));
-	$email = unescape(strtolower(forum_trim($_POST['req_email'])));
-	$password1 = unescape(forum_trim($_POST['req_password1']));
-	$default_lang = preg_replace('#[\.\\\/]#', '', unescape(forum_trim($_POST['req_language'])));
+	$username = forum_trim($_POST['req_username']);
+	$email = strtolower(forum_trim($_POST['req_email']));
+	$password1 = forum_trim($_POST['req_password1']);
+	$default_lang = preg_replace('#[\.\\\/]#', '', forum_trim($_POST['req_language']));
 	$install_pun_repository = !empty($_POST['install_pun_repository']);
 
 	// Make sure base_url doesn't end with a slash
@@ -435,14 +420,6 @@ else
 	// Load the appropriate DB layer class
 	switch ($db_type)
 	{
-		case 'mysql':
-			require FORUM_ROOT.'include/dblayer/mysql.php';
-			break;
-
-		case 'mysql_innodb':
-			require FORUM_ROOT.'include/dblayer/mysql_innodb.php';
-			break;
-
 		case 'mysqli':
 			require FORUM_ROOT.'include/dblayer/mysqli.php';
 			break;
@@ -453,10 +430,6 @@ else
 
 		case 'pgsql':
 			require FORUM_ROOT.'include/dblayer/pgsql.php';
-			break;
-
-		case 'sqlite':
-			require FORUM_ROOT.'include/dblayer/sqlite.php';
 			break;
 
 		case 'sqlite3':
@@ -472,14 +445,14 @@ else
 
 
 	// If MySQL, make sure it's at least 4.1.2
-	if (in_array($db_type, array('mysql', 'mysqli', 'mysql_innodb', 'mysqli_innodb')))
+	if (in_array($db_type, array('mysqli', 'mysqli_innodb')))
 	{
 		$mysql_info = $forum_db->get_version();
 		if (version_compare($mysql_info['version'], MIN_MYSQL_VERSION, '<'))
 			error(sprintf($lang_install['Invalid MySQL version'], forum_htmlencode($mysql_info['version']), MIN_MYSQL_VERSION));
 
 		// Check InnoDB support in DB
-		if (in_array($db_type, array('mysql_innodb', 'mysqli_innodb')))
+		if ($db_type == 'mysqli_innodb')
 		{
 			$result = $forum_db->query('SHOW VARIABLES LIKE \'have_innodb\'');
 			$row = $forum_db->fetch_assoc($result);
@@ -496,7 +469,7 @@ else
 		error(sprintf($lang_install['Invalid table prefix'], $db_prefix));
 
 	// Check SQLite prefix collision
-	if (in_array($db_type, array('sqlite', 'sqlite3')) && strtolower($db_prefix) == 'sqlite_')
+	if ($db_type == 'sqlite3' && strtolower($db_prefix) == 'sqlite_')
 		error($lang_install['SQLite prefix collision']);
 
 
@@ -973,10 +946,10 @@ else
 		'ENGINE'		=> 'HEAP'
 	);
 
-	if (in_array($db_type, array('mysql', 'mysqli', 'mysql_innodb', 'mysqli_innodb')))
+	if (in_array($db_type, array('mysqli', 'mysqli_innodb')))
 	{
-		$schema['UNIQUE KEYS']['user_id_ident_idx'] = array('user_id', 'ident(25)');
-		$schema['INDEXES']['ident_idx'] = array('ident(25)');
+		$schema['UNIQUE KEYS']['user_id_ident_idx'] = array('user_id', 'ident(40)');
+		$schema['INDEXES']['ident_idx'] = array('ident(40)');
 	}
 
 	$forum_db->create_table('online', $schema);
@@ -1144,7 +1117,7 @@ else
 		)
 	);
 
-	if (in_array($db_type, array('mysql', 'mysqli', 'mysql_innodb', 'mysqli_innodb')))
+	if (in_array($db_type, array('mysqli', 'mysqli_innodb')))
 		$schema['INDEXES']['ident_idx'] = array('ident(8)');
 
 	$forum_db->create_table('search_cache', $schema);
@@ -1196,7 +1169,7 @@ else
 		)
 	);
 
-	if ($db_type == 'sqlite' || $db_type == 'sqlite3')
+	if ($db_type == 'sqlite3')
 	{
 		$schema['PRIMARY KEY'] = array('id');
 		$schema['UNIQUE KEYS'] = array('word_idx'	=> array('word'));
@@ -1561,7 +1534,7 @@ else
 		)
 	);
 
-	if (in_array($db_type, array('mysql', 'mysqli', 'mysql_innodb', 'mysqli_innodb')))
+	if (in_array($db_type, array('mysqli', 'mysqli_innodb')))
 		$schema['INDEXES']['username_idx'] = array('username(8)');
 
 	$forum_db->create_table('users', $schema);

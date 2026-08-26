@@ -203,7 +203,19 @@ class DBLayer
 
 	public function free_result($query_id = false)
 	{
-		return ($query_id) ? @mysqli_free_result($query_id) : false;
+		// mysqli_query() returns true for non-SELECT statements, and PHP 8.0+ throws
+		// on an already-freed result where ext/mysqli used to warn. @ does not suppress it.
+		if (!($query_id instanceof mysqli_result))
+			return false;
+
+		try
+		{
+			return @mysqli_free_result($query_id);
+		}
+		catch (Error $e)
+		{
+			return false;
+		}
 	}
 
 	public function escape($str)
@@ -224,10 +236,23 @@ class DBLayer
 	{
 		if ($this->link_id)
 		{
-			if ($this->query_result)
-				@mysqli_free_result($this->query_result);
+			$query_result = $this->query_result;
+			$link_id = $this->link_id;
+			$this->query_result = null;
+			$this->link_id = null;
 
-			return @mysqli_close($this->link_id);
+			$this->free_result($query_result);
+
+			// PHP 8.0+ throws on an already-closed mysqli object where ext/mysqli used to warn.
+			// close() is called explicitly (footer.php) and again on shutdown.
+			try
+			{
+				return @mysqli_close($link_id);
+			}
+			catch (Error $e)
+			{
+				return false;
+			}
 		}
 		else
 			return false;

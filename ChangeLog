@@ -1,3 +1,15 @@
+PunBB 1.5.0-php84
+unreleased
+====================
+
+ * PHP 8.4 is now the minimum supported version; PHP 5 and 7 support is dropped.
+ * Removed the 'mysql', 'mysql_innodb' and 'sqlite' (SQLite2) database drivers along with the PHP extensions they needed. Supported drivers are 'mysqli', 'mysqli_innodb', 'pgsql' and 'sqlite3'; a forum on a removed driver must change $db_type in config.php before db_update.php will run.
+ * Replaced create_function() with closures in the BBCode parser and the admin index. Extensions hooking ps_do_bbcode_replace may push either callables or the old code strings into $replace/$replace_callback; the strings are compiled with the original semantics.
+ * install.php and db_update.php now refuse to run unless PHP 8.4+, the mbstring, intl, json and xml extensions and at least one supported database extension are present.
+ * Removed magic quotes handling.
+ * Fixed the pgsql driver for the PgSql\Connection and PgSql\Result objects ext/pgsql returns since PHP 8.1.
+
+
 PunBB 1.4.4
 2015-10-14 13:00:00
 ====================

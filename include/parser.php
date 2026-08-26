@@ -55,9 +55,9 @@ function preparse_bbcode($text, &$errors, $is_signature = false)
 
 		// Tidy up lists
 		$pattern_callback = '%\[list(?:=([1a*]))?+\]((?:(?>.*?(?=\[list(?:=[1a*])?+\]|\[/list\]))|(?R))*)\[/list\]%is';
-		$text = preg_replace_callback($pattern_callback, function($matches, $errors) {
-		    return preparse_list_tag($matches[2], $matches[1], $errors);
-        }, $text);
+		$replace_callback = function ($matches) use (&$errors) { return preparse_list_tag($matches[2], $matches[1], $errors); };
+		$text = preg_replace_callback($pattern_callback, $replace_callback, $text);
+
 		$text = str_replace('*'."\0".']', '*]', $text);
 
 		if ($forum_config['o_make_links'] == '1')
@@ -529,9 +529,8 @@ function preparse_list_tag($content, $type = '*', &$errors)
 	if (strpos($content,'[list') !== false)
 	{
 		$pattern_callback = '%\[list(?:=([1a*]))?+\]((?:(?>.*?(?=\[list(?:=[1a*])?+\]|\[/list\]))|(?R))*)\[/list\]%is';
-		$content = preg_replace_callback($pattern_callback, $callback = function($matches, $errors) {
-		    return preparse_list_tag($matches[2], $matches[1], $errors);
-        }, $content);
+		$replace_callback = function ($matches) use (&$errors) { return preparse_list_tag($matches[2], $matches[1], $errors); };
+		$content = preg_replace_callback($pattern_callback, $replace_callback, $content);
 	}
 
 	$items = explode('[*]', str_replace('\"', '"', $content));
@@ -721,9 +720,8 @@ function handle_list_tag($content, $type = '*')
 	if (strpos($content,'[list') !== false)
 	{
 		$pattern_callback = '%\[list(?:=([1a*]))?+\]((?:(?>.*?(?=\[list(?:=[1a*])?+\]|\[/list\]))|(?R))*)\[/list\]%is';
-		$content = preg_replace_callback($pattern_callback, function($matches) {
-		    return handle_list_tag($matches[2], $matches[1]);
-        }, $content);
+		$replace_callback = function ($matches) { return handle_list_tag($matches[2], $matches[1]); };
+		$content = preg_replace_callback($pattern_callback, $replace_callback, $content);
 	}
 
 	$content = preg_replace('#\s*\[\*\](.*?)\[/\*\]\s*#s', '<li><p>$1</p></li>', forum_trim($content));
@@ -741,6 +739,33 @@ function handle_list_tag($content, $type = '*')
 
 
 //
+// Normalise one do_bbcode() replacement into a callable.
+//
+// Core pushes closures. Extensions hooking ps_do_bbcode_replace predate that
+// and push PHP code strings, which used to be compiled per replacement: the
+// $replace ones as the contents of a double-quoted string, the
+// $replace_callback ones as an expression. Compile those the same way so
+// existing extensions keep parsing instead of dying on an invalid callback.
+//
+// Every string is legacy source, including one that happens to name a function:
+// the old compiler took those literally too, so 'strtoupper' meant that text,
+// never a call.
+//
+function forum_bbcode_replace_callable($replace, $is_expression = false)
+{
+	if (!is_string($replace))
+		return $replace;
+
+	$forum_legacy_body = $is_expression ? 'return '.$replace.';' : 'return "'.$replace.'";';
+
+	// Compiled once, like the old compiler did, and into a scope that holds
+	// nothing but $matches — eval() per match would recompile on every hit and
+	// leak this function's locals into the legacy expression.
+	return eval('return function ($matches) { '.$forum_legacy_body.' };');
+}
+
+
+//
 // Convert BBCodes to their HTML equivalent
 //
 function do_bbcode($text, $is_signature = false)
@@ -754,11 +779,14 @@ function do_bbcode($text, $is_signature = false)
 	if (strpos($text, '[quote') !== false)
 	{
 		$text = preg_replace_callback(
-			'#\[quote=(&\#039;|&quot;|"|\'|)(.*?)\\1\]#', function($matches) {
-global $lang_common;
-return '</p><div class="quotebox"><cite>'.str_replace(array('[', '"'), array('&#91;', '"'), $matches[2])." ".$lang_common['wrote'].":</cite><blockquote><p>";
-},
-$text);
+			'#\[quote=(&\#039;|&quot;|"|\'|)(.*?)\\1\]#',
+			function ($matches)
+			{
+				global $lang_common;
+
+				return '</p><div class="quotebox"><cite>'.str_replace(array('[', '\"'), array('&#91;', '"'), $matches[2]).' '.$lang_common['wrote'].':</cite><blockquote><p>';
+			},
+			$text);
 		$text = preg_replace('#\[quote\]\s*#', '</p><div class="quotebox"><blockquote><p>', $text);
 		$text = preg_replace('#\s*\[\/quote\]#S', '</p></blockquote></div><p>', $text);
 	}
@@ -766,14 +794,16 @@ $text);
 	if (!$is_signature)
 	{
 		$pattern_callback[] = '%\[list(?:=([1a*]))?+\]((?:(?>.*?(?=\[list(?:=[1a*])?+\]|\[/list\]))|(?R))*)\[/list\]%is';
-		$replace_callback[] = 'handle_list_tag($matches[2], $matches[1])';
+		$replace_callback[] = function ($matches) { return handle_list_tag($matches[2], $matches[1]); };
 	}
 
-    $pattern[] = '#\[email\]([^\[]*?)\[/email\]#';
-    $pattern[] = '#\[email=([^\[]+?)\](.*?)\[/email\]#';
+	// 1.4.6 moved the email patterns ahead of the formatting ones so nothing can
+	// be injected into the mailto: URL. Keep that order.
+	$pattern[] = '#\[email\]([^\[]*?)\[/email\]#';
+	$pattern[] = '#\[email=([^\[]+?)\](.*?)\[/email\]#';
 
-    $replace[] = '<a href=\"mailto:$matches[1]\">$matches[1]</a>';
-    $replace[] = '<a href=\"mailto:$matches[1]\">$matches[2]</a>';
+	$replace[] = function ($matches) { return '<a href="mailto:'.$matches[1].'">'.$matches[1].'</a>'; };
+	$replace[] = function ($matches) { return '<a href="mailto:'.$matches[1].'">'.$matches[2].'</a>'; };
 
 	$pattern[] = '#\[b\](.*?)\[/b\]#ms';
 	$pattern[] = '#\[i\](.*?)\[/i\]#ms';
@@ -781,11 +811,11 @@ $text);
 	$pattern[] = '#\[colou?r=([a-zA-Z]{3,20}|\#[0-9a-fA-F]{6}|\#[0-9a-fA-F]{3})](.*?)\[/colou?r\]#ms';
 	$pattern[] = '#\[h\](.*?)\[/h\]#ms';
 
-	$replace[] = '<strong>$matches[1]</strong>';
-	$replace[] = '<em>$matches[1]</em>';
-	$replace[] = '<span class=\"bbu\">$matches[1]</span>';
-	$replace[] = '<span style=\"color: $matches[1]\">$matches[2]</span>';
-	$replace[] = '</p><h5>$matches[1]</h5><p>';
+	$replace[] = function ($matches) { return '<strong>'.$matches[1].'</strong>'; };
+	$replace[] = function ($matches) { return '<em>'.$matches[1].'</em>'; };
+	$replace[] = function ($matches) { return '<span class="bbu">'.$matches[1].'</span>'; };
+	$replace[] = function ($matches) { return '<span style="color: '.$matches[1].'">'.$matches[2].'</span>'; };
+	$replace[] = function ($matches) { return '</p><h5>'.$matches[1].'</h5><p>'; };
 
 	if (($is_signature && $forum_config['p_sig_img_tag'] == '1') || (!$is_signature && $forum_config['p_message_img_tag'] == '1'))
 	{
@@ -793,13 +823,13 @@ $text);
 		$pattern[] = '#\[img=([^\[]*?)\]((ht|f)tps?://)([^\s<"]*?)\[/img\]#';
 		if ($is_signature)
 		{
-			$replace[] = '".handle_img_tag($matches[1].$matches[3], true)."';
-			$replace[] = '".handle_img_tag($matches[2].$matches[4], true, $matches[1])."';
+			$replace[] = function ($matches) { return handle_img_tag($matches[1].$matches[3], true); };
+			$replace[] = function ($matches) { return handle_img_tag($matches[2].$matches[4], true, $matches[1]); };
 		}
 		else
 		{
-			$replace[] = '".handle_img_tag($matches[1].$matches[3], false)."';
-			$replace[] = '".handle_img_tag($matches[2].$matches[4], false, $matches[1])."';
+			$replace[] = function ($matches) { return handle_img_tag($matches[1].$matches[3], false); };
+			$replace[] = function ($matches) { return handle_img_tag($matches[2].$matches[4], false, $matches[1]); };
 		}
 	}
 
@@ -810,24 +840,35 @@ $text);
 	if ($return !== null)
 		return $return;
 
-	$count = count($pattern);
-	for ($i = 0; $i < $count; $i++) {
-		$text = preg_replace_callback($pattern[$i], function($matches) use ($replace, $i) {
-		        return eval('return "'.$replace[$i].'";');
-            }, $text);
-	}
-	
-	$count = count($pattern_callback);
-	for ($i = 0; $i < $count; $i++) {
-		$text = preg_replace_callback($pattern_callback[$i], function($matches) use ($replace_callback, $i) {
-            return eval('return '.$replace_callback[$i].';');
-        }, $text);
+	foreach ($pattern as $key => $cur_pattern)
+		$text = preg_replace_callback($cur_pattern, forum_bbcode_replace_callable($replace[$key]), $text);
+
+	if (isset($pattern_callback))
+	{
+		foreach ($pattern_callback as $key => $cur_callback)
+			$text = preg_replace_callback($cur_callback, forum_bbcode_replace_callable($replace_callback[$key], true), $text);
 	}
 	$return = ($hook = get_hook('ps_do_bbcode_end')) ? eval($hook) : null;
 	if ($return !== null)
 		return $return;
 
 	return $text;
+}
+
+
+//
+// Callback for do_clickable: turns one matched bare URL into a link.
+// $separator is what sits between the two captured halves — '://' for a
+// scheme match, '.' for a www./ftp. host match.
+//
+function callback_autolink($matches, $separator)
+{
+	for ($i = 1; $i <= 12; $i++)
+		$matches[$i] = isset($matches[$i]) ? $matches[$i] : '';
+
+	$url = $matches[5].$separator.$matches[6];
+
+	return stripslashes($matches[1].$matches[2].$matches[3].$matches[4]).handle_url_tag($url, $url, true).stripslashes($matches[4].$matches[10].$matches[11].$matches[12]);
 }
 
 
@@ -840,55 +881,13 @@ function do_clickable($text, $unicode = FALSE)
 
 	if ($unicode)
 	{
-	    // Round 1
-		$text = preg_replace_callback(
-		    '#(?<=[\s\]\)])(<)?(\[)?(\()?([\'"]?)(https?|ftp|news){1}://([\p{Nd}\p{L}\-]+\.([\p{Nd}\p{L}\-]+\.)*[\p{Nd}\p{L}\-]+(:[0-9]+)?(/[^\s\[]*[^\s.,?!\[;:-]?)?)\4(?(3)(\)))(?(2)(\]))(?(1)(>))(?![^\s]*\[/(?:url|img)\])#iu',
-            function($matches) {
-		        for($i = 1; $i <= 12; $i++) {
-		            $matches[$i] = isset($matches[$i]) ? $matches[$i]:'';
-		        }
-		        return stripslashes($matches[1].$matches[2].$matches[3].$matches[4]).
-                       handle_url_tag($matches[5].'://'.$matches[6], $matches[5].'://'.$matches[6], true).
-                       stripslashes($matches[4].$matches[10].$matches[11].$matches[12]);
-            }, $text);
-
-        // Round 2
-		$text = preg_replace_callback(
-		    '#(?<=[\s\]\)])(<)?(\[)?(\()?([\'"]?)(www|ftp)\.(([\p{Nd}\p{L}\-]+\.)*[\p{Nd}\p{L}\-]+(:[0-9]+)?(/[^\s\[]*[^\s.,?!\[;:-])?)\4(?(3)(\)))(?(2)(\]))(?(1)(>))(?![^\s]*\[/(?:url|img)\])#iu',
-            function($matches) {
-		        for($i = 1; $i <= 12; $i++) {
-		            $matches[$i] = isset($matches[$i]) ? $matches[$i] : '';
-		        }
-		        return stripslashes($matches[1].$matches[2].$matches[3].$matches[4]).
-                       handle_url_tag($matches[5].'.'.$matches[6], $matches[5].'.'.$matches[6], true).
-                       stripslashes($matches[4].$matches[10].$matches[11].$matches[12]);
-            }, $text);
+		$text= preg_replace_callback('#(?<=[\s\]\)])(<)?(\[)?(\()?([\'"]?)(https?|ftp|news){1}://([\p{Nd}\p{L}\-]+\.([\p{Nd}\p{L}\-]+\.)*[\p{Nd}\p{L}\-]+(:[0-9]+)?(/[^\s\[]*[^\s.,?!\[;:-]?)?)\4(?(3)(\)))(?(2)(\]))(?(1)(>))(?![^\s]*\[/(?:url|img)\])#iu', function ($matches) { return callback_autolink($matches, '://'); }, $text);
+		$text = preg_replace_callback('#(?<=[\s\]\)])(<)?(\[)?(\()?([\'"]?)(www|ftp)\.(([\p{Nd}\p{L}\-]+\.)*[\p{Nd}\p{L}\-]+(:[0-9]+)?(/[^\s\[]*[^\s.,?!\[;:-])?)\4(?(3)(\)))(?(2)(\]))(?(1)(>))(?![^\s]*\[/(?:url|img)\])#iu', function ($matches) { return callback_autolink($matches, '.'); }, $text);
 	}
 	else
 	{
-	    // Round 1
-		$text = preg_replace_callback(
-		    '#(?<=[\s\]\)])(<)?(\[)?(\()?([\'"]?)(https?|ftp|news){1}://([\w\-]+\.([\w\-]+\.)*[\w]+(:[0-9]+)?(/[^\s\[]*[^\s.,?!\[;:-]?)?)\4(?(3)(\)))(?(2)(\]))(?(1)(>))(?![^\s]*\[/(?:url|img)\])#i',
-            function($matches) {
-		        for($i = 1; $i <= 12; $i++) {
-		            $matches[$i] = isset($matches[$i]) ? $matches[$i] : '';
-		        }
-		        return stripslashes($matches[1].$matches[2].$matches[3].$matches[4]).
-                       handle_url_tag($matches[5].'://'.$matches[6], $matches[5].'://'.$matches[6], true).
-                       stripslashes($matches[4].$matches[10].$matches[11].$matches[12]);
-            }, $text);
-
-		// Round 2
-		$text = preg_replace_callback(
-		    '#(?<=[\s\]\)])(<)?(\[)?(\()?([\'"]?)(www|ftp)\.(([\w\-]+\.)*[\w]+(:[0-9]+)?(/[^\s\[]*[^\s.,?!\[;:-])?)\4(?(3)(\)))(?(2)(\]))(?(1)(>))(?![^\s]*\[/(?:url|img)\])#i',
-            function($matches) {
-		        for($i = 1; $i <= 12; $i++) {
-		            $matches[$i] = isset($matches[$i]) ? $matches[$i]:'';
-		        }
-		        return stripslashes($matches[1].$matches[2].$matches[3].$matches[4]).
-                    handle_url_tag($matches[5].'.'.$matches[6], $matches[5].'.'.$matches[6], true).
-                    stripslashes($matches[4].$matches[10].$matches[11].$matches[12]);
-            }, $text);
+		$text = preg_replace_callback('#(?<=[\s\]\)])(<)?(\[)?(\()?([\'"]?)(https?|ftp|news){1}://([\w\-]+\.([\w\-]+\.)*[\w]+(:[0-9]+)?(/[^\s\[]*[^\s.,?!\[;:-]?)?)\4(?(3)(\)))(?(2)(\]))(?(1)(>))(?![^\s]*\[/(?:url|img)\])#i', function ($matches) { return callback_autolink($matches, '://'); }, $text);
+		$text = preg_replace_callback('#(?<=[\s\]\)])(<)?(\[)?(\()?([\'"]?)(www|ftp)\.(([\w\-]+\.)*[\w]+(:[0-9]+)?(/[^\s\[]*[^\s.,?!\[;:-])?)\4(?(3)(\)))(?(2)(\]))(?(1)(>))(?![^\s]*\[/(?:url|img)\])#i', function ($matches) { return callback_autolink($matches, '.'); }, $text);
 	}
 
 	return substr($text, 1);

@@ -1,0 +1,12 @@
+===== message =====
+<p><span style="color: red">named</span> <span style="color: #ff0000">hex six</span> <span style="color: #f00">hex three</span> <span style="color: blue">british</span></p>
+===== message-errors =====
+
+===== signature =====
+<span style="color: red">named</span> <span style="color: #ff0000">hex six</span> <span style="color: #f00">hex three</span> <span style="color: blue">british</span>
+===== signature-errors =====
+
+===== clickable-unicode =====
+[color=red]named[/color] [color=#ff0000]hex six[/color] [color=#f00]hex three[/color] [colour=blue]british[/colour]
+===== clickable-ascii =====
+[color=red]named[/color] [color=#ff0000]hex six[/color] [color=#f00]hex three[/color] [colour=blue]british[/colour]

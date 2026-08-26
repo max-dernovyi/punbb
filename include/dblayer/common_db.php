@@ -16,14 +16,6 @@ if (!defined('FORUM'))
 // Load the appropriate DB layer class
 switch ($db_type)
 {
-	case 'mysql':
-		require FORUM_ROOT.'include/dblayer/mysql.php';
-		break;
-
-	case 'mysql_innodb':
-		require FORUM_ROOT.'include/dblayer/mysql_innodb.php';
-		break;
-
 	case 'mysqli':
 		require FORUM_ROOT.'include/dblayer/mysqli.php';
 		break;
@@ -36,16 +28,16 @@ switch ($db_type)
 		require FORUM_ROOT.'include/dblayer/pgsql.php';
 		break;
 
-	case 'sqlite':
-		require FORUM_ROOT.'include/dblayer/sqlite.php';
-		break;
-
 	case 'sqlite3':
 		require FORUM_ROOT.'include/dblayer/sqlite3.php';
 		break;
 
 	default:
-		error('\''.$db_type.'\' is not a valid database type. Please check settings in config.php.', __FILE__, __LINE__);
+		$replacement = forum_removed_db_type_replacement($db_type);
+		if ($replacement !== null)
+			error('The \''.$db_type.'\' database driver was removed along with the PHP extension it needs. Set $db_type to \''.$replacement.'\' in config.php.', __FILE__, __LINE__);
+
+		error('\''.$db_type.'\' is not a valid database type. Supported types are '.implode(', ', forum_supported_db_types()).'. Please check settings in config.php.', __FILE__, __LINE__);
 		break;
 }
 

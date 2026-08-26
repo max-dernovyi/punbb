@@ -11,9 +11,11 @@ PunBB is a fast and lightweight PHP-powered discussion board. It is released und
 
 ## Requirements
  - A webserver
- - PHP 8.4 or later, with the `mbstring` and `intl` extensions
+ - PHP 8.4 or later, with the `mbstring`, `intl`, `json` and `xml` extensions
  - [Composer 2](https://getcomposer.org/)
  - A database where forum data is to be stored, created in one of: MySQL 8.0 or later, PostgreSQL 13 or later or SQLite 3
+
+Supported `$db_type` values in `config.php`: `mysqli`, `mysqli_innodb`, `pgsql`, `sqlite3`. The `mysql`, `mysql_innodb` and `sqlite` (SQLite2) drivers were removed together with the PHP extensions they needed — an existing forum on one of them must change `$db_type` before running `admin/db_update.php`.
 
 ## Extension installation
  1. Download an extension's archive from the PunBB extensions repository or any other place. Extract it into your forum’s extensions directory. (e.g. /home/user/example.com/punbb/extensions)

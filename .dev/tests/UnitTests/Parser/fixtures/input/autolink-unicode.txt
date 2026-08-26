@@ -1,0 +1,3 @@
+cyrillic http://пример.рф/страница here
+german www.bücher.example/seite here
+chinese http://例え.テスト/道 here

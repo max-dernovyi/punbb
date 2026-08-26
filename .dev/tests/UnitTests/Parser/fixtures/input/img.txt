@@ -1,0 +1,2 @@
+[img]http://example.com/pic.png[/img]
+[img=an "alt" text]https://example.com/pic2.png[/img]

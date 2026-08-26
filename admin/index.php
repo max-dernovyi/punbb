@@ -69,10 +69,7 @@ if ($forum_user['g_id'] == FORUM_ADMIN)
 // Get the server load averages (if possible)
 if (function_exists('sys_getloadavg') && is_array($load_averages = sys_getloadavg()))
 {
-	array_walk($load_averages,
-	function () use (&$v) {
-		$v = forum_number_format(round($v, 2), 2);
-	});
+	array_walk($load_averages, function (&$v) { $v = forum_number_format(round($v, 2), 2); });
 	$server_load = $load_averages[0].' '.$load_averages[1].' '.$load_averages[2];
 }
 else if (@/**/is_readable('/proc/loadavg'))
@@ -103,7 +100,7 @@ $result = $forum_db->query_build($query) or error(__FILE__, __LINE__);
 $num_online = $forum_db->result($result);
 
 // Collect some additional info about MySQL
-if (in_array($db_type, array('mysql', 'mysqli', 'mysql_innodb', 'mysqli_innodb')))
+if (in_array($db_type, array('mysqli', 'mysqli_innodb')))
 {
 	// Calculate total db size/row count
 	$result = $forum_db->query('SHOW TABLE STATUS FROM `'.$db_name.'` LIKE \''.$db_prefix.'%\'') or error(__FILE__, __LINE__);

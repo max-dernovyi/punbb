@@ -1,0 +1,16 @@
+===== message =====
+<p>www <a href="http://www.example.com">www.example.com</a> here<br />ftp host <a href="ftp://ftp.example.com/pub">ftp.example.com/pub</a> here<br />port <a href="http://www.example.com:8080/path">www.example.com:8080/path</a> here</p>
+===== message-errors =====
+
+===== signature =====
+www <a href="http://www.example.com">www.example.com</a> here<br />ftp host <a href="ftp://ftp.example.com/pub">ftp.example.com/pub</a> here<br />port <a href="http://www.example.com:8080/path">www.example.com:8080/path</a> here
+===== signature-errors =====
+
+===== clickable-unicode =====
+www [url=http://www.example.com]www.example.com[/url] here
+ftp host [url=ftp://ftp.example.com/pub]ftp.example.com/pub[/url] here
+port [url=http://www.example.com:8080/path]www.example.com:8080/path[/url] here
+===== clickable-ascii =====
+www [url=http://www.example.com]www.example.com[/url] here
+ftp host [url=ftp://ftp.example.com/pub]ftp.example.com/pub[/url] here
+port [url=http://www.example.com:8080/path]www.example.com:8080/path[/url] here

@@ -1,0 +1,18 @@
+===== message =====
+<p>[b]unclosed bold<br />mismatched [b]bold[/i]<br />stray closing [/u] tag<br /><span style="color: notacolour">bad attribute</span></p>
+===== message-errors =====
+[b] was opened within itself, this is not allowed
+===== signature =====
+[b]unclosed bold<br />mismatched [b]bold[/i]<br />stray closing [/u] tag<br /><span style="color: notacolour">bad attribute</span>
+===== signature-errors =====
+[b] was opened within itself, this is not allowed
+===== clickable-unicode =====
+[b]unclosed bold
+mismatched [b]bold[/i]
+stray closing [/u] tag
+[color=notacolour]bad attribute[/color]
+===== clickable-ascii =====
+[b]unclosed bold
+mismatched [b]bold[/i]
+stray closing [/u] tag
+[color=notacolour]bad attribute[/color]

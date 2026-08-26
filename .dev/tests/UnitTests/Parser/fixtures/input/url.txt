@@ -1,0 +1,3 @@
+[url]http://example.com/page[/url]
+[url=http://example.com/page]labelled[/url]
+[url=http://example.com/a-very-long-path-that-goes-on-and-on-and-on-and-on/deeper/still]long[/url]

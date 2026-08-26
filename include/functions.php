@@ -90,17 +90,7 @@ function check_is_all_caps($text)
 // Return current timestamp (with microseconds) as a float
 function forum_microtime()
 {
-	if (version_compare(PHP_VERSION, '5.0.0', '>='))
-	{
-		$mt = microtime(true);
-	}
-	else
-	{
-		list($usec, $sec) = explode(' ', microtime());
-		$mt = ((float)/**/$usec + (float)/**/$sec);
-	}
-
-	return $mt;
+	return microtime(true);
 }
 
 
@@ -216,10 +206,7 @@ function forum_setcookie($name, $value, $expire)
 	// Enable sending of a P3P header
 	header('P3P: CP="CUR ADM"');
 
-	if (version_compare(PHP_VERSION, '5.2.0', '>='))
-		setcookie($name, $value, $expire, $cookie_path, $cookie_domain, $cookie_secure, true);
-	else
-		setcookie($name, $value, $expire, $cookie_path.'; HttpOnly', $cookie_domain, $cookie_secure);
+	setcookie($name, $value, $expire, $cookie_path, $cookie_domain, $cookie_secure, true);
 }
 
 
@@ -343,25 +330,19 @@ function get_remote_file($url, $timeout, $head_only = false, $max_redirects = 10
 	// Last case scenario, we use file_get_contents provided allow_url_fopen is enabled (any non 200 response results in a failure)
 	else if (in_array($allow_url_fopen, array('on', 'true', '1')))
 	{
-		// PHP5's version of file_get_contents() supports stream options
-		if (version_compare(PHP_VERSION, '5.0.0', '>='))
-		{
-			// Setup a stream context
-			$stream_context = stream_context_create(
-				array(
-					'http' => array(
-						'method'		=> $head_only ? 'HEAD' : 'GET',
-						'user_agent'	=> 'PunBB',
-						'max_redirects'	=> $max_redirects + 1,	// PHP >=5.1.0 only
-						'timeout'		=> $timeout	// PHP >=5.2.1 only
-					)
+		// Setup a stream context
+		$stream_context = stream_context_create(
+			array(
+				'http' => array(
+					'method'		=> $head_only ? 'HEAD' : 'GET',
+					'user_agent'	=> 'PunBB',
+					'max_redirects'	=> $max_redirects + 1,
+					'timeout'		=> $timeout
 				)
-			);
+			)
+		);
 
-			$content = @file_get_contents($url, false, $stream_context);
-		}
-		else
-			$content = @file_get_contents($url);
+		$content = @file_get_contents($url, false, $stream_context);
 
 		// Did we get anything?
 		if ($content !== false)
@@ -381,6 +362,90 @@ function get_remote_file($url, $timeout, $head_only = false, $max_redirects = 10
 function clean_version($version)
 {
 	return preg_replace('/(\.0)+(?!\.)|(\.0+$)/', '$2', $version);
+}
+
+
+// Database drivers this release supports
+function forum_supported_db_types()
+{
+	return array('mysqli', 'mysqli_innodb', 'pgsql', 'sqlite3');
+}
+
+
+// Supported drivers whose PHP extension is present in this installation.
+// Probing the entry point each driver actually calls, not just the extension:
+// disable_functions leaves the extension loaded but removes the function, and
+// the driver would exit() the moment the installer selected it.
+function forum_available_db_types()
+{
+	$probes = array(
+		'mysqli'		=> array('mysqli', 'mysqli_connect'),
+		'mysqli_innodb'	=> array('mysqli', 'mysqli_connect'),
+		'pgsql'			=> array('pgsql', 'pg_connect'),
+		'sqlite3'		=> array('sqlite3', 'SQLite3'),
+	);
+
+	$available = array();
+	foreach (forum_supported_db_types() as $db_type)
+	{
+		list($extension, $entry_point) = $probes[$db_type];
+
+		if (extension_loaded($extension) && (function_exists($entry_point) || class_exists($entry_point)))
+			$available[] = $db_type;
+	}
+
+	return $available;
+}
+
+
+// Extensions the forum calls into directly and cannot run without
+function forum_required_extensions()
+{
+	return array('mbstring', 'intl', 'json', 'xml');
+}
+
+
+// Unmet requirements for the environment described by the arguments.
+// Kept free of globals so every branch can be exercised in a test.
+function forum_requirement_errors($php_version, $loaded_extensions, $available_db_types)
+{
+	$errors = array();
+
+	if (version_compare($php_version, FORUM_MIN_PHP_VERSION, '<'))
+		$errors[] = 'You are running PHP version '.$php_version.'. PunBB requires at least PHP '.FORUM_MIN_PHP_VERSION.'.';
+
+	$loaded = array_map('strtolower', $loaded_extensions);
+	$missing = array_values(array_diff(forum_required_extensions(), $loaded));
+
+	if (!empty($missing))
+		$errors[] = 'The following required PHP extensions are not loaded: '.implode(', ', $missing).'.';
+
+	if (empty($available_db_types))
+		$errors[] = 'None of the supported database extensions is available. PunBB needs one of: '.implode(', ', forum_supported_db_types()).'.';
+
+	return $errors;
+}
+
+
+// Check this PHP installation against what the release needs.
+// Returns a list of unmet requirements; an empty list means it can run.
+function check_php_requirements()
+{
+	return forum_requirement_errors(PHP_VERSION, get_loaded_extensions(), forum_available_db_types());
+}
+
+
+// Drivers dropped with their PHP extension; maps to the driver to migrate to,
+// or null when $db_type was never one of them
+function forum_removed_db_type_replacement($db_type)
+{
+	$removed = array(
+		'mysql'			=> 'mysqli',
+		'mysql_innodb'	=> 'mysqli_innodb',
+		'sqlite'		=> 'sqlite3',
+	);
+
+	return isset($removed[$db_type]) ? $removed[$db_type] : null;
 }
 
 
@@ -3469,47 +3534,6 @@ function error()
 function send_json($params)
 {
 	header('Content-type: application/json; charset=utf-8');
-	if (!function_exists('json_encode'))
-	{
-		function json_encode($data)
-		{
-			switch ($type = gettype($data))
-			{
-				case 'NULL':
-					return 'null';
-				case 'boolean':
-					return ($data ? 'true' : 'false');
-				case 'integer':
-				case 'double':
-				case 'float':
-					return $data;
-				case 'string':
-					return '"' . addslashes($data) . '"';
-				case 'object':
-					$data = get_object_vars($data);
-				case 'array':
-					$output_index_count = 0;
-					$output_indexed = array();
-					$output_assoc = array();
-					foreach ($data as $key => $value)
-					{
-						$output_indexed[] = json_encode($value);
-						$output_assoc[] = json_encode($key) . ':' . json_encode($value);
-						if ($output_index_count !== NULL && $output_index_count++ !== $key)
-						{
-							$output_index_count = NULL;
-						}
-					}
-					if ($output_index_count !== NULL) {
-						return '[' . implode(',', $output_indexed) . ']';
-					} else {
-						return '{' . implode(',', $output_assoc) . '}';
-					}
-				default:
-					return ''; // Not supported
-			}
-		}
-	}
 	echo json_encode($params);
 	die;
 }

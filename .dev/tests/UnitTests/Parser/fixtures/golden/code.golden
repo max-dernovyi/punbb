@@ -1,0 +1,16 @@
+===== message =====
+<p>before<br /></p><div class="codebox"><pre><code>$a = &quot;[b]not bold[/b]&quot;;    indented    tabs</code></pre></div><p>after</p>
+===== message-errors =====
+
+===== signature =====
+before<br />[code]$a = &quot;<strong>not bold</strong>&quot;;&nbsp; &nbsp; indented&nbsp; &nbsp; tabs[/code]<br />after
+===== signature-errors =====
+Signature may not contain of the text formatting tags (BBCode) [quote], [code] or [list]. Please choose another tags or delete it.
+===== clickable-unicode =====
+before
+[code]$a = "[b]not bold[/b]";	indented	tabs[/code]
+after
+===== clickable-ascii =====
+before
+[code]$a = "[b]not bold[/b]";	indented	tabs[/code]
+after

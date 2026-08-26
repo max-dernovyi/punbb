@@ -33,3 +33,9 @@ parameters:
 			- include/js
 	bootstrapFiles:
 		- .dev/phpstan/bootstrap.php
+	ignoreErrors:
+		# cache/ is generated at runtime, so these paths exist or not depending on
+		# whether the checkout happens to have an installed forum in it.
+		-
+			message: '#^Path in (require|include)\(\) "\./cache/cache_[^"]+" is not a file or it does not exist\.$#'
+			reportUnmatched: false

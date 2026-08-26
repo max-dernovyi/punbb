@@ -1,0 +1,16 @@
+===== message =====
+<ul><li><p>one</p></li><li><p>two</p></li></ul><ol class="decimal"><li><p>first</p></li><li><p>second</p></li></ol><ol class="alpha"><li><p>alpha</p></li><li><p>beta</p></li></ol>
+===== message-errors =====
+
+===== signature =====
+[list=*]<br />[*]one[/*]<br />[*]two[/*]<br />[/list]<br />[list=1]<br />[*]first[/*]<br />[*]second[/*]<br />[/list]<br />[list=a]<br />[*]alpha[/*]<br />[*]beta[/*]<br />[/list]
+===== signature-errors =====
+Signature may not contain of the text formatting tags (BBCode) [quote], [code] or [list]. Please choose another tags or delete it.
+===== clickable-unicode =====
+[list][*]one[*]two[/list]
+[list=1][*]first[*]second[/list]
+[list=a][*]alpha[*]beta[/list]
+===== clickable-ascii =====
+[list][*]one[*]two[/list]
+[list=1][*]first[*]second[/list]
+[list=a][*]alpha[*]beta[/list]
