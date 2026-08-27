@@ -3,8 +3,8 @@
  * HTTP smoke sweep over every forum entry point.
  *
  * Reports the status code of each request and every PHP diagnostic the response
- * body contains. Exits non-zero only on a fatal — warnings, notices and
- * deprecations are reported but do not fail the sweep.
+ * body contains. Exits non-zero on a fatal and on any Deprecated/Warning/Notice
+ * line: the sweep is the deprecation gate for the migration.
  *
  * Compile-time diagnostics surface only on a cold opcache, so restart the web
  * container before sweeping (`make smoke` does).
@@ -71,7 +71,6 @@ function smoke_request($url, $jar, $post = null, $resolve = array())
 		'status' => curl_getinfo($ch, CURLINFO_HTTP_CODE),
 		'error' => curl_error($ch),
 	);
-	curl_close($ch);
 
 	return $result;
 }
@@ -218,6 +217,13 @@ function smoke_pass($label, $base, $jar, $resolve, &$diagnostics, &$fatals)
 }
 
 
+// The sweep gates deprecations, so any diagnostic fails it, not just a fatal.
+function smoke_exit_code($diagnostics, $fatals)
+{
+	return ($diagnostics || $fatals) ? 1 : 0;
+}
+
+
 function smoke_main($base, $user, $pass, $resolve)
 {
 	$diagnostics = array();
@@ -258,12 +264,12 @@ function smoke_main($base, $user, $pass, $resolve)
 		foreach ($fatals as $fatal)
 			echo '  - '.$fatal."\n";
 
-		return 1;
+		return smoke_exit_code($diagnostics, $fatals);
 	}
 
 	echo "\nno fatals\n";
 
-	return 0;
+	return smoke_exit_code($diagnostics, $fatals);
 }
 
 

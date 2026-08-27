@@ -36,6 +36,11 @@ echo 'ROW='.$db->result($result)."\n";
 $db->free_result($result);
 $db->free_result($result);
 
+// An empty result set: result() must report failure rather than read a column
+// off the bool(false) the fetch returns.
+$empty = $db->query('SELECT v FROM t WHERE id = 999');
+echo 'EMPTY_RESULT=', var_export($db->result($empty), true), "\n";
+
 // A request that ends inside a transaction: close() has to commit and still
 // leave the object safe for the second close() from __destruct().
 $db->start_transaction();

@@ -44,6 +44,11 @@ class Sqlite3LifecycleTest extends TestCase {
 		$this->assertStringContainsString("bool(true)\nbool(false)", $this->output, $this->output);
 	}
 
+	/** An empty result set: result() reports failure instead of indexing bool(false). */
+	public function testResultReportsFailureForAnEmptyResultSet(): void {
+		$this->assertStringContainsString('EMPTY_RESULT=false', $this->output, $this->output);
+	}
+
 	public function testNoDiagnosticReachesTheOutput(): void {
 		foreach (array('Fatal error', 'Uncaught', 'Parse error', 'Warning:', 'Deprecated:', 'Notice:') as $marker)
 			$this->assertStringNotContainsString($marker, $this->output, $this->output);

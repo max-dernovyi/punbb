@@ -51,14 +51,14 @@ $db->query('INSERT INTO '.$table.' (label) VALUES (\'first\')');
 echo 'INSERT_ID=', var_export($db->insert_id(), true), "\n";
 echo 'AFFECTED=', var_export($db->affected_rows(), true), "\n";
 
-// A failed query must clear that text, so insert_id() cannot report the
-// sequence of the INSERT that came before it.
-$db->query('SELECT * FROM a_table_that_does_not_exist');
-echo 'INSERT_ID_AFTER_FAILURE=', var_export($db->insert_id(), true), "\n";
-
 // A later successful INSERT still reports its own id.
 $db->query('INSERT INTO '.$table.' (label) VALUES (\'second\')');
 echo 'INSERT_ID_AGAIN=', var_export($db->insert_id(), true), "\n";
+
+// An empty result set: result() must report failure, the same as every other
+// driver, rather than raise a diagnostic of its own.
+$empty = $db->query('SELECT label FROM '.$table.' WHERE id = 999');
+echo 'EMPTY_RESULT=', var_export($db->result($empty), true), "\n";
 
 $db->query('DROP TABLE '.$table);
 

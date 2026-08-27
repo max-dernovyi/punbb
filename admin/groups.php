@@ -32,7 +32,7 @@ if (isset($_POST['add_group']) || isset($_GET['edit_group']))
 	{
 		($hook = get_hook('agr_add_group_form_submitted')) ? eval($hook) : null;
 
-		$base_group = intval($_POST['base_group']);
+		$base_group = intval($_POST['base_group'] ?? 0);
 
 		$query = array(
 			'SELECT'	=> 'g.*',
@@ -43,6 +43,9 @@ if (isset($_POST['add_group']) || isset($_GET['edit_group']))
 		($hook = get_hook('agr_add_group_qr_get_base_group')) ? eval($hook) : null;
 		$result = $forum_db->query_build($query) or error(__FILE__, __LINE__);
 		$group = $forum_db->fetch_assoc($result);
+
+		if (!$group)
+			message($lang_common['Bad request']);
 
 		$mode = 'add';
 	}
@@ -327,8 +330,8 @@ else if (isset($_POST['add_edit_group']))
 	// Is this the admin group? (special rules apply)
 	$is_admin_group = (isset($_POST['group_id']) && $_POST['group_id'] == FORUM_ADMIN) ? true : false;
 
-	$title = forum_trim($_POST['req_title']);
-	$user_title = forum_trim($_POST['user_title']);
+	$title = forum_trim($_POST['req_title'] ?? '');
+	$user_title = forum_trim($_POST['user_title'] ?? '');
 	$moderator = isset($_POST['moderator']) && $_POST['moderator'] == '1' ? '1' : '0';
 	$mod_edit_users = $moderator == '1' && isset($_POST['mod_edit_users']) && $_POST['mod_edit_users'] == '1' ? '1' : '0';
 	$mod_rename_users = $moderator == '1' && isset($_POST['mod_rename_users']) && $_POST['mod_rename_users'] == '1' ? '1' : '0';
@@ -357,7 +360,7 @@ else if (isset($_POST['add_edit_group']))
 	($hook = get_hook('agr_add_edit_end_validation')) ? eval($hook) : null;
 
 
-	if ($_POST['mode'] == 'add')
+	if (($_POST['mode'] ?? '') == 'add')
 	{
 		($hook = get_hook('agr_add_add_group')) ? eval($hook) : null;
 
@@ -388,7 +391,7 @@ else if (isset($_POST['add_edit_group']))
 		$query = array(
 			'SELECT'	=> 'fp.forum_id, fp.read_forum, fp.post_replies, fp.post_topics',
 			'FROM'		=> 'forum_perms AS fp',
-			'WHERE'		=> 'group_id='.intval($_POST['base_group'])
+			'WHERE'		=> 'group_id='.intval($_POST['base_group'] ?? 0)
 		);
 
 		($hook = get_hook('agr_add_end_qr_get_group_forum_perms')) ? eval($hook) : null;
@@ -407,7 +410,7 @@ else if (isset($_POST['add_edit_group']))
 	}
 	else
 	{
-		$group_id = intval($_POST['group_id']);
+		$group_id = intval($_POST['group_id'] ?? 0);
 
 		($hook = get_hook('agr_edit_end_edit_group')) ? eval($hook) : null;
 
@@ -453,18 +456,18 @@ else if (isset($_POST['add_edit_group']))
 	generate_quickjump_cache();
 
 	// Add flash message
-	$forum_flash->add_info((($_POST['mode'] == 'edit') ? $lang_admin_groups['Group edited'] : $lang_admin_groups['Group added']));
+	$forum_flash->add_info(((($_POST['mode'] ?? '') == 'edit') ? $lang_admin_groups['Group edited'] : $lang_admin_groups['Group added']));
 
 	($hook = get_hook('agr_add_edit_pre_redirect')) ? eval($hook) : null;
 
-	redirect(forum_link($forum_url['admin_groups']), (($_POST['mode'] == 'edit') ? $lang_admin_groups['Group edited'] : $lang_admin_groups['Group added']));
+	redirect(forum_link($forum_url['admin_groups']), ((($_POST['mode'] ?? '') == 'edit') ? $lang_admin_groups['Group edited'] : $lang_admin_groups['Group added']));
 }
 
 
 // Set default group
 else if (isset($_POST['set_default_group']))
 {
-	$group_id = intval($_POST['default_group']);
+	$group_id = intval($_POST['default_group'] ?? 0);
 
 	($hook = get_hook('agr_set_default_group_form_submitted')) ? eval($hook) : null;
 
@@ -555,7 +558,7 @@ else if (isset($_GET['del_group']))
 		{
 			$query = array(
 				'UPDATE'	=> 'users',
-				'SET'		=> 'group_id='.intval($_POST['move_to_group']),
+				'SET'		=> 'group_id='.intval($_POST['move_to_group'] ?? 0),
 				'WHERE'		=> 'group_id='.$group_id
 			);
 

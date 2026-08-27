@@ -519,7 +519,7 @@ function preparse_tags($text, &$errors, $is_signature = false)
 //
 // Preparse the contents of [list] bbcode
 //
-function preparse_list_tag($content, $type = '*', &$errors)
+function preparse_list_tag($content, $type, &$errors)
 {
 	global $lang_common;
 
@@ -555,7 +555,8 @@ function split_text($text, $start, $end, &$errors, $retab = true)
 
 	$tokens = explode($start, $text);
 
-	$outside[] = $tokens[0];
+	$inside = array();
+	$outside = array($tokens[0]);
 
 	$num_tokens = count($tokens);
 	for ($i = 1; $i < $num_tokens; ++$i)

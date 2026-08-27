@@ -27,7 +27,7 @@
         "post-install-cmd": "@protect-vendor",
         "post-update-cmd": "@protect-vendor",
         "protect-vendor": "@php -r \"file_put_contents('vendor/.htaccess', implode(PHP_EOL, ['# Composer tree. Never served.', '<IfModule mod_authz_core.c>', 'Require all denied', '</IfModule>', '<IfModule !mod_authz_core.c>', 'Order allow,deny', 'Deny from all', '</IfModule>', '']));\"",
-        "lint": "parallel-lint --colors --exclude vendor --exclude .git .",
+        "lint": "@php .dev/bin/lint.php",
         "smoke": "@php .dev/bin/smoke.php",
         "stan": "phpstan analyse --memory-limit=1G",
         "test": "phpunit"

@@ -8,6 +8,16 @@ unreleased
  * install.php and db_update.php now refuse to run unless PHP 8.4+, the mbstring, intl, json and xml extensions and at least one supported database extension are present.
  * Removed magic quotes handling.
  * Fixed the pgsql driver for the PgSql\Connection and PgSql\Result objects ext/pgsql returns since PHP 8.1.
+ * Database drivers now own their failures: each sets its own error mode, catches the driver exception and renders the forum error page. $forum_db->query() no longer returns false on a failed query, and extensions relying on that return value must handle the error page instead.
+ * Fixed the values passed to internal functions where a missing request key or a nullable column produced null. Absent inputs are normalised at the source; a request that cannot be honoured is now rejected instead of rendered off a missing row.
+ * Declared all class properties explicitly and dropped the PHP 4 var declarations, so no class relies on dynamic properties.
+ * Removed the @/**/ error-suppression idiom and handled the errors it hid, notably in the avatar upload path (getimagesize() failures now report a bad type instead of unpacking false).
+ * Replaced utf8_decode()/utf8_encode(), xml_parser_free() and $http_response_header, all deprecated. Transliteration for URL and search slugs now goes through mbstring.
+ * result() returns false for an empty result set on every driver.
+ * MySQL 8 made GROUPS and RANK reserved words. The mysqli drivers now quote every generated identifier and table reference; $forum_db->quote_identifier() is available on all four drivers for extensions writing raw SQL.
+ * The PHP session cookie now follows $cookie_path, $cookie_domain and $cookie_secure from config.php and is HttpOnly. Existing sessions are dropped on upgrade.
+ * Removed forum_unregister_globals(); register_globals has not existed since PHP 5.4.
+ * preparse_list_tag() no longer defaults $type: an optional parameter before a by-reference one is illegal in PHP 8.
 
 
 PunBB 1.4.4

@@ -57,6 +57,27 @@ class MysqliLifecycleTest extends TestCase {
 		$this->assertStringContainsString("bool(true)\nbool(false)", $this->harness($driver));
 	}
 
+	/**
+	 * mysqli_query() returns bool(true) for a write, and a truthiness guard let
+	 * that reach mysqli_fetch_assoc(), a TypeError on PHP 8 that @ cannot
+	 * suppress. Every reader reports failure instead.
+	 */
+	#[\PHPUnit\Framework\Attributes\DataProvider('drivers')]
+	public function testTheResultReadersRefuseTheBoolAWriteReturns(string $driver): void {
+		$output = $this->harness($driver);
+
+		$this->assertStringContainsString('WRITE_RESULT=true', $output, $output);
+
+		foreach (array('READ_ASSOC', 'READ_ROW', 'READ_NUM_ROWS', 'READ_RESULT') as $reader)
+			$this->assertStringContainsString($reader.'=false', $output, $output);
+	}
+
+	/** An empty result set: result() reports failure instead of indexing bool(false). */
+	#[\PHPUnit\Framework\Attributes\DataProvider('drivers')]
+	public function testResultReportsFailureForAnEmptyResultSet(string $driver): void {
+		$this->assertStringContainsString('EMPTY_RESULT=false', $this->harness($driver));
+	}
+
 	#[\PHPUnit\Framework\Attributes\DataProvider('drivers')]
 	public function testNoDiagnosticReachesTheOutput(string $driver): void {
 		$output = $this->harness($driver);

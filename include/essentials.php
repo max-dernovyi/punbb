@@ -31,9 +31,6 @@ require FORUM_ROOT.'include/utf8/utf8.php';
 require FORUM_ROOT.'include/utf8/ucwords.php';
 require FORUM_ROOT.'include/utf8/trim.php';
 
-// Reverse the effect of register_globals
-forum_unregister_globals();
-
 // Ignore any user abort requests
 ignore_user_abort(true);
 
@@ -69,11 +66,9 @@ if (defined('FORUM_DEBUG'))
 else
 	error_reporting(E_ALL ^ E_NOTICE);
 
-// Detect UTF-8 support in PCRE
-if (@/**/preg_match('/\p{L}/u', 'a') !== FALSE)
-{
-	define('FORUM_SUPPORT_PCRE_UNICODE', 1);
-}
+// PCRE2 in PHP 8.4 always carries UTF-8 support, and include/utf8/utf8.php has
+// already fataled above if it did not. The constant stays: extensions read it.
+define('FORUM_SUPPORT_PCRE_UNICODE', 1);
 
 // Force POSIX locale (to prevent functions such as strtolower() from messing up UTF-8 strings)
 setlocale(LC_CTYPE, 'C');

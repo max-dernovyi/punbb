@@ -8,13 +8,18 @@ Thank you for downloading PunBB.
 	---------------
  1. Download the latest revision of PunBB from https://punbb.informer.com/. Decompress the PunBB archive to a directory.
  2. Copy (or upload) all the files contained in this archive into the directory where you want to run your forums. (e.g. /home/user/www/punbb/)
- 3. Run install.php from the forum admin directory (e.g. open http://example.com/punbb/admin/install.php in your browser). Follow the instructions.
+ 3. Run "composer install --no-dev" in that directory to generate vendor/autoload.php. PunBB does not start without it.
+ 4. Copy .htaccess.dist to .htaccess (merge into it if you already have one). It denies access to vendor/, .dev/ and the tooling manifests, and holds the SEF rewrite rules.
+ 5. Run install.php from the forum admin directory (e.g. open http://example.com/punbb/admin/install.php in your browser). Follow the instructions.
 
 	 Requirements
 	--------------
  - A webserver
- - PHP 5
- - A database where forum data is to be stored, created in one of: MySQL 4.1.2 or later, PostgreSQL 7.0 or later or SQLite 2 or later
+ - PHP 8.4 or later, with the mbstring, intl, json and xml extensions
+ - Composer 2
+ - A database where forum data is to be stored, created in one of: MySQL 8.0 or later, PostgreSQL 13 or later or SQLite 3
+
+Supported $db_type values in config.php: mysqli, mysqli_innodb, pgsql, sqlite3. The mysql, mysql_innodb and sqlite (SQLite2) drivers were removed together with the PHP extensions they needed - an existing forum on one of them must change $db_type before running admin/db_update.php.
 
 	 Upgrade from 1.2 or 1.3 pre release versions
 	----------------------------------------------
@@ -51,7 +56,7 @@ NOTE: You may use the pun_repository official PunBB extension to download and in
 
  - Run it under a UNIX-like operating system!
  - Use a proper webserver such as Apache or Zeus.
- - Use a PHP cache/accelerator tool such as eAccelerator or Alternative PHP Cache.
+ - Use a PHP opcode cache. OPcache ships with PHP and only needs enabling.
  - Make sure that PHP has zlib support so you can enable gzip output compression in "Administration", "Settings". This greatly reduces the size of the XHTML output at a little cost of CPU time. An alternative is to use the Apache modules mod_gzip or mod_deflate. The two methods yield similar results.
  - Visit the administration interface and disable any forum features that are not used or you feel unnecessary.
 

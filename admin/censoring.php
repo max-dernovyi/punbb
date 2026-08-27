@@ -28,8 +28,8 @@ require FORUM_ROOT.'lang/'.$forum_user['language'].'/admin_censoring.php';
 // Add a censor word
 if (isset($_POST['add_word']))
 {
-	$search_for = forum_trim($_POST['new_search_for']);
-	$replace_with = forum_trim($_POST['new_replace_with']);
+	$search_for = forum_trim($_POST['new_search_for'] ?? '');
+	$replace_with = forum_trim($_POST['new_replace_with'] ?? '');
 
 	if ($search_for == '' || $replace_with == '')
 		message($lang_admin_censoring['Must enter text message']);
@@ -63,10 +63,13 @@ if (isset($_POST['add_word']))
 // Update a censor word
 else if (isset($_POST['update']))
 {
+	if (!is_array($_POST['update']))
+		message($lang_common['Bad request']);
+
 	$id = intval(key($_POST['update']));
 
-	$search_for = forum_trim($_POST['search_for'][$id]);
-	$replace_with = forum_trim($_POST['replace_with'][$id]);
+	$search_for = forum_trim($_POST['search_for'][$id] ?? '');
+	$replace_with = forum_trim($_POST['replace_with'][$id] ?? '');
 
 	if ($search_for == '' || $replace_with == '')
 		message($lang_admin_censoring['Must enter text message']);
@@ -100,6 +103,9 @@ else if (isset($_POST['update']))
 // Remove a censor word
 else if (isset($_POST['remove']))
 {
+	if (!is_array($_POST['remove']))
+		message($lang_common['Bad request']);
+
 	$id = intval(key($_POST['remove']));
 
 	($hook = get_hook('acs_remove_form_submitted')) ? eval($hook) : null;

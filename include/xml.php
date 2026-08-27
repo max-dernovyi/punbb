@@ -24,10 +24,15 @@ function xml_to_array($raw_xml)
 	xml_parser_set_option($xml_parser, XML_OPTION_CASE_FOLDING, 0);
 	xml_parser_set_option($xml_parser, XML_OPTION_SKIP_WHITE, 0);
 	xml_parse_into_struct($xml_parser, $raw_xml, $vals);
-	xml_parser_free($xml_parser);
+	// The parser has been an object since PHP 8.0, freed with its last
+	// reference; the explicit free call does nothing and is deprecated in 8.5.
 	unset($xml_parser);
 
 	$_tmp = '';
+	$level = array();
+	$multi_key = array();
+	$multi_key2 = array();
+
 	foreach ($vals as $xml_elem)
 	{
 		$x_tag = $xml_elem['tag'];
@@ -63,7 +68,7 @@ function xml_to_array($raw_xml)
 		$start_level = 1;
 		$php_stmt = '$xml_array';
 		if ($x_type == 'close' && $x_level != 1)
-			$multi_key[$x_tag][$x_level]++;
+			$multi_key[$x_tag][$x_level] = (isset($multi_key[$x_tag][$x_level]) ? $multi_key[$x_tag][$x_level] : 0) + 1;
 
 		while ($start_level < $x_level)
 		{
@@ -111,13 +116,20 @@ function xml_to_array($raw_xml)
 		}
 	}
 
-	if (isset($xml_array))
+	// A lone <extension>text</extension> parses to a scalar; writing a string
+	// key on it is a TypeError since PHP 8, so leave it for validate_manifest()
+	// to report as an extension root error.
+	if (isset($xml_array) && isset($xml_array['extension']) && is_array($xml_array['extension']))
 	{
 		// Make sure there's an array of notes (even if there is only one)
+		// A lone element parses to a scalar, and current() is fatal on one
+		// since PHP 8, so the array check has to come first.
 		if (isset($xml_array['extension']['note']))
 		{
-			if (!is_array(current($xml_array['extension']['note'])))
-				$xml_array['extension']['note'] = array($xml_array['extension']['note']);
+			$note = $xml_array['extension']['note'];
+
+			if (!is_array($note) || !is_array(current($note)))
+				$xml_array['extension']['note'] = array($note);
 		}
 		else
 			$xml_array['extension']['note'] = array();
@@ -125,8 +137,10 @@ function xml_to_array($raw_xml)
 		// Make sure there's an array of hooks (even if there is only one)
 		if (isset($xml_array['extension']['hooks']) && isset($xml_array['extension']['hooks']['hook']))
 		{
-			if (!is_array(current($xml_array['extension']['hooks']['hook'])))
-				$xml_array['extension']['hooks']['hook'] = array($xml_array['extension']['hooks']['hook']);
+			$hook = $xml_array['extension']['hooks']['hook'];
+
+			if (!is_array($hook) || !is_array(current($hook)))
+				$xml_array['extension']['hooks']['hook'] = array($hook);
 		}
 	}
 

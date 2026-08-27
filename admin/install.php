@@ -56,7 +56,7 @@ function generate_config_file()
 {
 	global $db_type, $db_host, $db_name, $db_username, $db_password, $db_prefix, $base_url, $cookie_name;
 
-	$config_body = '<?php'."\n\n".'$db_type = \''.$db_type."';\n".'$db_host = \''.$db_host."';\n".'$db_name = \''.addslashes($db_name)."';\n".'$db_username = \''.addslashes($db_username)."';\n".'$db_password = \''.addslashes($db_password)."';\n".'$db_prefix = \''.addslashes($db_prefix)."';\n".'$p_connect = false;'."\n\n".'$base_url = \''.$base_url.'\';'."\n\n".'$cookie_name = '."'".$cookie_name."';\n".'$cookie_domain = '."'';\n".'$cookie_path = '."'/';\n".'$cookie_secure = 0;'."\n\ndefine('FORUM', 1);";
+	$config_body = '<?php'."\n\n".'$db_type = \''.addslashes($db_type)."';\n".'$db_host = \''.addslashes($db_host)."';\n".'$db_name = \''.addslashes($db_name)."';\n".'$db_username = \''.addslashes($db_username)."';\n".'$db_password = \''.addslashes($db_password)."';\n".'$db_prefix = \''.addslashes($db_prefix)."';\n".'$p_connect = false;'."\n\n".'$base_url = \''.addslashes($base_url).'\';'."\n\n".'$cookie_name = '."'".addslashes($cookie_name)."';\n".'$cookie_domain = '."'';\n".'$cookie_path = '."'/';\n".'$cookie_secure = 0;'."\n\ndefine('FORUM', 1);";
 
 	// Add forum options
 	$config_body .= "\n\n// Enable DEBUG mode by removing // from the following line\n//define('FORUM_DEBUG', 1);";
@@ -71,7 +71,7 @@ function generate_config_file()
 	return $config_body;
 }
 
-$language = isset($_GET['lang']) ? $_GET['lang'] : (isset($_POST['req_language']) ? forum_trim($_POST['req_language']) : 'English');
+$language = isset($_GET['lang']) && is_string($_GET['lang']) ? $_GET['lang'] : (isset($_POST['req_language']) && is_string($_POST['req_language']) ? forum_trim($_POST['req_language']) : 'English');
 $language = preg_replace('#[\.\\\/]#', '', $language);
 if (!file_exists(FORUM_ROOT.'lang/'.$language.'/install.php'))
 	exit('The language pack you have chosen doesn\'t seem to exist or is corrupt. Please recheck and try again.');
@@ -82,17 +82,27 @@ require FORUM_ROOT.'lang/'.$language.'/admin_settings.php';
 
 if (isset($_POST['generate_config']))
 {
+	// A field posted as name[]=x is an array; every one of them feeds a string context below
+	$config_fields = array();
+	foreach (array('db_type', 'db_host', 'db_name', 'db_username', 'db_password', 'db_prefix', 'base_url', 'cookie_name') as $field)
+	{
+		if (isset($_POST[$field]) && !is_string($_POST[$field]))
+			exit('Bad request. Every configuration field must be a single value.');
+
+		$config_fields[$field] = $_POST[$field] ?? '';
+	}
+
 	header('Content-Type: text/x-delimtext; name="config.php"');
 	header('Content-disposition: attachment; filename=config.php');
 
-	$db_type = $_POST['db_type'];
-	$db_host = $_POST['db_host'];
-	$db_name = $_POST['db_name'];
-	$db_username = $_POST['db_username'];
-	$db_password = $_POST['db_password'];
-	$db_prefix = $_POST['db_prefix'];
-	$base_url = $_POST['base_url'];
-	$cookie_name = $_POST['cookie_name'];
+	$db_type = $config_fields['db_type'];
+	$db_host = $config_fields['db_host'];
+	$db_name = $config_fields['db_name'];
+	$db_username = $config_fields['db_username'];
+	$db_password = $config_fields['db_password'];
+	$db_prefix = $config_fields['db_prefix'];
+	$base_url = $config_fields['base_url'];
+	$cookie_name = $config_fields['cookie_name'];
 
 	echo generate_config_file();
 	exit;
@@ -364,23 +374,22 @@ if (!isset($_POST['form_sent']))
 }
 else
 {
-	$db_type = $_POST['req_db_type'];
-	$db_host = forum_trim($_POST['req_db_host']);
-	$db_name = forum_trim($_POST['req_db_name']);
-	$db_username = forum_trim($_POST['db_username']);
-	$db_password = forum_trim($_POST['db_password']);
-	$db_prefix = forum_trim($_POST['db_prefix']);
-	$username = forum_trim($_POST['req_username']);
-	$email = strtolower(forum_trim($_POST['req_email']));
-	$password1 = forum_trim($_POST['req_password1']);
-	$default_lang = preg_replace('#[\.\\\/]#', '', forum_trim($_POST['req_language']));
+	$db_type = $_POST['req_db_type'] ?? '';
+	$db_host = forum_trim($_POST['req_db_host'] ?? '');
+	$db_name = forum_trim($_POST['req_db_name'] ?? '');
+	$db_username = forum_trim($_POST['db_username'] ?? '');
+	$db_password = forum_trim($_POST['db_password'] ?? '');
+	$db_prefix = forum_trim($_POST['db_prefix'] ?? '');
+	$username = forum_trim($_POST['req_username'] ?? '');
+	$email = strtolower(forum_trim($_POST['req_email'] ?? ''));
+	$password1 = forum_trim($_POST['req_password1'] ?? '');
+	$default_lang = preg_replace('#[\.\\\/]#', '', forum_trim($_POST['req_language'] ?? ''));
 	$install_pun_repository = !empty($_POST['install_pun_repository']);
 
 	// Make sure base_url doesn't end with a slash
-	if (substr($_POST['req_base_url'], -1) == '/')
-		$base_url = substr($_POST['req_base_url'], 0, -1);
-	else
-		$base_url = $_POST['req_base_url'];
+	$base_url = forum_trim($_POST['req_base_url'] ?? '');
+	if (substr($base_url, -1) == '/')
+		$base_url = substr($base_url, 0, -1);
 
 	// Validate form
 	if (utf8_strlen($db_name) == 0)
@@ -1770,7 +1779,7 @@ else
 
 	// Insert the default ranks
 	$query = array(
-		'INSERT'	=> 'rank, min_posts',
+		'INSERT'	=> $forum_db->quote_identifier('rank').', min_posts',
 		'INTO'		=> 'ranks',
 		'VALUES'	=> '\''.$lang_install['Default rank 1'].'\', 0'
 	);
@@ -1778,7 +1787,7 @@ else
 	$forum_db->query_build($query) or error(__FILE__, __LINE__);
 
 	$query = array(
-		'INSERT'	=> 'rank, min_posts',
+		'INSERT'	=> $forum_db->quote_identifier('rank').', min_posts',
 		'INTO'		=> 'ranks',
 		'VALUES'	=> '\''.$lang_install['Default rank 2'].'\', 10'
 	);

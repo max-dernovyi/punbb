@@ -14,18 +14,18 @@ if (!class_exists('SQLite3'))
 
 class DBLayer
 {
-    public $prefix;
-    public $link_id;
-    public $query_result;
-    public $in_transaction = 0;
+	public $prefix;
+	public $link_id;
+	public $query_result;
+	public int $in_transaction = 0;
 
-    public $saved_queries = array();
-    public $num_queries = 0;
+	public array $saved_queries = array();
+	public int $num_queries = 0;
 
-    public $error_no = false;
-    public $error_msg = 'Unknown';
+	public $error_no = false;
+	public $error_msg = 'Unknown';
 
-    public $datatype_transformations = array(
+	public array $datatype_transformations = array(
 		'/^SERIAL$/'															=>	'INTEGER',
 		'/^(TINY|SMALL|MEDIUM|BIG)?INT( )?(\\([0-9]+\\))?( )?(UNSIGNED)?$/i'	=>	'INTEGER',
 		'/^(TINY|MEDIUM|LONG)?TEXT$/i'											=>	'TEXT'
@@ -40,44 +40,117 @@ class DBLayer
 
 		if (!file_exists($db_name))
 		{
-			@/**/touch($db_name);
-			@/**/chmod($db_name, 0666);
-			if (!file_exists($db_name))
-				error('Unable to create new database \''.$db_name.'\'. Permission denied.', __FILE__, __LINE__);
+			// touch() warns when the directory is not writable; the return value
+			// is what decides here, and the forum error page reports it.
+			if (!@touch($db_name) || !file_exists($db_name))
+				error('Unable to create new database. Permission denied.'.(defined('FORUM_DEBUG') ? ' \''.forum_htmlencode($db_name).'\'' : ''), __FILE__, __LINE__);
+
+			@chmod($db_name, 0666);
 		}
 
 		if (!is_readable($db_name))
-			error('Unable to open database \''.$db_name.'\' for reading. Permission denied.', __FILE__, __LINE__);
+			error('Unable to open database for reading. Permission denied.'.(defined('FORUM_DEBUG') ? ' \''.forum_htmlencode($db_name).'\'' : ''), __FILE__, __LINE__);
 
 		if (!is_writable($db_name))
-			error('Unable to open database \''.$db_name.'\' for writing. Permission denied.', __FILE__, __LINE__);
+			error('Unable to open database for writing. Permission denied.'.(defined('FORUM_DEBUG') ? ' \''.forum_htmlencode($db_name).'\'' : ''), __FILE__, __LINE__);
 
-		@/**/$this->link_id = new SQLite3($db_name, SQLITE3_OPEN_READWRITE);
+		// The SQLite3 constructor throws when the file cannot be opened.
+		try
+		{
+			$this->link_id = new SQLite3($db_name, SQLITE3_OPEN_READWRITE);
+		}
+		catch (Exception $e)
+		{
+			$this->error_msg = $e->getMessage();
 
-		if (!$this->link_id)
-			error('Unable to open database \''.$db_name.'\'.', __FILE__, __LINE__);
-		else
-			return $this->link_id;
+			// The database path and the driver message are disclosure - debug builds only.
+			error('Unable to open database.'.(defined('FORUM_DEBUG') ? ' \''.forum_htmlencode($db_name).'\' - SQLite reported: '.forum_htmlencode($e->getMessage()) : ''), __FILE__, __LINE__);
+		}
+
+		// Without this a failed statement is a warning printed straight into the
+		// page. Exceptions put every failure on the same route as the mysqli
+		// drivers: recorded on the object, rendered by the forum error page.
+		$this->link_id->enableExceptions(true);
+
+		return $this->link_id;
 	}
+
+	public function __destruct()
+	{
+	    $this->close();
+	}
+
+
+	/**
+	 * Render the forum's error page for the failure just recorded.
+	 *
+	 * The file and line reported are the caller's, not this file's: a failure
+	 * has to say which query site produced it, the way the
+	 * "or error(__FILE__, __LINE__)" call sites used to.
+	 */
+	public function report_error()
+	{
+		foreach (debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS) as $frame)
+		{
+			if (isset($frame['file']) && $frame['file'] !== __FILE__)
+				return error($frame['file'], $frame['line']);
+		}
+
+		return error(__FILE__, __LINE__);
+	}
+
 
 	public function start_transaction()
 	{
 		++$this->in_transaction;
 
-		return ($this->link_id->exec('BEGIN TRANSACTION')) ? true : false;
+		try
+		{
+			return ($this->link_id->exec('BEGIN TRANSACTION')) ? true : false;
+		}
+		catch (Exception $e)
+		{
+			--$this->in_transaction;
+			$this->error_no = $this->link_id->lastErrorCode();
+			$this->error_msg = $e->getMessage();
+
+			$this->report_error();
+
+			return false;
+		}
 	}
 
 	public function end_transaction()
 	{
 		--$this->in_transaction;
 
-		if ($this->link_id->exec('COMMIT'))
-			return true;
-		else
+		try
+		{
+			if ($this->link_id->exec('COMMIT'))
+				return true;
+
+			$this->error_no = $this->link_id->lastErrorCode();
+			$this->error_msg = $this->link_id->lastErrorMsg();
+		}
+		catch (Exception $e)
+		{
+			$this->error_no = $this->link_id->lastErrorCode();
+			$this->error_msg = $e->getMessage();
+		}
+
+		// A commit that did not go through leaves the transaction open; roll it
+		// back before the error page ends the request.
+		try
 		{
 			$this->link_id->exec('ROLLBACK');
-			return false;
 		}
+		catch (Exception $rollback_error)
+		{
+		}
+
+		$this->report_error();
+
+		return false;
 	}
 
 	public function query($sql, $unbuffered = false)
@@ -88,7 +161,14 @@ class DBLayer
 		if (defined('FORUM_SHOW_QUERIES') || defined('FORUM_DEBUG'))
 			$q_start = forum_microtime();
 
-		$this->query_result = $this->link_id->query($sql);
+		try
+		{
+			$this->query_result = $this->link_id->query($sql);
+		}
+		catch (Exception $e)
+		{
+			$this->query_result = false;
+		}
 
 		if ($this->query_result)
 		{
@@ -108,9 +188,21 @@ class DBLayer
 			$this->error_msg = $this->link_id->lastErrorMsg();
 
 			if ($this->in_transaction)
-				$this->link_id->exec('ROLLBACK');
+			{
+				try
+				{
+					$this->link_id->exec('ROLLBACK');
+				}
+				catch (Exception $rollback_error)
+				{
+				}
+			}
 
 			--$this->in_transaction;
+
+			// Same contract as the mysqli drivers: a failed query renders the
+			// forum error page rather than handing false back to the caller.
+			$this->report_error();
 
 			return false;
 		}
@@ -206,14 +298,42 @@ class DBLayer
 		return ($return_query_string) ? $sql : $this->query($sql, $unbuffered);
 	}
 
+
+	/**
+	 * Step one row, keeping SQLite3 exceptions inside the driver.
+	 *
+	 * query() only prepares and steps once; every later row is stepped inside
+	 * fetchArray(), so a mid-loop SQLITE_BUSY or SQLITE_IOERR throws here. Same
+	 * contract as query(): recorded on the object, rendered by the error page.
+	 */
+	public function step_row($query_id, $mode)
+	{
+		try
+		{
+			return $query_id->fetchArray($mode);
+		}
+		catch (Throwable $e)
+		{
+			$this->error_no = $this->link_id->lastErrorCode();
+			$this->error_msg = $e->getMessage();
+
+			$this->report_error();
+
+			return false;
+		}
+	}
+
+
 	public function result($query_id = 0, $row = 0, $col = 0)
 	{
-		if ($query_id)
+		// query() returns true for statements without a result set; fetchArray()
+		// on anything but a SQLite3Result is a TypeError, not a warning.
+		if ($query_id instanceof SQLite3Result)
 		{
 			if ($row != 0)
 			{
 				$result_rows = array();
-				while ($cur_result_row = @/**/$query_id->fetchArray(SQLITE3_NUM))
+				while ($cur_result_row = $this->step_row($query_id, SQLITE3_NUM))
 				{
 					$result_rows[] = $cur_result_row;
 				}
@@ -221,9 +341,10 @@ class DBLayer
 				$cur_row = array_slice($result_rows, $row);
 			}
 			else
-				$cur_row = @/**/$query_id->fetchArray(SQLITE3_NUM);
+				$cur_row = $this->step_row($query_id, SQLITE3_NUM);
 
-			return $cur_row[$col];
+			// No such row: false, like the no-result-set branch below
+			return is_array($cur_row) ? $cur_row[$col] : false;
 		}
 		else
 			return false;
@@ -231,9 +352,9 @@ class DBLayer
 
 	public function fetch_assoc($query_id = 0)
 	{
-		if ($query_id)
+		if ($query_id instanceof SQLite3Result)
 		{
-			$cur_row = @/**/$query_id->fetchArray(SQLITE3_ASSOC);
+			$cur_row = $this->step_row($query_id, SQLITE3_ASSOC);
 			if ($cur_row)
 			{
 				// Horrible hack to get rid of table names and table aliases from the array keys
@@ -257,7 +378,7 @@ class DBLayer
 
 	public function fetch_row($query_id = 0)
 	{
-		return ($query_id) ? @/**/$query_id->fetchArray(SQLITE3_NUM) : false;
+		return ($query_id instanceof SQLite3Result) ? $this->step_row($query_id, SQLITE3_NUM) : false;
 	}
 
 	public function num_rows($query_id = 0)
@@ -287,14 +408,15 @@ class DBLayer
 
 	public function free_result($query_id = false)
 	{
-		// PHP 8+ throws on an already-finalised SQLite3Result; @ does not suppress it.
+		// PHP 8+ throws on an already-finalised SQLite3Result; with exceptions
+		// enabled the failure is a SQLite3Exception, not an Error.
 		if ($query_id instanceof SQLite3Result)
 		{
 			try
 			{
-				@/**/$query_id->finalize();
+				$query_id->finalize();
 			}
-			catch (Error $e)
+			catch (Throwable $e)
 			{
 				return false;
 			}
@@ -308,13 +430,29 @@ class DBLayer
 		return is_array($str) ? '' : $this->link_id->escapeString($str);
 	}
 
+
+	/**
+	 * Quote an identifier. The shared application SQL uses this for the few
+	 * column names that are reserved words on some server (MySQL 8 made RANK
+	 * one); here it is the SQL standard double quote.
+	 */
+	public function quote_identifier($name)
+	{
+		return '"'.str_replace('"', '""', $name).'"';
+	}
+
+
 	public function error()
 	{
-		$result['error_sql'] = @/**/current(@/**/end($this->saved_queries));
-		$result['error_no'] = $this->error_no;
-		$result['error_msg'] = $this->error_msg;
+		// current(false) is a TypeError on PHP 8, and the query log is empty
+		// whenever the failure is the connection itself.
+		$last_query = end($this->saved_queries);
 
-		return $result;
+		return array(
+			'error_sql'	=> is_array($last_query) ? current($last_query) : '',
+			'error_no'	=> $this->error_no,
+			'error_msg'	=> $this->error_msg
+		);
 	}
 
 	public function close()
@@ -326,7 +464,15 @@ class DBLayer
 				if (defined('FORUM_SHOW_QUERIES') || defined('FORUM_DEBUG'))
 					$this->saved_queries[] = array('COMMIT', 0);
 
-				$this->link_id->exec('COMMIT');
+				// Shutdown path: the page is already rendered, so a failing
+				// commit has nowhere to go.
+				try
+				{
+					$this->link_id->exec('COMMIT');
+				}
+				catch (Exception $e)
+				{
+				}
 			}
 
 			$link_id = $this->link_id;
@@ -334,12 +480,13 @@ class DBLayer
 			$this->in_transaction = 0;
 
 			// PHP 8+ throws on an already-closed SQLite3 object; close() is called
-			// explicitly (footer.php) and again from __destruct().
+			// explicitly (footer.php) and again from __destruct(). With exceptions
+			// enabled a driver-level failure is a SQLite3Exception, not an Error.
 			try
 			{
-				return @/**/$link_id->close();
+				return $link_id->close();
 			}
-			catch (Error $e)
+			catch (Throwable $e)
 			{
 				return false;
 			}

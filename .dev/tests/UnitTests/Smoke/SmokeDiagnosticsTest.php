@@ -63,6 +63,13 @@ class SmokeDiagnosticsTest extends TestCase {
 		$this->assertFalse(smoke_is_fatal('Notice: something'));
 	}
 
+	/** The sweep gates deprecations, so a warning fails it just like a fatal. */
+	public function testAnyDiagnosticFailsTheSweep(): void {
+		$this->assertSame(0, smoke_exit_code(array(), array()));
+		$this->assertSame(1, smoke_exit_code(array('Deprecated: old in /d.php on line 4' => array('guest index.php')), array()));
+		$this->assertSame(1, smoke_exit_code(array(), array('guest index.php -> Fatal error: boom')));
+	}
+
 	public function testTheWordFatalInPageContentIsNotADiagnostic(): void {
 		$this->assertSame(array(), smoke_diagnostics('<p>A fatal error in the plot ruined the novel.</p>'));
 	}

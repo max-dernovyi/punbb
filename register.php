@@ -126,8 +126,8 @@ else if (isset($_POST['form_sent']))
 	// Did everything go according to plan so far?
 	if (empty($errors))
 	{
-		$username = forum_trim($_POST['req_username']);
-		$email1 = strtolower(forum_trim($_POST['req_email1']));
+		$username = forum_trim($_POST['req_username'] ?? '');
+		$email1 = strtolower(forum_trim($_POST['req_email1'] ?? ''));
 
 		if ($forum_config['o_regs_verify'] == '1')
 		{
@@ -136,8 +136,8 @@ else if (isset($_POST['form_sent']))
 		}
 		else
 		{
-			$password1 = forum_trim($_POST['req_password1']);
-			$password2 = ($forum_config['o_mask_passwords'] == '1') ? forum_trim($_POST['req_password2']) : $password1;
+			$password1 = forum_trim($_POST['req_password1'] ?? '');
+			$password2 = ($forum_config['o_mask_passwords'] == '1') ? forum_trim($_POST['req_password2'] ?? '') : $password1;
 		}
 
 		// Validate the username
@@ -200,6 +200,9 @@ else if (isset($_POST['form_sent']))
 			// Make sure we got a valid language string
 			if (isset($_POST['language']))
 			{
+				if (!is_string($_POST['language']))
+					message($lang_common['Bad request']);
+
 				$language = preg_replace('#[\.\\\/]#', '', $_POST['language']);
 				if (!file_exists(FORUM_ROOT.'lang/'.$language.'/common.php'))
 					message($lang_common['Bad request']);

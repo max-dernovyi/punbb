@@ -32,8 +32,8 @@ if (isset($_POST['add_forum']))
 	if ($add_to_cat < 1)
 		message($lang_common['Bad request']);
 
-	$forum_name = forum_trim($_POST['forum_name']);
-	$position = intval($_POST['position']);
+	$forum_name = forum_trim($_POST['forum_name'] ?? '');
+	$position = intval($_POST['position'] ?? 0);
 
 	($hook = get_hook('afo_add_forum_form_submitted')) ? eval($hook) : null;
 
@@ -211,6 +211,9 @@ else if (isset($_GET['del_forum']))
 // Update forum positions
 else if (isset($_POST['update_positions']))
 {
+	if (!isset($_POST['position']) || !is_array($_POST['position']))
+		message($lang_common['Bad request']);
+
 	$positions = array_map('intval', $_POST['position']);
 
 	($hook = get_hook('afo_update_positions_form_submitted')) ? eval($hook) : null;
@@ -295,10 +298,10 @@ else if (isset($_GET['edit_forum']))
 	if (isset($_POST['save']))
 	{
 		// Start with the forum details
-		$forum_name = forum_trim($_POST['forum_name']);
-		$forum_desc = forum_linebreaks(forum_trim($_POST['forum_desc']));
-		$cat_id = intval($_POST['cat_id']);
-		$sort_by = intval($_POST['sort_by']);
+		$forum_name = forum_trim($_POST['forum_name'] ?? '');
+		$forum_desc = forum_linebreaks(forum_trim($_POST['forum_desc'] ?? ''));
+		$cat_id = intval($_POST['cat_id'] ?? 0);
+		$sort_by = intval($_POST['sort_by'] ?? 0);
 		$redirect_url = isset($_POST['redirect_url']) && $cur_forum['num_topics'] == 0 ? forum_trim($_POST['redirect_url']) : null;
 
 		($hook = get_hook('afo_save_forum_form_submitted')) ? eval($hook) : null;
@@ -343,14 +346,14 @@ else if (isset($_GET['edit_forum']))
 
 				// The old permissions for this group
 				$perms_old = array(
-					'read_forum'	=>	$_POST['read_forum_old'][$cur_group['g_id']],
-					'post_replies'	=>	$_POST['post_replies_old'][$cur_group['g_id']],
-					'post_topics'	=>	$_POST['post_topics_old'][$cur_group['g_id']]
+					'read_forum'	=>	$_POST['read_forum_old'][$cur_group['g_id']] ?? '0',
+					'post_replies'	=>	$_POST['post_replies_old'][$cur_group['g_id']] ?? '0',
+					'post_topics'	=>	$_POST['post_topics_old'][$cur_group['g_id']] ?? '0'
 				);
 
 				// The new permissions for this group
 				$perms_new = array(
-					'read_forum'	=>	($cur_group['g_read_board'] == '1') ? isset($_POST['read_forum_new'][$cur_group['g_id']]) ? '1' : '0' : intval($_POST['read_forum_old'][$cur_group['g_id']]),
+					'read_forum'	=>	($cur_group['g_read_board'] == '1') ? isset($_POST['read_forum_new'][$cur_group['g_id']]) ? '1' : '0' : intval($_POST['read_forum_old'][$cur_group['g_id']] ?? 0),
 					'post_replies'	=>	isset($_POST['post_replies_new'][$cur_group['g_id']]) ? '1' : '0',
 					'post_topics'	=>	isset($_POST['post_topics_new'][$cur_group['g_id']]) ? '1' : '0'
 				);

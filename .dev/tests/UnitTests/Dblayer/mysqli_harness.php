@@ -50,6 +50,21 @@ echo 'ROW='.$db->result($result)."\n";
 $db->free_result($result);
 $db->free_result($result);
 
+// A non-SELECT result is bool(true). The readers must report failure rather
+// than hand it to a fetch function, where PHP 8 raises a TypeError that @
+// cannot suppress.
+$write = $db->query('UPDATE '.$table.' SET v = \'updated\' WHERE id = 1');
+echo 'WRITE_RESULT=', var_export($write, true), "\n";
+echo 'READ_ASSOC=', var_export($db->fetch_assoc($write), true), "\n";
+echo 'READ_ROW=', var_export($db->fetch_row($write), true), "\n";
+echo 'READ_NUM_ROWS=', var_export($db->num_rows($write), true), "\n";
+echo 'READ_RESULT=', var_export($db->result($write), true), "\n";
+
+// An empty result set: result() must report failure rather than read a column
+// off the bool(false) the fetch returns.
+$empty = $db->query('SELECT v FROM '.$table.' WHERE id = 999');
+echo 'EMPTY_RESULT=', var_export($db->result($empty), true), "\n";
+
 $db->query('DROP TABLE '.$table);
 
 // The last query was a write, so query_result holds bool(true), not a

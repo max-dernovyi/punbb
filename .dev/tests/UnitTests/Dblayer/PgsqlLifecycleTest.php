@@ -7,6 +7,10 @@
  * keyed an array by the result, and it called pg_free_result()/pg_close() on
  * already-closed handles. Both are fatal now; this pins the fixes.
  *
+ * A failing query is not exercised here: the driver now renders the forum
+ * error page and exits instead of returning false, which DbErrorRouteTest
+ * covers.
+ *
  * Needs a live server, addressed by PUNBB_TEST_PGSQL_*; the test skips without
  * one so the suite stays runnable on a checkout with no PostgreSQL.
  *
@@ -60,13 +64,13 @@ class PgsqlLifecycleTest extends TestCase {
 		$this->assertHarnessReports('AFFECTED=1');
 	}
 
-	/** A failed query clears the recorded text, so a stale INSERT cannot be reported. */
-	public function testAFailedQueryClearsTheRecordedInsert(): void {
-		$this->assertHarnessReports('INSERT_ID_AFTER_FAILURE=false');
-	}
-
 	public function testALaterInsertStillReportsItsOwnId(): void {
 		$this->assertHarnessReports('INSERT_ID_AGAIN=2');
+	}
+
+	/** An empty result set: result() reports failure, the contract every driver shares. */
+	public function testResultReportsFailureForAnEmptyResultSet(): void {
+		$this->assertHarnessReports('EMPTY_RESULT=false');
 	}
 
 	/** pg_close() on an already-closed PgSql\Connection throws; close() must absorb it. */

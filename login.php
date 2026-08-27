@@ -27,8 +27,8 @@ $errors = array();
 // Login
 if (isset($_POST['form_sent']) && empty($action))
 {
-	$form_username = forum_trim($_POST['req_username']);
-	$form_password = forum_trim($_POST['req_password']);
+	$form_username = forum_trim($_POST['req_username'] ?? '');
+	$form_password = forum_trim($_POST['req_password'] ?? '');
 	$save_pass = isset($_POST['save_pass']);
 
 	($hook = get_hook('li_login_form_submitted')) ? eval($hook) : null;
@@ -119,7 +119,8 @@ if (isset($_POST['form_sent']) && empty($action))
 
 		($hook = get_hook('li_login_pre_redirect')) ? eval($hook) : null;
 
-		redirect(forum_htmlencode($_POST['redirect_url']).((substr_count($_POST['redirect_url'], '?') == 1) ? '&amp;' : '?').'login=1', $lang_login['Login redirect']);
+		$redirect_url = isset($_POST['redirect_url']) && is_string($_POST['redirect_url']) ? $_POST['redirect_url'] : '';
+		redirect(forum_htmlencode($redirect_url).((substr_count($redirect_url, '?') == 1) ? '&amp;' : '?').'login=1', $lang_login['Login redirect']);
 	}
 }
 
@@ -192,7 +193,7 @@ else if ($action == 'forget' || $action == 'forget_2')
 			require FORUM_ROOT.'include/email.php';
 
 		// Validate the email-address
-		$email = strtolower(forum_trim($_POST['req_email']));
+		$email = strtolower(forum_trim($_POST['req_email'] ?? ''));
 		if (!is_valid_email($email))
 			$errors[] = $lang_login['Invalid e-mail'];
 

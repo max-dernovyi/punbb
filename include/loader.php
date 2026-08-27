@@ -23,7 +23,7 @@ class Loader
 	private $libs;
 
 	// Class instance
-	private static $instance;
+	private static ?Loader $instance = null;
 
 
 	// Start of life
@@ -53,7 +53,7 @@ class Loader
 
 	// Clone forbiden
 	public function __clone() {
-		trigger_error('Clone is forbiden.', E_USER_ERROR);
+		throw new Error('Clone is forbidden.');
 	}
 
 

@@ -424,6 +424,10 @@ function generate_action_search_query($action, $value, &$search_id, &$url_type, 
 	if ($return !== null)
 		return $return;
 
+	// An unknown action falls through the switch; the callers treat an empty
+	// query as "no results".
+	$query = array();
+
 	switch ($action)
 	{
 		case 'show_new':
@@ -743,8 +747,8 @@ function get_search_results($query, &$search_set)
 		return 0;
 
 	// Work out the settings for pagination
-	$forum_page['num_pages'] = ($forum_page['per_page'] == 0) ? 1 : ceil($num_hits / $forum_page['per_page']);
-	$forum_page['page'] = (!isset($_GET['p']) || !is_numeric($_GET['p']) || $_GET['p'] <= 1 || $_GET['p'] > $forum_page['num_pages']) ? 1 : $_GET['p'];
+	$forum_page['num_pages'] = ($forum_page['per_page'] == 0) ? 1 : (int) ceil($num_hits / $forum_page['per_page']);
+	$forum_page['page'] = (!isset($_GET['p']) || !is_numeric($_GET['p']) || $_GET['p'] <= 1 || $_GET['p'] > $forum_page['num_pages']) ? 1 : (int) $_GET['p'];
 
 	// Determine the topic or post offset (based on $forum_page['page'])
 	$forum_page['start_from'] = $forum_page['per_page'] * ($forum_page['page'] - 1);

@@ -94,6 +94,12 @@ require FORUM_ROOT.'include/dblayer/common_db.php';
 // Start a transaction
 $forum_db->start_transaction();
 
+// A missing or misprefixed config table is what this script has to report by
+// name: query() renders the generic error page and exits, so probe first with a
+// call that succeeds on an absent table.
+if (!$forum_db->table_exists('config'))
+	error('Version mismatch. The database \''.$db_name.'\' doesn\'t seem to be running a PunBB database schema supported by this update script.', __FILE__, __LINE__);
+
 // Check current version
 $query = array(
 	'SELECT'	=> 'conf_value',
@@ -115,7 +121,7 @@ if (in_array($db_type, array('mysqli', 'mysqli_innodb')))
 {
 	$mysql_info = $forum_db->get_version();
 	if (version_compare($mysql_info['version'], MIN_MYSQL_VERSION, '<'))
-		error('You are running MySQL version '.$mysql_version.'. PunBB '.UPDATE_TO.' requires at least MySQL '.MIN_MYSQL_VERSION.' to run properly. You must upgrade your MySQL installation before you can continue.');
+		error('You are running MySQL version '.$mysql_info['version'].'. PunBB '.UPDATE_TO.' requires at least MySQL '.MIN_MYSQL_VERSION.' to run properly. You must upgrade your MySQL installation before you can continue.');
 }
 
 // Get the forum config
@@ -257,12 +263,21 @@ function convert_to_utf8(&$str, $old_charset)
 
 	if (!seems_utf8($str))
 	{
-		if ($old_charset == 'ISO-8859-1')
-			$str = utf8_encode($str);
-		else if (function_exists('iconv'))
-			$str = iconv($old_charset, 'UTF-8', $str);
-		else if (function_exists('mb_convert_encoding'))
-			$str = mb_convert_encoding($str, 'UTF-8', $old_charset);
+		// mbstring is a hard requirement, iconv is not, so prefer mb_convert_encoding()
+		// and fall back to iconv() only for names mbstring does not know.
+		static $mb_encodings = null;
+		if ($mb_encodings === null)
+			$mb_encodings = array_map('strtoupper', mb_list_encodings());
+
+		$converted = in_array($old_charset, $mb_encodings, true)
+			? mb_convert_encoding($str, 'UTF-8', $old_charset)
+			: (function_exists('iconv') ? @iconv($old_charset, 'UTF-8', $str) : false);
+
+		// A failed conversion returns false, which would blank the row on write
+		if ($converted === false)
+			exit('Failed to convert a value to UTF-8 from the requested character set. Conversion aborted.');
+
+		$str = $converted;
 	}
 
 	// Replace literal entities (for UTF-8 compliant html_entity_encode)
@@ -373,8 +388,9 @@ function convert_table_utf8($table)
 		{
 			$allow_null = ($cur_column['Null'] == 'YES');
 
-			$forum_db->alter_field($table, $cur_column['Field'], preg_replace('/'.$type.'/i', $types[$type], $cur_column['Type']), $allow_null, $cur_column['Default']);
-			$forum_db->alter_field($table, $cur_column['Field'], $cur_column['Type'].' CHARACTER SET utf8', $allow_null, $cur_column['Default']);
+			// $table is already prefixed - alter_field() must not prefix it again.
+			$forum_db->alter_field($table, $cur_column['Field'], preg_replace('/'.$type.'/i', $types[$type], $cur_column['Type']), $allow_null, $cur_column['Default'], null, true);
+			$forum_db->alter_field($table, $cur_column['Field'], $cur_column['Type'].' CHARACTER SET utf8', $allow_null, $cur_column['Default'], null, true);
 		}
 	}
 }
@@ -431,17 +447,20 @@ function convert_avatars()
 				}
 
 				// Now check the width/height
-				list($width, $height, $type,) = @/**/getimagesize($avatar_file);
-				if (empty($width) || empty($height) || $width > $forum_config['o_avatars_width'] || $height > $forum_config['o_avatars_height'])
+				$avatar_size = forum_avatar_size($avatar_file);
+				if ($avatar_size === false || $avatar_size[0] > $forum_config['o_avatars_width'] || $avatar_size[1] > $forum_config['o_avatars_height'])
 				{
-					@/**/unlink($avatar_file);
+					// Not an image, or larger than the board allows — drop it.
+					// Best effort: a file we cannot remove must not stop the upgrade.
+					if (is_writable(dirname($avatar_file)))
+						unlink($avatar_file);
 				}
 				else
 				{
 					// Save to DB
 					$query = array(
 						'UPDATE'	=> 'users',
-						'SET'		=> 'avatar=\''.$avatar_type.'\', avatar_height=\''.$height.'\', avatar_width=\''.$width.'\'',
+						'SET'		=> 'avatar=\''.$avatar_type.'\', avatar_height=\''.$avatar_size[1].'\', avatar_width=\''.$avatar_size[0].'\'',
 						'WHERE'		=> 'id='.$user_id
 					);
 					$forum_db->query_build($query) or error(__FILE__, __LINE__);
@@ -460,7 +479,14 @@ while (@ob_end_clean());
 
 
 $stage = isset($_GET['stage']) ? $_GET['stage'] : '';
-$old_charset = isset($_GET['req_old_charset']) ? str_replace('ISO8859', 'ISO-8859', strtoupper($_GET['req_old_charset'])) : 'ISO-8859-1';
+$old_charset = (isset($_GET['req_old_charset']) && is_string($_GET['req_old_charset'])) ? str_replace('ISO8859', 'ISO-8859', strtoupper($_GET['req_old_charset'])) : 'ISO-8859-1';
+
+// The name reaches convert_to_utf8() and is echoed back into the redirect below.
+// iconv() is optional here: when absent, mbstring is the only converter left.
+// When present it warns and returns false rather than throwing, so probe by return value.
+if (!in_array($old_charset, array_map('strtoupper', mb_list_encodings()), true) && (!function_exists('iconv') || @iconv($old_charset, 'UTF-8', 'a') === false))
+	exit('Unknown character set. Set req_old_charset to an encoding this PHP installation supports.');
+
 $start_at = isset($_GET['start_at']) ? intval($_GET['start_at']) : 0;
 $query_str = '';
 
@@ -1502,7 +1528,7 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 		// Convert ranks
 		echo 'Converting ranks…'."<br />\n";
 		$query = array(
-			'SELECT'	=> 'id, rank',
+			'SELECT'	=> 'id, '.$forum_db->quote_identifier('rank'),
 			'FROM'		=> 'ranks',
 			'ORDER BY'	=> 'id'
 		);
@@ -1514,7 +1540,7 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 			{
 				$query = array(
 					'UPDATE'	=> 'ranks',
-					'SET'		=> 'rank = \''.$forum_db->escape($cur_item['rank']).'\'',
+					'SET'		=> $forum_db->quote_identifier('rank').' = \''.$forum_db->escape($cur_item['rank']).'\'',
 					'WHERE'		=> 'id = '.$cur_item['id']
 				);
 
@@ -1813,7 +1839,7 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 			{
 				$query = array(
 					'UPDATE'	=> 'topics',
-					'SET'		=> 'poster = \''.$forum_db->escape($cur_item['poster']).'\', subject = \''.$forum_db->escape($cur_item['subject']).'\', last_poster = \''.$forum_db->escape($cur_item['last_poster']).'\'',
+					'SET'		=> 'poster = \''.$forum_db->escape($cur_item['poster']).'\', subject = \''.$forum_db->escape($cur_item['subject']).'\', last_poster = \''.$forum_db->escape($cur_item['last_poster'] ?? '').'\'',
 					'WHERE'		=> 'id = '.$cur_item['id']
 				);
 
@@ -1890,7 +1916,7 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 
 				$query = array(
 					'UPDATE'	=> 'posts',
-					'SET'		=> 'poster = \''.$forum_db->escape($cur_item['poster']).'\', message = \''.$forum_db->escape($cur_item['message']).'\', edited_by = '.$cur_item['edited_by'],
+					'SET'		=> 'poster = \''.$forum_db->escape($cur_item['poster']).'\', message = \''.$forum_db->escape($cur_item['message'] ?? '').'\', edited_by = '.$cur_item['edited_by'],
 					'WHERE'		=> 'id = '.$cur_item['id']
 				);
 
@@ -2009,7 +2035,7 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 
 			$query = array(
 				'UPDATE'	=> 'posts',
-				'SET'		=> 'message = \''.$forum_db->escape(preparse_bbcode($cur_item['message'], $preparse_errors)).'\'',
+				'SET'		=> 'message = \''.$forum_db->escape(preparse_bbcode($cur_item['message'] ?? '', $preparse_errors)).'\'',
 				'WHERE'		=> 'id = '.$cur_item['id']
 			);
 
@@ -2066,7 +2092,7 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 
 			$query = array(
 				'UPDATE'	=> 'users',
-				'SET'		=> 'signature = \''.$forum_db->escape(preparse_bbcode($cur_item['signature'], $preparse_errors, true)).'\'',
+				'SET'		=> 'signature = \''.$forum_db->escape(preparse_bbcode($cur_item['signature'] ?? '', $preparse_errors, true)).'\'',
 				'WHERE'		=> 'id = '.$cur_item['id']
 			);
 
@@ -2147,7 +2173,7 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 		if (array_key_exists('o_base_url', $forum_config))
 		{
 			// Generate new config file
-			$new_config = "<?php\n\n\$db_type = '$db_type';\n\$db_host = '$db_host';\n\$db_name = '".addslashes($db_name)."';\n\$db_username = '".addslashes($db_username)."';\n\$db_password = '".addslashes($db_password)."';\n\$db_prefix = '".addslashes($db_prefix)."';\n\$p_connect = ".($p_connect ? 'true' : 'false').";\n\n\$base_url = '$base_url';\n\n\$cookie_name = '$cookie_name';\n\$cookie_domain = '$cookie_domain';\n\$cookie_path = '$cookie_path';\n\$cookie_secure = $cookie_secure;\n\ndefine('FORUM', 1);";
+			$new_config = "<?php\n\n\$db_type = '".addslashes($db_type)."';\n\$db_host = '".addslashes($db_host)."';\n\$db_name = '".addslashes($db_name)."';\n\$db_username = '".addslashes($db_username)."';\n\$db_password = '".addslashes($db_password)."';\n\$db_prefix = '".addslashes($db_prefix)."';\n\$p_connect = ".($p_connect ? 'true' : 'false').";\n\n\$base_url = '".addslashes($base_url)."';\n\n\$cookie_name = '".addslashes($cookie_name)."';\n\$cookie_domain = '".addslashes($cookie_domain)."';\n\$cookie_path = '".addslashes($cookie_path)."';\n\$cookie_secure = $cookie_secure;\n\ndefine('FORUM', 1);";
 
 			// Attempt to write config.php and display it if writing fails
 			$written = false;

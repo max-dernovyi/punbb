@@ -2,7 +2,7 @@ includes:
 	- phpstan-baseline.neon
 
 parameters:
-	level: 0
+	level: 2
 	paths:
 		- admin
 		- include
@@ -38,4 +38,11 @@ parameters:
 		# whether the checkout happens to have an installed forum in it.
 		-
 			message: '#^Path in (require|include)\(\) "\./cache/cache_[^"]+" is not a file or it does not exist\.$#'
+			reportUnmatched: false
+		# config.php, include/essentials.php, include/common.php, the cache files
+		# and the language packs define these at global scope; PHPStan does not
+		# follow includes, so every entry point that reads one looks undefined.
+		-
+			identifier: variable.undefined
+			message: '#^Variable \$(base_url|cookie_(domain|name|path|secure)|db_(host|name|password|prefix|type|username)|forum_(config|date_formats|db|flash|loader|page|rewrite_rules|start|stats|time_formats|updates|url|user)|lang_\w+|p_connect|smilies|tpl_main) might not be defined\.$#'
 			reportUnmatched: false

@@ -1,10 +1,112 @@
 parameters:
 	ignoreErrors:
 		-
+			message: '#^Variable \$ban_id might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: admin/bans.php
+
+		-
+			message: '#^Variable \$check_for_updates might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: admin/db_update.php
+
+		-
+			message: '#^Variable \$written might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: admin/db_update.php
+
+		-
+			message: '#^Variable \$notices in empty\(\) always exists and is always falsy\.$#'
+			identifier: empty.variable
+			count: 2
+			path: admin/extensions.php
+
+		-
+			message: '#^Variable \$base_group might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: admin/groups.php
+
+		-
+			message: '#^Variable \$group_id might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: admin/groups.php
+
+		-
+			message: '#^Variable \$hide_smilies might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: edit.php
+
+		-
+			message: '#^Variable \$message might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: edit.php
+
+		-
+			message: '#^Variable \$subject might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: edit.php
+
+		-
+			message: '#^Variable \$fids in empty\(\) always exists and is not falsy\.$#'
+			identifier: empty.variable
+			count: 1
+			path: extern.php
+
+		-
+			message: '#^Variable \$nfids in empty\(\) always exists and is not falsy\.$#'
+			identifier: empty.variable
+			count: 1
+			path: extern.php
+
+		-
+			message: '#^Variable \$id might not be defined\.$#'
+			identifier: variable.undefined
+			count: 5
+			path: header.php
+
+		-
+			message: '#^Variable \$user might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: header.php
+
+		-
+			message: '#^Variable \$visit_links in empty\(\) always exists and is always falsy\.$#'
+			identifier: empty.variable
+			count: 1
+			path: header.php
+
+		-
+			message: '#^Variable \$visit_links in empty\(\) always exists and is not falsy\.$#'
+			identifier: empty.variable
+			count: 1
+			path: header.php
+
+		-
 			message: '#^Inner named functions are not supported by PHPStan\. Consider refactoring to an anonymous function, class method, or a top\-level\-defined function\. See issue \#165 \(https\://github\.com/phpstan/phpstan/issues/165\) for more details\.$#'
 			identifier: function.inner
 			count: 1
 			path: include/common_admin.php
+
+		-
+			message: '#^Variable \$forum_page in empty\(\) is never defined\.$#'
+			identifier: empty.variable
+			count: 1
+			path: include/common_admin.php
+
+		-
+			message: '#^Constructor of class DBLayer has an unused parameter \$foo\.$#'
+			identifier: constructor.unusedParameter
+			count: 1
+			path: include/dblayer/mysqli.php
 
 		-
 			message: '#^Result of function mysqli_free_result \(void\) is used\.$#'
@@ -13,10 +115,64 @@ parameters:
 			path: include/dblayer/mysqli.php
 
 		-
+			message: '#^Variable \$q_start might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: include/dblayer/mysqli.php
+
+		-
+			message: '#^Constructor of class DBLayer has an unused parameter \$foo\.$#'
+			identifier: constructor.unusedParameter
+			count: 1
+			path: include/dblayer/mysqli_innodb.php
+
+		-
 			message: '#^Result of function mysqli_free_result \(void\) is used\.$#'
 			identifier: function.void
 			count: 1
 			path: include/dblayer/mysqli_innodb.php
+
+		-
+			message: '#^Variable \$q_start might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: include/dblayer/mysqli_innodb.php
+
+		-
+			message: '#^Variable \$q_start might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: include/dblayer/pgsql.php
+
+		-
+			message: '#^Constructor of class DBLayer has an unused parameter \$db_host\.$#'
+			identifier: constructor.unusedParameter
+			count: 1
+			path: include/dblayer/sqlite3.php
+
+		-
+			message: '#^Constructor of class DBLayer has an unused parameter \$db_password\.$#'
+			identifier: constructor.unusedParameter
+			count: 1
+			path: include/dblayer/sqlite3.php
+
+		-
+			message: '#^Constructor of class DBLayer has an unused parameter \$db_username\.$#'
+			identifier: constructor.unusedParameter
+			count: 1
+			path: include/dblayer/sqlite3.php
+
+		-
+			message: '#^Constructor of class DBLayer has an unused parameter \$p_connect\.$#'
+			identifier: constructor.unusedParameter
+			count: 1
+			path: include/dblayer/sqlite3.php
+
+		-
+			message: '#^Variable \$q_start might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: include/dblayer/sqlite3.php
 
 		-
 			message: '#^Function _csrf_confirm_form not found\.$#'
@@ -37,6 +193,18 @@ parameters:
 			path: include/functions.php
 
 		-
+			message: '#^Variable \$cookie_data in empty\(\) always exists and is not falsy\.$#'
+			identifier: empty.variable
+			count: 1
+			path: include/functions.php
+
+		-
+			message: '#^Variable \$pages in empty\(\) always exists and is always falsy\.$#'
+			identifier: empty.variable
+			count: 1
+			path: include/functions.php
+
+		-
 			message: '#^Access to an undefined static property idna_convert\:\:\$safe_char\.$#'
 			identifier: staticProperty.notFound
 			count: 1
@@ -49,10 +217,190 @@ parameters:
 			path: include/idna/idna_convert.class.php
 
 		-
-			message: '#^Deprecated in PHP 8\.0\: Required parameter \$errors follows optional parameter \$type\.$#'
-			identifier: parameter.requiredAfterOptional
+			message: '#^Default value of the parameter \#1 \$options \(false\) of method idna_convert\:\:__construct\(\) is incompatible with type array\.$#'
+			identifier: parameter.defaultValue
+			count: 1
+			path: include/idna/idna_convert.class.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(array      Decomposed UCS4 sequence\)\: Unexpected token "Decomposed", expected variable at offset 101 on line 3$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/idna/idna_convert.class.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(array      UCS4 Decomposed sequence\)\: Unexpected token "UCS4", expected variable at offset 95 on line 3$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/idna/idna_convert.class.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(array    Decomposed UCS4 sequence\)\: Unexpected token "Decomposed", expected variable at offset 129 on line 4$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/idna/idna_convert.class.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(array    Unicode Characters\)\: Unexpected token "Unicode", expected variable at offset 82 on line 3$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/idna/idna_convert.class.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(integer    Wide char to check \(32bit integer\)\)\: Unexpected token "Wide", expected variable at offset 90 on line 3$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/idna/idna_convert.class.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(integer  32bit UCS4 code point\)\: Unexpected token "32", expected variable at offset 130 on line 4$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/idna/idna_convert.class.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(mixed     Parameter to set \(string\: single parameter; array of Parameter \=\> Value pairs\)\)\: Unexpected token "Parameter", expected variable at offset 743 on line 12$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/idna/idna_convert.class.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string    Value to use \(if parameter 1 is a string\)\)\: Unexpected token "Value", expected variable at offset 849 on line 13$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/idna/idna_convert.class.php
+
+		-
+			message: '''
+				#^PHPDoc tag @param has invalid value \(string   Domain name \(ACE string\)
+				\[@param    string   Desired output encoding, see \{@link set_parameter\}\]\)\: Unexpected token "Domain", expected variable at offset 68 on line 3$#
+			'''
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/idna/idna_convert.class.php
+
+		-
+			message: '''
+				#^PHPDoc tag @param has invalid value \(string   Domain name \(UTF\-8 or UCS\-4\)
+				\[@param    string   Desired input encoding, see \{@link set_parameter\}\]\)\: Unexpected token "Domain", expected variable at offset 70 on line 3$#
+			'''
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/idna/idna_convert.class.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string\)\: Unexpected token "\\n     \* ", expected variable at offset 61 on line 3$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/idna/idna_convert.class.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string\)\: Unexpected token "\\n     \* ", expected variable at offset 62 on line 3$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/idna/idna_convert.class.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(void\)\: Unexpected token "\\n     \* ", expected variable at offset 78 on line 3$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/idna/idna_convert.class.php
+
+		-
+			message: '#^Variable \$next_byte might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: include/idna/idna_convert.class.php
+
+		-
+			message: '#^Variable \$start_byte might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: include/idna/idna_convert.class.php
+
+		-
+			message: '#^Variable \$idn might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: include/parser.php
+
+		-
+			message: '#^Variable \$replace_callback might not be defined\.$#'
+			identifier: variable.undefined
 			count: 1
 			path: include/parser.php
+
+		-
+			message: '#^Variable \$cur_words might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: include/search_idx.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(integer \(optional\) length in UTF\-8 characters from offset\)\: Unexpected token "\(", expected variable at offset 253 on line 7$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/mbstring/core.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(integer \(optional\) offset \(from left\)\)\: Unexpected token "\(", expected variable at offset 253 on line 7$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/mbstring/core.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(integer number of UTF\-8 characters offset \(from left\)\)\: Unexpected token "number", expected variable at offset 190 on line 6$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/mbstring/core.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(integer offset in characters \(from left\)\)\: Unexpected token "offset", expected variable at offset 243 on line 7$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/mbstring/core.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string UTF\-8 string\)\: Unexpected token "UTF\-8", expected variable at offset 193 on line 6$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/mbstring/core.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string haystack\)\: Unexpected token "haystack", expected variable at offset 148 on line 5$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/mbstring/core.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string haystack\)\: Unexpected token "haystack", expected variable at offset 158 on line 5$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/mbstring/core.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string needle \(you should validate this with utf8_is_valid\)\)\: Unexpected token "needle", expected variable at offset 173 on line 6$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/mbstring/core.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string needle \(you should validate this with utf8_is_valid\)\)\: Unexpected token "needle", expected variable at offset 183 on line 6$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/mbstring/core.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string\)\: Unexpected token "\\n\* ", expected variable at offset 172 on line 5$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/mbstring/core.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string\)\: Unexpected token "\\n\* ", expected variable at offset 374 on line 9$#'
+			identifier: phpDoc.parseError
+			count: 2
+			path: include/utf8/mbstring/core.php
 
 		-
 			message: '#^Array has 2 duplicate keys with value 1031 \(0x407, 0x407\)\.$#'
@@ -103,13 +451,409 @@ parameters:
 			path: include/utf8/native/core.php
 
 		-
+			message: '#^PHPDoc tag @param has invalid value \(integer \(optional\) length in UTF\-8 characters from offset\)\: Unexpected token "\(", expected variable at offset 1064 on line 25$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/native/core.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(integer \(optional\) offset \(from left\)\)\: Unexpected token "\(", expected variable at offset 319 on line 8$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/native/core.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(integer number of UTF\-8 characters offset \(from left\)\)\: Unexpected token "number", expected variable at offset 1001 on line 24$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/native/core.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(integer offset in characters \(from left\)\)\: Unexpected token "offset", expected variable at offset 309 on line 8$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/native/core.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string UTF\-8 string\)\: Unexpected token "UTF\-8", expected variable at offset 624 on line 13$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/native/core.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string haystack\)\: Unexpected token "haystack", expected variable at offset 214 on line 6$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/native/core.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string haystack\)\: Unexpected token "haystack", expected variable at offset 224 on line 6$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/native/core.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string needle \(you should validate this with utf8_is_valid\)\)\: Unexpected token "needle", expected variable at offset 239 on line 7$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/native/core.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string needle \(you should validate this with utf8_is_valid\)\)\: Unexpected token "needle", expected variable at offset 249 on line 7$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/native/core.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string\)\: Unexpected token "\\n\* ", expected variable at offset 430 on line 10$#'
+			identifier: phpDoc.parseError
+			count: 2
+			path: include/utf8/native/core.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string\)\: Unexpected token "\\n\* ", expected variable at offset 983 on line 23$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/native/core.php
+
+		-
 			message: '#^Function utf8_ord\(\) should return int but return statement is missing\.$#'
 			identifier: return.missing
 			count: 1
 			path: include/utf8/ord.php
 
 		-
+			message: '#^PHPDoc tag @param has invalid value \(string UTF\-8 encoded character\)\: Unexpected token "UTF\-8", expected variable at offset 99 on line 4$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/ord.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string\)\: Unexpected token "\\n\* ", expected variable at offset 400 on line 9$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/str_ireplace.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(int number to characters to split string by\)\: Unexpected token "number", expected variable at offset 159 on line 6$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/str_split.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string UTF\-8 encoded\)\: Unexpected token "UTF\-8", expected variable at offset 132 on line 5$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/str_split.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string\)\: Unexpected token "\\n\* ", expected variable at offset 131 on line 5$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/strcasecmp.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string\)\: Unexpected token "\\n\* ", expected variable at offset 147 on line 6$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/strcasecmp.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string\)\: Unexpected token "\\n\* ", expected variable at offset 180 on line 5$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/strcspn.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string\)\: Unexpected token "\\n\* ", expected variable at offset 159 on line 5$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/stristr.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string\)\: Unexpected token "\\n\* ", expected variable at offset 175 on line 6$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/stristr.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string UTF\-8 encoded\)\: Unexpected token "UTF\-8", expected variable at offset 75 on line 4$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/strrev.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string\)\: Unexpected token "\\n\* ", expected variable at offset 175 on line 5$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/strspn.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string\)\: Unexpected token "\\n\* ", expected variable at offset 133 on line 5$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/ucfirst.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(array of matches corresponding to a single word\)\: Unexpected token "of", expected variable at offset 125 on line 4$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/ucwords.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string\)\: Unexpected token "\\n\* ", expected variable at offset 170 on line 5$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/ucwords.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(int \(optional\) \-1 lowercase only, \+1 uppercase only, 1 both cases\)\: Unexpected token "\(", expected variable at offset 839 on line 16$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/utils/ascii.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string UTF\-8 string\)\: Unexpected token "UTF\-8", expected variable at offset 813 on line 15$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/utils/ascii.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string UTF\-8 with accented characters replaced by ASCII chars\)\: Unexpected token "UTF\-8", expected variable at offset 917 on line 17$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/utils/ascii.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string\)\: Unexpected token "\\n\* ", expected variable at offset 176 on line 5$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/utils/ascii.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string\)\: Unexpected token "\\n\* ", expected variable at offset 204 on line 6$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/utils/ascii.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string\)\: Unexpected token "\\n\* ", expected variable at offset 225 on line 6$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/utils/ascii.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string\)\: Unexpected token "\\n\* ", expected variable at offset 259 on line 7$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/utils/ascii.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string\)\: Unexpected token "\\n\* ", expected variable at offset 501 on line 16$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/utils/ascii.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(int return code from utf8_bad_identify\)\: Unexpected token "return", expected variable at offset 133 on line 4$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/utils/bad.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string UTF\-8 encoded string\)\: Unexpected token "UTF\-8", expected variable at offset 159 on line 5$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/utils/bad.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string to replace bad bytes with \(defaults to ''\?''\) \- use ASCII\)\: Unexpected token "to", expected variable at offset 374 on line 9$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/utils/bad.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string to search\)\: Unexpected token "to", expected variable at offset 348 on line 8$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/utils/bad.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string\)\: Unexpected token "\\n\* ", expected variable at offset 313 on line 7$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/utils/bad.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string\)\: Unexpected token "\\n\* ", expected variable at offset 334 on line 8$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/utils/bad.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string\)\: Unexpected token "\\n\* ", expected variable at offset 342 on line 8$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/utils/bad.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(int \(n times\)\)\: Unexpected token "\(", expected variable at offset 625 on line 15$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/utils/position.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(int byte index in the string\)\: Unexpected token "byte", expected variable at offset 324 on line 8$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/utils/position.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(int byte index in the string\)\: Unexpected token "byte", expected variable at offset 437 on line 10$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/utils/position.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string string to locate index in\)\: Unexpected token "string", expected variable at offset 586 on line 14$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/utils/position.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string\)\: Unexpected token "\\n\* ", expected variable at offset 310 on line 7$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/utils/position.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string\)\: Unexpected token "\\n\* ", expected variable at offset 423 on line 9$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/utils/position.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string \(optional\) \$repl   Replace special with this string\)\: Unexpected token "\(", expected variable at offset 506 on line 13$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/utils/specials.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string to check\)\: Unexpected token "to", expected variable at offset 388 on line 9$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/utils/specials.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(array of unicode code points representing a string\)\: Unexpected token "of", expected variable at offset 588 on line 12$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/utils/unicode.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string UTF\-8 encoded string\)\: Unexpected token "UTF\-8", expected variable at offset 512 on line 11$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/utils/unicode.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string UTF\-8 encoded string\)\: Unexpected token "UTF\-8", expected variable at offset 207 on line 6$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/utils/validation.php
+
+		-
+			message: '#^PHPDoc tag @param has invalid value \(string UTF\-8 string to check\)\: Unexpected token "UTF\-8", expected variable at offset 641 on line 13$#'
+			identifier: phpDoc.parseError
+			count: 1
+			path: include/utf8/utils/validation.php
+
+		-
 			message: '#^Undefined variable\: \$xml_array$#'
 			identifier: variable.undefined
 			count: 3
 			path: include/xml.php
+
+		-
+			message: '#^Variable \$xml_array in isset\(\) is never defined\.$#'
+			identifier: isset.variable
+			count: 3
+			path: include/xml.php
+
+		-
+			message: '#^Variable \$new_topics might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: index.php
+
+		-
+			message: '#^Variable \$form_password_hash might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: login.php
+
+		-
+			message: '#^Variable \$hide_smilies might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: post.php
+
+		-
+			message: '#^Variable \$message might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: post.php
+
+		-
+			message: '#^Variable \$new_pid might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: post.php
+
+		-
+			message: '#^Variable \$subject might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: post.php
+
+		-
+			message: '#^Variable \$errors in empty\(\) always exists and is always falsy\.$#'
+			identifier: empty.variable
+			count: 1
+			path: profile.php
+
+		-
+			message: '#^Variable \$old_username might not be defined\.$#'
+			identifier: variable.undefined
+			count: 6
+			path: profile.php
+
+		-
+			message: '#^Variable \$action might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: search.php
+
+		-
+			message: '#^Variable \$cur_forum might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: search.php
+
+		-
+			message: '#^Variable \$search_id might not be defined\.$#'
+			identifier: variable.undefined
+			count: 5
+			path: search.php
+
+		-
+			message: '#^Variable \$show_as might not be defined\.$#'
+			identifier: variable.undefined
+			count: 15
+			path: search.php
+
+		-
+			message: '#^Variable \$url_type might not be defined\.$#'
+			identifier: variable.undefined
+			count: 5
+			path: search.php
