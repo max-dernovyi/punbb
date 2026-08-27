@@ -1484,20 +1484,13 @@ if ($forum_user['id'] != $id &&
 		// IDNA url handling
 		if (defined('FORUM_SUPPORT_PCRE_UNICODE') && defined('FORUM_ENABLE_IDNA'))
 		{
-			// Load the IDNA class for international url handling
-			require_once FORUM_ROOT.'include/idna/idna_convert.class.php';
-
-			$idn = new idna_convert();
-			$idn->set_parameter('encoding', 'utf8');
-			$idn->set_parameter('strict', false);
-
 			if (preg_match('!^(https?|ftp|news){1}'.preg_quote('://xn--', '!').'!', $url_source))
 			{
-				$user['url'] = $idn->decode($url_source);
+				$user['url'] = forum_idna_decode($url_source);
 			}
 			else
 			{
-				$url_source = $idn->encode($url_source);
+				$url_source = forum_idna_encode($url_source);
 			}
 		}
 
@@ -1759,20 +1752,13 @@ else
 			// IDNA url handling
 			if (defined('FORUM_SUPPORT_PCRE_UNICODE') && defined('FORUM_ENABLE_IDNA'))
 			{
-				// Load the IDNA class for international url handling
-				require_once FORUM_ROOT.'include/idna/idna_convert.class.php';
-
-				$idn = new idna_convert();
-				$idn->set_parameter('encoding', 'utf8');
-				$idn->set_parameter('strict', false);
-
 				if (preg_match('!^(https?|ftp|news){1}'.preg_quote('://xn--', '!').'!', $url_source))
 				{
-					$user['url'] = $idn->decode($url_source);
+					$user['url'] = forum_idna_decode($url_source);
 				}
 				else
 				{
-					$url_source = $idn->encode($url_source);
+					$url_source = forum_idna_encode($url_source);
 				}
 			}
 

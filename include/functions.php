@@ -1257,17 +1257,44 @@ function get_remote_address()
 }
 
 
+// The scheme, host and port the forum is served from, read back out of $base_url.
+// Returns '' when $base_url carries no host, so callers degrade to a root-relative
+// URL instead of falling back to the request headers.
+function forum_base_origin()
+{
+	global $base_url;
+
+	if (!isset($base_url) || !is_string($base_url) || $base_url === '')
+		return '';
+
+	$parts = parse_url($base_url);
+
+	// A $base_url without a scheme parses as a bare path; retry it as an authority,
+	// but only when it cannot be a path in the first place.
+	if (($parts === false || empty($parts['host'])) && $base_url[0] !== '/')
+		$parts = parse_url('//'.$base_url);
+
+	if ($parts === false || empty($parts['host']))
+		return '';
+
+	$scheme = isset($parts['scheme']) ? $parts['scheme'] : 'http';
+	$port = isset($parts['port']) ? ':'.$parts['port'] : '';
+
+	return $scheme.'://'.$parts['host'].$port;
+}
+
+
 // Try to determine the current URL
+// The origin comes from $base_url, never from the request: HTTP_HOST is client-controlled,
+// and CSRF tokens are keyed on this URL, so a proxy rewriting Host would reject every form.
 function get_current_url($max_length = 0)
 {
 	$return = ($hook = get_hook('fn_get_current_url_start')) ? eval($hook) : null;
 	if ($return !== null)
 		return $return;
 
-	$protocol = (!isset($_SERVER['HTTPS']) || strtolower($_SERVER['HTTPS']) == 'off') ? 'http://' : 'https://';
-	$port = (isset($_SERVER['SERVER_PORT']) && (($_SERVER['SERVER_PORT'] != '80' && $protocol == 'http://') || ($_SERVER['SERVER_PORT'] != '443' && $protocol == 'https://')) && strpos($_SERVER['HTTP_HOST'], ':') === false) ? ':'.$_SERVER['SERVER_PORT'] : '';
-
-	$url = $protocol.$_SERVER['HTTP_HOST'].$port.$_SERVER['REQUEST_URI'];
+	// Only the origin is unsafe - the path and query are the request the client asked for.
+	$url = forum_base_origin().(isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '');
 
 	if (strlen($url) <= $max_length || $max_length == 0)
 		return $url;
@@ -3324,6 +3351,59 @@ function forum_url_host($url)
 	$host = parse_url('//'.ltrim($url, '/'), PHP_URL_HOST);
 
 	return ($host === null || $host === false) ? null : $host;
+}
+
+
+// Converts the host of $url to punycode (ToASCII, UTS-46). Anything the converter rejects -
+// an over-long label, a leading hyphen, invalid UTF-8 - is returned unchanged, which is what
+// the forum has always done with input IDNA could not handle.
+function forum_idna_encode($url)
+{
+	return forum_idna_convert($url, true);
+}
+
+
+// Converts a punycoded host back to UTF-8 (ToUnicode, UTS-46), same fallback contract.
+function forum_idna_decode($url)
+{
+	return forum_idna_convert($url, false);
+}
+
+
+// Runs the IDN conversion over the host of $url and nothing else: idn_to_ascii()/idn_to_utf8()
+// read their whole argument as a domain name, so a URL handed to them straight comes back with
+// its path and user info punycoded as well.
+function forum_idna_convert($url, $to_ascii)
+{
+	if ($url === '' || !function_exists('idn_to_ascii'))
+		return $url;
+
+	// scheme :// | user info @ | host | port, path, query, fragment
+	if (!preg_match('!^([a-z][a-z0-9+.\-]*://)?([^/?#]*@)?([^/?#:]*)(.*)$!is', $url, $matches))
+		return $url;
+
+	if ($matches[3] === '')
+		return $url;
+
+	// Non-transitional processing is requested explicitly: it is only the default
+	// since ICU 76, and under an older ICU "straße.de" would map to "strasse.de".
+	$host = $to_ascii
+		? idn_to_ascii($matches[3], IDNA_NONTRANSITIONAL_TO_ASCII, INTL_IDNA_VARIANT_UTS46)
+		: idn_to_utf8($matches[3], IDNA_NONTRANSITIONAL_TO_UNICODE, INTL_IDNA_VARIANT_UTS46);
+
+	if ($host === false || $host === '')
+		return $url;
+
+	// UTS-46 maps a few non-ASCII codepoints onto ASCII (U+FF1C -> "<", U+FF0F -> "/",
+	// U+FF02 -> '"'), so a converted host can carry URL and markup delimiters the input never
+	// had - and callers splice the result into an href unescaped. Anything that is no longer a
+	// plain host name is rejected and the URL comes back unchanged.
+	if ($to_ascii
+		? !preg_match('/^[A-Za-z0-9._-]+$/', $host)
+		: preg_match('/[\x00-\x20\x7F"\'`<>\\\\\/?#@:]/', $host))
+		return $url;
+
+	return $matches[1].$matches[2].$host.$matches[4];
 }
 
 

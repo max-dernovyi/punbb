@@ -76,6 +76,27 @@ class PhpRequirementsTest extends TestCase {
 		$this->assertStringContainsString('extensions are not loaded: intl', $errors[0]);
 	}
 
+	#[DataProvider('requiredExtensionProvider')]
+	public function testInstallAbortsWhenARequiredExtensionIsMissing(string $extension): void {
+		$loaded = array_values(array_diff(self::OK_EXTENSIONS, array($extension)));
+		$errors = forum_requirement_errors('8.4.0', $loaded, self::OK_DB_TYPES);
+
+		$this->assertCount(1, $errors);
+		$this->assertStringContainsString('extensions are not loaded: '.$extension, $errors[0]);
+	}
+
+	/** @return list<array{string}> */
+	public static function requiredExtensionProvider(): array {
+		return array_map(static fn(string $e): array => array($e), forum_required_extensions());
+	}
+
+	public function testMbstringAndIntlAreHardRequirements(): void {
+		$required = forum_required_extensions();
+
+		$this->assertContains('mbstring', $required, 'include/utf8.php is built on mb_*');
+		$this->assertContains('intl', $required, 'forum_idna_* is built on idn_to_ascii()');
+	}
+
 	public function testEveryMissingExtensionIsListedInOneError(): void {
 		$errors = forum_requirement_errors('8.4.0', array('pcre'), self::OK_DB_TYPES);
 
@@ -143,6 +164,30 @@ class PhpRequirementsTest extends TestCase {
 		$this->assertStringContainsString('FORUM_SUPPORT_PCRE_UNICODE', $essentials);
 		$this->assertStringNotContainsString('5.0.0-dev', $essentials);
 		$this->assertTrue(defined('FORUM_SUPPORT_PCRE_UNICODE'), 'PCRE on 8.4 always supports \p{L}');
+	}
+
+	/** @return array<string, array{string}> */
+	public static function independentBootstraps(): array {
+		return array(
+			'install' => array('admin/install.php'),
+			'db_update' => array('admin/db_update.php'),
+		);
+	}
+
+	/**
+	 * include/utf8.php calls mb_internal_encoding() at load time, so a host
+	 * without mbstring has to be turned away before the require, not after.
+	 */
+	#[DataProvider('independentBootstraps')]
+	public function testRequirementCheckRunsBeforeTheUtf8Loader(string $file): void {
+		$source = $this->source($file);
+
+		$check = strpos($source, 'check_php_requirements()');
+		$utf8 = strpos($source, "require FORUM_ROOT.'include/utf8.php'");
+
+		$this->assertIsInt($check, $file.' must call check_php_requirements()');
+		$this->assertIsInt($utf8, $file.' must require include/utf8.php');
+		$this->assertLessThan($utf8, $check, $file.' checks the requirements after loading utf8.php');
 	}
 
 	public function testGetRemoteFileKeepsOnlyTheStreamContextPath(): void {

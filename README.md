@@ -15,6 +15,8 @@ PunBB is a fast and lightweight PHP-powered discussion board. It is released und
  - [Composer 2](https://getcomposer.org/)
  - A database where forum data is to be stored, created in one of: MySQL 8.0 or later, PostgreSQL 13 or later or SQLite 3
 
+`$base_url` in `config.php` must be the forum's public address (scheme, host and port). Every self-referential URL is built from it; the request `Host` header is never used.
+
 Supported `$db_type` values in `config.php`: `mysqli`, `mysqli_innodb`, `pgsql`, `sqlite3`. The `mysql`, `mysql_innodb` and `sqlite` (SQLite2) drivers were removed together with the PHP extensions they needed — an existing forum on one of them must change `$db_type` before running `admin/db_update.php`.
 
 ## Extension installation

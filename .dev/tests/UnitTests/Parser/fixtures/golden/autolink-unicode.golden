@@ -1,15 +1,15 @@
 ===== message =====
-<p>cyrillic <a href="http://xn--e1afmkfd.xn--p1ai/xn--80aaxtnfh0b">http://пример.рф/страница</a> here<br />german <a href="http://www.xn--bcher-kva.example/seite">www.bücher.example/seite</a> here<br />chinese <a href="http://xn--r8jz45g.xn--zckzah/xn--8b4a">http://例え.テスト/道</a> here</p>
+<p>cyrillic <a href="http://xn--e1afmkfd.xn--p1ai/страница">http://пример.рф/страница</a> here<br />german <a href="http://www.xn--bcher-kva.example/seite">www.bücher.example/seite</a> here<br />chinese <a href="http://xn--r8jz45g.xn--zckzah/道">http://例え.テスト/道</a> here</p>
 ===== message-errors =====
 
 ===== signature =====
-cyrillic <a href="http://xn--e1afmkfd.xn--p1ai/xn--80aaxtnfh0b">http://пример.рф/страница</a> here<br />german <a href="http://www.xn--bcher-kva.example/seite">www.bücher.example/seite</a> here<br />chinese <a href="http://xn--r8jz45g.xn--zckzah/xn--8b4a">http://例え.テスト/道</a> here
+cyrillic <a href="http://xn--e1afmkfd.xn--p1ai/страница">http://пример.рф/страница</a> here<br />german <a href="http://www.xn--bcher-kva.example/seite">www.bücher.example/seite</a> here<br />chinese <a href="http://xn--r8jz45g.xn--zckzah/道">http://例え.テスト/道</a> here
 ===== signature-errors =====
 
 ===== clickable-unicode =====
-cyrillic [url=http://xn--e1afmkfd.xn--p1ai/xn--80aaxtnfh0b]http://пример.рф/страница[/url] here
+cyrillic [url=http://xn--e1afmkfd.xn--p1ai/страница]http://пример.рф/страница[/url] here
 german [url=http://www.xn--bcher-kva.example/seite]www.bücher.example/seite[/url] here
-chinese [url=http://xn--r8jz45g.xn--zckzah/xn--8b4a]http://例え.テスト/道[/url] here
+chinese [url=http://xn--r8jz45g.xn--zckzah/道]http://例え.テスト/道[/url] here
 ===== clickable-ascii =====
 cyrillic http://пример.рф/страница here
 german [url=http://www.b]www.b[/url]ücher.example/seite here

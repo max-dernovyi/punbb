@@ -2,9 +2,6 @@
 
 use PHPUnit\Framework\TestCase;
 
-// ord.php is not part of the forum bootstrap; load it explicitly.
-require_once FORUM_ROOT.'include/utf8/ord.php';
-
 class OrdTest extends TestCase {
 	public function testOrdAscii(): void {
 		$this->assertSame(0, utf8_ord("\x00"));

@@ -27,9 +27,7 @@ require FORUM_ROOT.'include/functions.php';
 require FORUM_ROOT.'include/loader.php';
 
 // Load UTF-8 functions
-require FORUM_ROOT.'include/utf8/utf8.php';
-require FORUM_ROOT.'include/utf8/ucwords.php';
-require FORUM_ROOT.'include/utf8/trim.php';
+require FORUM_ROOT.'include/utf8.php';
 
 // Ignore any user abort requests
 ignore_user_abort(true);
@@ -66,7 +64,7 @@ if (defined('FORUM_DEBUG'))
 else
 	error_reporting(E_ALL ^ E_NOTICE);
 
-// PCRE2 in PHP 8.4 always carries UTF-8 support, and include/utf8/utf8.php has
+// PCRE2 in PHP 8.4 always carries UTF-8 support, and include/utf8.php has
 // already fataled above if it did not. The constant stays: extensions read it.
 define('FORUM_SUPPORT_PCRE_UNICODE', 1);
 
@@ -99,10 +97,16 @@ if (!defined('FORUM_CONFIG_LOADED'))
 // If the request_uri is invalid try fix it
 forum_fix_request_uri();
 
+// A config.php without $base_url falls back to the stored o_base_url rather than to the
+// request: get_current_url() reads its origin back out of $base_url, and HTTP_HOST is
+// client-controlled. Same fallback as admin/db_update.php.
+if (!isset($base_url) && isset($forum_config['o_base_url']) && $forum_config['o_base_url'] !== '')
+	$base_url = $forum_config['o_base_url'];
+
 if (!isset($base_url))
 {
 	// Make an educated guess regarding base_url
-	$base_url_guess = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') ? 'https://' : 'http://').preg_replace('/:80$/', '', $_SERVER['HTTP_HOST']).str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME']));
+	$base_url_guess = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') ? 'https://' : 'http://').preg_replace('/:80$/', '', $_SERVER['HTTP_HOST'] ?? '').str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME']));
 	if (substr($base_url_guess, -1) == '/')
 		$base_url_guess = substr($base_url_guess, 0, -1);
 

@@ -153,11 +153,11 @@ function smoke_login($base, $jar, $user, $pass, $resolve, &$diagnostics, &$fatal
 	if (strpos((string) $index['body'], 'logout') !== false)
 		return '';
 
-	// The confirm form posts back to get_current_url(), i.e. the URL the server
-	// saw. If that is not the URL the sweep posted to, the forum hashed a
-	// different string than $base_url gave the form — a TLS-terminating proxy
-	// that hides https from PHP, not a forum bug. Same URL on both sides means
-	// token generation, persistence or validation really is broken.
+	// The confirm form posts back to get_current_url(), which is now $base_url's
+	// origin plus REQUEST_URI. A mismatch with the URL the sweep posted to means
+	// config.php's $base_url is not the address the sweep used, not a forum bug.
+	// Same URL on both sides means token generation, persistence or validation
+	// really is broken.
 	if (strpos((string) $response['body'], 'name="prev_url"') !== false)
 	{
 		$observed = preg_match('/<form[^>]*class="frm-form"[^>]*action="([^"]*)"/', (string) $response['body'], $action)

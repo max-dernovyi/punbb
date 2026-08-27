@@ -36,18 +36,17 @@ require FORUM_ROOT.'include/constants.php';
 // We need some stuff from functions.php
 require FORUM_ROOT.'include/functions.php';
 
-// Load UTF-8 functions
-require FORUM_ROOT.'include/utf8/utf8.php';
-require FORUM_ROOT.'include/utf8/ucwords.php';
-require FORUM_ROOT.'include/utf8/trim.php';
-
-// Strip out "bad" UTF-8 characters
-forum_remove_bad_characters();
-
-// Everything else this release needs: extensions and a database driver
+// Everything this release needs: extensions and a database driver. Runs before
+// include/utf8.php, which calls mb_internal_encoding() and would fatal without mbstring.
 $php_requirement_errors = check_php_requirements();
 if (!empty($php_requirement_errors))
 	exit('PunBB cannot be installed on this PHP installation:'."\n".'<ul><li>'.implode('</li><li>', $php_requirement_errors).'</li></ul>');
+
+// Load UTF-8 functions
+require FORUM_ROOT.'include/utf8.php';
+
+// Strip out "bad" UTF-8 characters
+forum_remove_bad_characters();
 
 //
 // Generate output to be used for config.php
@@ -130,7 +129,7 @@ if (!isset($_POST['form_sent']))
 		error($lang_install['No database support']);
 
 	// Make an educated guess regarding base_url
-	$base_url_guess = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') ? 'https://' : 'http://').preg_replace('/:80$/', '', $_SERVER['HTTP_HOST']).substr(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), 0, -6);
+	$base_url_guess = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') ? 'https://' : 'http://').preg_replace('/:80$/', '', $_SERVER['HTTP_HOST'] ?? '').substr(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), 0, -6);
 	if (substr($base_url_guess, -1) == '/')
 		$base_url_guess = substr($base_url_guess, 0, -1);
 

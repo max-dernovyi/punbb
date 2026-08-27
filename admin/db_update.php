@@ -62,18 +62,17 @@ if (!defined('FORUM_CACHE_DIR'))
 // Load the functions script
 require FORUM_ROOT.'include/functions.php';
 
-// Load UTF-8 functions
-require FORUM_ROOT.'include/utf8/utf8.php';
-require FORUM_ROOT.'include/utf8/ucwords.php';
-require FORUM_ROOT.'include/utf8/trim.php';
-
-// Strip out "bad" UTF-8 characters
-forum_remove_bad_characters();
-
-// Everything else this release needs: extensions and a database driver
+// Everything this release needs: extensions and a database driver. Runs before
+// include/utf8.php, which calls mb_internal_encoding() and would fatal without mbstring.
 $php_requirement_errors = check_php_requirements();
 if (!empty($php_requirement_errors))
 	exit('PunBB cannot be updated on this PHP installation:'."\n".'<ul><li>'.implode('</li><li>', $php_requirement_errors).'</li></ul>');
+
+// Load UTF-8 functions
+require FORUM_ROOT.'include/utf8.php';
+
+// Strip out "bad" UTF-8 characters
+forum_remove_bad_characters();
 
 // If the request_uri is invalid try fix it
 if (!defined('FORUM_IGNORE_REQUEST_URI'))
@@ -548,7 +547,7 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 {
 
 ?>
-				<li class="important"><span><strong>IMPORTANT!</strong> Based on a random selection of 100 posts, topic subjects, usernames and forum names from the database, it appears as if text in the database is currently UTF-8 encoded. This is a good thing. Based on this, the update process will not attempt to do charset conversion. If you have reason to believe that the charset conversion is required nonetheless, you can <a href="<?php echo $current_url.((substr_count($current_url, '?') == 1) ? '&amp;' : '?').'force=1' ?>">force the conversion to run</a>.</span></li>
+				<li class="important"><span><strong>IMPORTANT!</strong> Based on a random selection of 100 posts, topic subjects, usernames and forum names from the database, it appears as if text in the database is currently UTF-8 encoded. This is a good thing. Based on this, the update process will not attempt to do charset conversion. If you have reason to believe that the charset conversion is required nonetheless, you can <a href="<?php echo forum_htmlencode($current_url.((substr_count($current_url, '?') == 1) ? '&' : '?').'force=1') ?>">force the conversion to run</a>.</span></li>
 <?php
 
 }
@@ -556,7 +555,7 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 ?>
 			</ul>
 		</div>
-		<form class="frm-form" method="get" accept-charset="utf-8" action="<?php echo $current_url ?>">
+		<form class="frm-form" method="get" accept-charset="utf-8" action="<?php echo forum_htmlencode($current_url) ?>">
 			<div class="hidden">
 				<input type="hidden" name="stage" value="start" />
 			</div>

@@ -12,13 +12,6 @@
 if (!defined('FORUM'))
 	exit;
 
-// Load the IDNA class for international url handling
-if (defined('FORUM_SUPPORT_PCRE_UNICODE') && defined('FORUM_ENABLE_IDNA'))
-{
-	require FORUM_ROOT.'include/idna/idna_convert.class.php';
-}
-
-
 // Here you can add additional smilies if you like (please note that you must escape singlequote and backslash)
 $smilies = array(':)' => 'smile.png', '=)' => 'smile.png', ':|' => 'neutral.png', '=|' => 'neutral.png', ':(' => 'sad.png', '=(' => 'sad.png', ':D' => 'big_smile.png', '=D' => 'big_smile.png', ':o' => 'yikes.png', ':O' => 'yikes.png', ';)' => 'wink.png', ':/' => 'hmm.png', ':P' => 'tongue.png', ':p' => 'tongue.png', ':lol:' => 'lol.png', ':mad:' => 'mad.png', ':rolleyes:' => 'roll.png', ':cool:' => 'cool.png');
 
@@ -601,7 +594,6 @@ function handle_url_tag($url, $link = '', $bbcode = false)
 
 	if (defined('FORUM_SUPPORT_PCRE_UNICODE') && defined('FORUM_ENABLE_IDNA'))
 	{
-		static $idn;
 		static $cached_encoded_urls = null;
 
 		if (is_null($cached_encoded_urls))
@@ -613,14 +605,7 @@ function handle_url_tag($url, $link = '', $bbcode = false)
 			$full_url = $cached_encoded_urls[$cache_key];
 		else
 		{
-			if (!isset($idn))
-			{
-				$idn = new idna_convert();
-				$idn->set_parameter('encoding', 'utf8');
-				$idn->set_parameter('strict', false);
-			}
-
-			$full_url = $idn->encode($full_url);
+			$full_url = forum_idna_encode($full_url);
 			$cached_encoded_urls[$cache_key] = $full_url;
 		}
 	}
@@ -633,7 +618,7 @@ function handle_url_tag($url, $link = '', $bbcode = false)
 			$link_name = ($link == '' || $link == $url) ? $url : $link;
 			if (preg_match('!^(https?|ftp|news){1}'.preg_quote('://xn--', '!').'!', $link_name))
 			{
-				$link = $idn->decode($link_name);
+				$link = forum_idna_decode($link_name);
 			}
 		}
 
@@ -650,7 +635,7 @@ function handle_url_tag($url, $link = '', $bbcode = false)
 		{
 			if (preg_match('!^(https?|ftp|news){1}'.preg_quote('://xn--', '!').'!', $link))
 			{
-				$link = $idn->decode($link);
+				$link = forum_idna_decode($link);
 			}
 		}
 

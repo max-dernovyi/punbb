@@ -30,6 +30,16 @@ class HandleUrlTagTest extends TestCase {
 		$this->assertEquals('<a href="http://xn--caf-dma.com">http://café.com</a>', handle_url_tag('http://xn--caf-dma.com'));
 	}
 
+	/**
+	 * UTS-46 rejects hosts IDNA2003 used to encode anyway. forum_idna_encode()
+	 * hands the URL back unchanged, so the raw host reaches the href.
+	 */
+	public function testHandleUrlTagUnconvertibleHost(): void {
+		$this->assertEquals('<a href="http://-пример-.рф/x">http://-пример-.рф/x</a>', handle_url_tag('http://-пример-.рф/x'));
+		// Nothing to encode, so no [url=...] alias is emitted.
+		$this->assertEquals('[url]http://-пример-.рф[/url]', do_clickable('http://-пример-.рф', TRUE));
+	}
+
 	public function testDoClicable(): void {
 		$this->assertEquals('[url=http://xn--caf-dma.com]http://café.com[/url]', do_clickable('http://xn--caf-dma.com', TRUE));
 		$this->assertEquals('[url=http://xn--d1acpjx3f.xn--p1ai]http://яндекс.рф[/url]', do_clickable('http://яндекс.рф', TRUE));

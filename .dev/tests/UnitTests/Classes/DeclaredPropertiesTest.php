@@ -6,7 +6,7 @@
  * The check is source-level because the four drivers all declare the same
  * class DBLayer and cannot be loaded into one process; a token scan reads all
  * of them at once and fails the build the moment an undeclared $this->x
- * appears. include/idna/ is replaced by a later step and is deliberately out of scope.
+ * appears.
  *
  * @copyright (C) 2008-2012 PunBB, partially based on code (C) 2008-2009 FluxBB.org
  * @license http://www.gnu.org/licenses/gpl.html GPL version 2 or higher

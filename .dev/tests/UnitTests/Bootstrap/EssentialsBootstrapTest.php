@@ -1,6 +1,6 @@
 <?php
 /**
- * Guards the first fatal of the PHP 8.4 migration: include/utf8/utf8.php read
+ * Guards the first fatal of the PHP 8.4 migration: the UTF-8 loader read
  * MB_OVERLOAD_STRING, a constant PHP 8.0 removed along with mbstring function
  * overloading, so every entry point died on its first include.
  *
@@ -48,9 +48,9 @@ class EssentialsBootstrapTest extends TestCase {
 	}
 
 	public function testUtf8LoaderRunsInAFreshProcess(): void {
-		$output = $this->load('include/utf8/utf8.php');
+		$output = $this->load('include/utf8.php');
 
-		$this->assertNoFatal($output, 'include/utf8/utf8.php');
+		$this->assertNoFatal($output, 'include/utf8.php');
 		$this->assertSame('', $output, 'the UTF-8 loader must load silently');
 	}
 
@@ -68,7 +68,7 @@ class EssentialsBootstrapTest extends TestCase {
 	public function testMbstringOverloadConstantIsGone(): void {
 		$this->assertStringNotContainsString(
 			'MB_OVERLOAD',
-			file_get_contents(self::root().'include/utf8/utf8.php'),
+			file_get_contents(self::root().'include/utf8.php'),
 			'mbstring function overloading was removed in PHP 8.0'
 		);
 	}
@@ -76,7 +76,7 @@ class EssentialsBootstrapTest extends TestCase {
 	public function testPcreUnicodeProbeIsKept(): void {
 		$this->assertStringContainsString(
 			'PCRE is not compiled with UTF-8 support',
-			file_get_contents(self::root().'include/utf8/utf8.php'),
+			file_get_contents(self::root().'include/utf8.php'),
 			'the PCRE UTF-8 capability check is still meaningful and must stay'
 		);
 	}

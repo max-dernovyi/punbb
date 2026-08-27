@@ -28,9 +28,7 @@ $forum_start = ((float)$usec + (float)$sec);
 require FORUM_ROOT.'include/functions.php';
 require FORUM_ROOT.'include/loader.php';
 
-require FORUM_ROOT.'include/utf8/utf8.php';
-require FORUM_ROOT.'include/utf8/ucwords.php';
-require FORUM_ROOT.'include/utf8/trim.php';
+require FORUM_ROOT.'include/utf8.php';
 
 error_reporting(E_ALL);
 

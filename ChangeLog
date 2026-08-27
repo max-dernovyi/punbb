@@ -18,6 +18,9 @@ unreleased
  * The PHP session cookie now follows $cookie_path, $cookie_domain and $cookie_secure from config.php and is HttpOnly. Existing sessions are dropped on upgrade.
  * Removed forum_unregister_globals(); register_globals has not existed since PHP 5.4.
  * preparse_list_tag() no longer defaults $type: an optional parameter before a by-reference one is illegal in PHP 8.
+ * Replaced the bundled phputf8 library with include/utf8.php, a shim over mbstring and PCRE. The 28 utf8_* names the forum and its extension API use keep their signatures and return values, but 16 phputf8 helpers no caller used are gone: utf8_str_split, utf8_str_pad, utf8_strcasecmp, utf8_strcspn, utf8_accents_to_ascii, utf8_is_ascii_ctrl, utf8_strip_ascii_ctrl, utf8_is_word_chars, utf8_is_valid, utf8_compliant, utf8_byte_position, utf8_bad_find, utf8_bad_findall, utf8_bad_replace, utf8_bad_strip and utf8_bad_explain. An extension calling one of them must switch to mbstring. mbstring is now required and mb_internal_encoding() is set to UTF-8 at bootstrap; an extension shipping its own copy of phputf8 must drop it.
+ * Replaced the bundled idna_convert library with ext-intl, which is now required. IDN conversion follows UTS-46 instead of IDNA2003 and touches the host only: 'ss' is no longer substituted for 'ß', final sigma and ZWNJ/ZWJ survive, the host is case-folded, and a label with a leading/trailing hyphen or over 63 octets is passed through unconverted instead of being encoded. Paths, query strings, user info and email local parts are left alone.
+ * get_current_url() now builds the scheme, host and port from $base_url in config.php instead of the request headers, so a proxy rewriting Host can no longer forge self-referential URLs or break the CSRF tokens keyed on them. $base_url must name the forum's public address; a $base_url with no host makes self-referential URLs root-relative.
 
 
 PunBB 1.4.4
