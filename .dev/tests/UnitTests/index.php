@@ -5,7 +5,7 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8">
-		<title>PunBB for developers - Languages test</title>
+		<title>PunBB for developers - Unit tests</title>
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
 		<link href="<?php echo $base_url ?>/.dev/bootstrap/css/bootstrap.min.css" rel="stylesheet">
         <link href="<?php echo $base_url ?>/.dev/css/style.css" rel="stylesheet">
@@ -29,7 +29,6 @@
                                     <b class="caret"></b>
                                 </a>
                                 <ul class="dropdown-menu">
-                                    <li><a href="<?php echo $base_url ?>/.dev/tests/LanguageTest/">Language test</a></li>
                                     <li class="active"><a href="<?php echo $base_url ?>/.dev/tests/UnitTests/">Unit tests</a></li>
                                 </ul>
                             </li>

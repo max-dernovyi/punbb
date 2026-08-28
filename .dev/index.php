@@ -35,7 +35,6 @@
                                     <b class="caret"></b>
                                 </a>
                                 <ul class="dropdown-menu">
-                                    <li><a href="<?php echo $base_url ?>/.dev/tests/LanguageTest/">Language test</a></li>
                                     <li><a href="<?php echo $base_url ?>/.dev/tests/UnitTests/">Unit tests</a></li>
                                 </ul>
                             </li>

@@ -13,11 +13,23 @@ PunBB is a fast and lightweight PHP-powered discussion board. It is released und
  - A webserver
  - PHP 8.4 or later, with the `mbstring`, `intl`, `json` and `xml` extensions
  - [Composer 2](https://getcomposer.org/)
- - A database where forum data is to be stored, created in one of: MySQL 8.0 or later, PostgreSQL 13 or later or SQLite 3
+ - A database where forum data is to be stored, created in one of: MySQL 8.0 or later, PostgreSQL 13 or later or SQLite 3 (verified on MySQL 8.4 and PostgreSQL 17)
 
 `$base_url` in `config.php` must be the forum's public address (scheme, host and port). Every self-referential URL is built from it; the request `Host` header is never used.
 
 Supported `$db_type` values in `config.php`: `mysqli`, `mysqli_innodb`, `pgsql`, `sqlite3`. The `mysql`, `mysql_innodb` and `sqlite` (SQLite2) drivers were removed together with the PHP extensions they needed — an existing forum on one of them must change `$db_type` before running `admin/db_update.php`.
+
+## Upgrade
+Back up the forum directory and the database before you start.
+
+ 1. If `$db_type` in `config.php` is `mysql`, `mysql_innodb` or `sqlite`, change it to `mysqli`, `mysqli_innodb` or `sqlite3` first. `admin/db_update.php` stops on a removed driver and names the replacement.
+ 2. Turn maintenance mode on and disable every extension in the administration console.
+ 3. Overwrite the old files with the new ones, keeping `config.php`, `img/avatars/` and `extensions/`.
+ 4. Run `composer install --no-dev` and empty the `cache/` directory.
+ 5. Open `admin/db_update.php` in your browser and follow it to the end.
+ 6. Update the extensions, re-enable them and turn maintenance mode off.
+
+Extensions written for PunBB 1.4 may need changes: `ChangeLog` lists the breaking ones.
 
 ## Extension installation
  1. Download an extension's archive from the PunBB extensions repository or any other place. Extract it into your forum’s extensions directory. (e.g. /home/user/example.com/punbb/extensions)
@@ -25,6 +37,11 @@ Supported `$db_type` values in `config.php`: `mysqli`, `mysqli_innodb`, `pgsql`,
  3. Click the "Install extension" link to install the extension.
 
 NOTE: You may use the pun_repository official PunBB extension to download and install extensions from PunBB repository with one click.
+
+## Performance
+ - Enable OPcache. It ships with PHP and only needs turning on.
+ - Enable gzip output compression in "Administration", "Settings", or let the webserver do it with mod_deflate.
+ - Disable the forum features you do not use in the administration interface.
 
 ## Contributing
 

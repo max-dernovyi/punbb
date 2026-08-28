@@ -58,8 +58,10 @@ function update_search_index($mode, $post_id, $message, $subject = null)
 	if ($return !== null)
 		return;
 
+	// A reply carries no subject of its own: the parameter is nullable and the
+	// null stops here rather than reaching mbstring.
 	$message = utf8_strtolower($message);
-	$subject = utf8_strtolower($subject);
+	$subject = utf8_strtolower($subject ?? '');
 
 	// Split old and new post/subject to obtain array of 'words'
 	$words_message = split_words($message);
@@ -207,6 +209,17 @@ function strip_search_index($post_ids)
 	$return = ($hook = get_hook('si_fn_strip_search_index_start')) ? eval($hook) : null;
 	if ($return !== null)
 		return;
+
+	// Nothing to strip, and 'IN()' is not valid SQL. A forum can hold topics
+	// with no posts at all — moving a topic away leaves a redirect behind — and
+	// pruning one hands this function an empty list.
+	if (trim((string) $post_ids) === '')
+	{
+		// The end hook still fires: extensions bound to it must see a balanced
+		// start/end pair on every path.
+		($hook = get_hook('si_fn_strip_search_index_end')) ? eval($hook) : null;
+		return;
+	}
 
 	$query = array(
 		'SELECT'	=> 'word_id',

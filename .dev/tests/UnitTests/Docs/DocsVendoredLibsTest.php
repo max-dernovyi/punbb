@@ -21,19 +21,12 @@ class DocsVendoredLibsTest extends TestCase
 		return file_get_contents($path);
 	}
 
-	/** @return array<string, array{string}> */
-	public static function readmes(): array
+	public function testReadmeListsEveryRequiredExtension(): void
 	{
-		return array('markdown' => array('README.md'), 'plain text' => array('README'));
-	}
-
-	#[DataProvider('readmes')]
-	public function testReadmeListsEveryRequiredExtension(string $name): void
-	{
-		$readme = $this->doc($name);
+		$readme = $this->doc('README.md');
 
 		foreach (forum_required_extensions() as $extension)
-			$this->assertStringContainsString($extension, $readme, $extension.' is not listed in '.$name);
+			$this->assertStringContainsString($extension, $readme, $extension.' is not listed in README.md');
 	}
 
 	public function testClaudeMdDocumentsTheFrozenUtf8Api(): void

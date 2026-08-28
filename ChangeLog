@@ -3,6 +3,7 @@ unreleased
 ====================
 
  * PHP 8.4 is now the minimum supported version; PHP 5 and 7 support is dropped.
+ * Dependencies are managed by Composer 2: 'composer install --no-dev' must be run in the forum directory before the first request, because include/autoload.php requires vendor/autoload.php and stops the forum without it. The forum itself has no runtime packages - the autoloader is the only thing generated. .htaccess.dist denies access to vendor/ and the tooling manifests; merge it into your .htaccess.
  * Removed the 'mysql', 'mysql_innodb' and 'sqlite' (SQLite2) database drivers along with the PHP extensions they needed. Supported drivers are 'mysqli', 'mysqli_innodb', 'pgsql' and 'sqlite3'; a forum on a removed driver must change $db_type in config.php before db_update.php will run.
  * Replaced create_function() with closures in the BBCode parser and the admin index. Extensions hooking ps_do_bbcode_replace may push either callables or the old code strings into $replace/$replace_callback; the strings are compiled with the original semantics.
  * install.php and db_update.php now refuse to run unless PHP 8.4+, the mbstring, intl, json and xml extensions and at least one supported database extension are present.
@@ -23,6 +24,9 @@ unreleased
  * get_current_url() now builds the scheme, host and port from $base_url in config.php instead of the request headers, so a proxy rewriting Host can no longer forge self-referential URLs or break the CSRF tokens keyed on them. $base_url must name the forum's public address; a $base_url with no host makes self-referential URLs root-relative.
  * Removed the bundled LABjs script loader. The Loader now emits plain <script> tags for every group, which is what LABjs emulated; ordering comes from the tag order and the native async/defer attributes. The ld_fn_render_js_labjs_start and ld_fn_render_js_labjs_end hooks are gone — an extension bound to them must move to ld_fn_render_js_simple_start / ld_fn_render_js_simple_end — and FORUM_DISABLE_ASYNC_JS_LOADER in config.php no longer does anything.
  * Dropped the asset build: the Ant script, YUI Compressor and the four bundled JARs are gone and nothing replaced them. The forum now serves include/js/*.js and style/Oxygen/Oxygen.css directly, so no Java and no Node are needed to install or develop it. Oxygen.min.css had never been minified — it was the hand-maintained stylesheet and is now named Oxygen.css.
+ * update_search_index() no longer passes a null subject to the UTF-8 helpers: a reply has no subject, so every reply and every edit emitted a deprecation.
+ * strip_search_index() returns early for an empty post list instead of building an invalid 'IN ()' query. Deleting a forum holding only topic redirects ended on the error page.
+ * admin/reindex.php used the 'case X;' form, deprecated in PHP 8.5 and a candidate for removal in 9.0. The compile-time notice reached the browser and turned the rest of the page into 'headers already sent' warnings.
  * Removed stylesheets nothing loads: Oxygen.css, Oxygen_cs.css and Oxygen_ie6/7/8.css stopped being build inputs or served files in 2011-2015 and no longer describe the shipped Oxygen.min.css, and style/print.css was never referenced at all.
 
 
