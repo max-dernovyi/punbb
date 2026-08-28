@@ -13,10 +13,10 @@
 	# Uncomment and properly set the RewriteBase if the rewrite rules are not working properly
 	#RewriteBase /
 
-	# The Composer tree and the development tree are never served. The pattern
-	# is relative to this file's directory, so it stays scoped to the forum
-	# root in a subdirectory install and cannot match an SEF URL segment.
-	RewriteRule ^(vendor|\.dev)/ - [F,L]
+	# The Composer tree, the npm tree and the development tree are never served.
+	# The pattern is relative to this file's directory, so it stays scoped to the
+	# forum root in a subdirectory install and cannot match an SEF URL segment.
+	RewriteRule ^(vendor|node_modules|\.dev)/ - [F,L]
 
 	RewriteCond %{REQUEST_FILENAME} !-f
 	RewriteCond %{REQUEST_FILENAME} !-d
@@ -81,13 +81,13 @@ AddCharset utf-8 .html .css .js .xml .json .rss
 # "vendor" — acceptable only here, since SEF URLs need mod_rewrite anyway.
 <IfModule !mod_rewrite.c>
     <IfModule mod_alias.c>
-        RedirectMatch 404 (^|/)(vendor|\.dev)/
+        RedirectMatch 404 (^|/)(vendor|node_modules|\.dev)/
     </IfModule>
 </IfModule>
 
 
 # Development-only manifests must never be served.
-<FilesMatch "^(composer\.(json|lock)|phpunit\.xml\.dist|phpstan.*\.neon)$">
+<FilesMatch "^(composer\.(json|lock)|package(-lock)?\.json|phpunit\.xml\.dist|phpstan.*\.neon)$">
     <IfModule mod_authz_core.c>
         Require all denied
     </IfModule>

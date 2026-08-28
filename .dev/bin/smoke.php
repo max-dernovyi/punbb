@@ -6,6 +6,9 @@
  * body contains. Exits non-zero on a fatal and on any Deprecated/Warning/Notice
  * line: the sweep is the deprecation gate for the migration.
  *
+ * It is also the asset gate: every script/stylesheet URL a page renders must
+ * resolve to a file in the checkout, and no page may still reference $LAB.
+ *
  * Compile-time diagnostics surface only on a cold opcache, so restart the web
  * container before sweeping (`make smoke` does).
  *
@@ -87,6 +90,79 @@ function smoke_diagnostics($body)
 			$found[] = ucfirst(strtolower($match[1])).': '.trim(strip_tags($match[2]));
 
 	return array_values(array_unique($found));
+}
+
+
+// Every script/stylesheet URL a page renders, deduplicated and entity-decoded.
+function smoke_asset_urls($body)
+{
+	$found = array();
+
+	if (preg_match_all('#<script[^>]+src\s*=\s*"([^"]+)"#i', (string) $body, $matches))
+		$found = $matches[1];
+
+	if (preg_match_all('#<link[^>]+rel\s*=\s*"[^"]*stylesheet[^"]*"[^>]*>#i', (string) $body, $tags))
+		foreach ($tags[0] as $tag)
+			if (preg_match('#href\s*=\s*"([^"]+)"#i', $tag, $href))
+				$found[] = $href[1];
+
+	return array_values(array_unique(array_map(
+		static fn(string $url): string => html_entity_decode($url, ENT_QUOTES, 'UTF-8'),
+		$found
+	)));
+}
+
+
+// The asset URLs of a page that have no file behind them in the checkout.
+// Off-site URLs are somebody else's problem and are left alone. $bases lists the
+// origins that map onto $root: the sweep URL and the forum's own $base_url, which
+// are not the same string when the sweep reaches the forum on some other address.
+function smoke_missing_assets($body, $bases, $root)
+{
+	// Each base also matches schemeless: a protocol-relative URL on our own
+	// host is ours to resolve, and skipping it would blind the gate.
+	$prefixes = array();
+	foreach ((array) $bases as $base)
+	{
+		if (($base = rtrim((string) $base, '/')) === '')
+			continue;
+
+		$prefixes[] = $base.'/';
+
+		$schemeless = preg_replace('#^[a-z][a-z0-9+.-]*:#i', '', $base);
+		if ($schemeless !== $base && $schemeless !== '')
+			$prefixes[] = $schemeless.'/';
+	}
+
+	$missing = array();
+
+	foreach (smoke_asset_urls($body) as $url)
+	{
+		$path = strtok($url, '?#');
+
+		foreach ($prefixes as $prefix)
+			if (strpos((string) $path, $prefix) === 0)
+			{
+				$path = substr((string) $path, strlen($prefix));
+				break;
+			}
+
+		// Anything still absolute points at another host: not ours to resolve.
+		if ($path === false || $path === '' || preg_match('#^(?:[a-z][a-z0-9+.-]*:)?//#i', $path))
+			continue;
+
+		if (!is_file(rtrim($root, '/').'/'.ltrim($path, '/')))
+			$missing[] = $url;
+	}
+
+	return array_values(array_unique($missing));
+}
+
+
+// LABjs is gone; a page still emitting its loader chain means a stale asset.
+function smoke_labjs_references($body)
+{
+	return strpos((string) $body, '$LAB') !== false;
 }
 
 
@@ -210,6 +286,18 @@ function smoke_pass($label, $base, $jar, $resolve, &$diagnostics, &$fatals)
 
 			if (smoke_is_fatal($line))
 				$fatals[] = $label.' '.$target.' -> '.$line;
+		}
+
+		foreach (smoke_missing_assets($response['body'], array($base, smoke_forum_base_url()), dirname(__DIR__, 2)) as $url)
+		{
+			echo '      missing asset: '.$url."\n";
+			$fatals[] = $label.' '.$target.' -> missing asset '.$url;
+		}
+
+		if (smoke_labjs_references($response['body']))
+		{
+			echo "      \$LAB reference in the rendered page\n";
+			$fatals[] = $label.' '.$target.' -> $LAB reference';
 		}
 	}
 

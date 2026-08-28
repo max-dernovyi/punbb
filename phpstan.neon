@@ -27,7 +27,7 @@ parameters:
 	excludePaths:
 		analyseAndScan:
 			- vendor
-			- .dev/build
+			- .dev/tmp (?)
 			- cache
 			- extensions
 			- include/js

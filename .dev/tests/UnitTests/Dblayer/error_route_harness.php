@@ -28,7 +28,13 @@ require FORUM_ROOT.'include/functions.php';
 $driver = $argv[1];
 $mode = $argv[2];
 
-$sqlite_db = '.dev/build/phpunit/error_route_'.getmypid().'.db';
+// PHPUnit's cache directory doubles as scratch space, but the harness runs
+// out of process and cannot assume PHPUnit created it first.
+$scratch = '.dev/tmp/phpunit';
+if (!is_dir(FORUM_ROOT.$scratch))
+	mkdir(FORUM_ROOT.$scratch, 0777, true);
+
+$sqlite_db = $scratch.'/error_route_'.getmypid().'.db';
 
 switch ($driver)
 {
@@ -62,7 +68,7 @@ switch ($driver)
 	case 'sqlite3':
 		// A directory passes the readable/writable checks and then fails in the
 		// SQLite3 constructor, which throws.
-		$credentials = array('', '', '', ($mode == 'bad_connect') ? '.dev/build' : $sqlite_db);
+		$credentials = array('', '', '', ($mode == 'bad_connect') ? $scratch : $sqlite_db);
 		break;
 
 	default:

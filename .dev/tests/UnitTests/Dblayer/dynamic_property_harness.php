@@ -23,7 +23,11 @@ function error($message, $file = null, $line = null)
 
 $driver = $argv[1];
 $table = 'dynprop_'.getmypid();
-$sqlite_db = '.dev/build/phpunit/dynprop_'.getmypid().'.db';
+$scratch = '.dev/tmp/phpunit';
+if (!is_dir(FORUM_ROOT.$scratch))
+	mkdir(FORUM_ROOT.$scratch, 0777, true);
+
+$sqlite_db = $scratch.'/dynprop_'.getmypid().'.db';
 
 switch ($driver)
 {

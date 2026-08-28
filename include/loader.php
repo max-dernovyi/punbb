@@ -167,12 +167,7 @@ class Loader
 		// Sorts the scripts into correct order
 		uasort($this->libs['js'], array('Loader', 'sort_libs'));
 
-		if (defined('FORUM_DISABLE_ASYNC_JS_LOADER'))
-		{
-			return $this->render_js_simple();
-		}
-
-		return $this->render_js_labjs();
+		return $this->render_js_simple();
 	}
 
 
@@ -345,6 +340,14 @@ class Loader
 
 		foreach ($libs as $key => $lib)
 		{
+			// A hook can disable a registered lib by nulling its data; without
+			// this the renderer emits <script src=""> and the browser refetches
+			// the page itself.
+			if ($lib['data'] === FALSE)
+			{
+				continue;
+			}
+
 			if ($lib['type'] == 'inline')
 			{
 				$output .= '<script>'.$lib['data'].'</script>'."\n";
@@ -362,74 +365,6 @@ class Loader
 		($hook = get_hook('ld_fn_render_js_simple_end')) ? eval($hook) : null;
 
 		return $output;
-	}
-
-
-	// Render for JS — use LABjs method
-	private function render_js_labjs()
-	{
-		$output_system = $output_counter = $output_default = '';
-		$libs = $this->libs['js'];
-
-		$return = ($hook = get_hook('ld_fn_render_js_labjs_start')) ? eval($hook) : null;
-		if ($return !== null)
-			return $return;
-
-
-		foreach ($libs as $key => $lib)
-		{
-			if ($lib['data'] === FALSE)
-			{
-				continue;
-			}
-
-			if ($lib['type'] == 'inline')
-			{
-				if ($lib['group'] == FORUM_JS_GROUP_SYSTEM)
-				{
-					$output_system .= '<script>'.$lib['data'].'</script>'."\n";
-				}
-				else if ($lib['group'] == FORUM_JS_GROUP_COUNTER)
-				{
-					$output_counter .= '<script>'.$lib['data'].'</script>'."\n";
-				}
-				else
-				{
-					$output_default .= "\n\t".'.wait(function () { '.$lib['data'].' })';
-				}
-
-				unset($libs[$key]);
-				continue;
-			}
-			else if ($lib['type'] == 'url')
-			{
-				if ($lib['group'] == FORUM_JS_GROUP_SYSTEM)
-				{
-					$output_system .= '<script src="'.$lib['data'].'"'.(($lib['async']) ? " async" : "").(($lib['defer']) ? " defer=\"true\"" : "").'></script>'."\n";
-				}
-				else if ($lib['group'] == FORUM_JS_GROUP_COUNTER)
-				{
-					$output_counter .= '<script src="'.$lib['data'].'"'.(($lib['async']) ? " async" : "").(($lib['defer']) ? " defer=\"true\"" : "").'></script>'."\n";
-				}
-				else
-				{
-					$output_default .= "\n\t".'.script("'.$lib['data'].'")'.(($lib['async']) ? "" : ".wait()");
-				}
-
-				unset($libs[$key]);
-				continue;
-			}
-		}
-
-		// Wrap default to LABjs parameters
-		if ($output_default != '')
-		{
-			$output_default = '<script>'."\n\t".'$LAB.setOptions({AlwaysPreserveOrder:false})'.$output_default.';'."\n".'</script>';
-		}
-
-		($hook = get_hook('ld_fn_render_js_labjs_end')) ? eval($hook) : null;
-
-		return $output_system.$output_default.$output_counter;
 	}
 
 

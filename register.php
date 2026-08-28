@@ -314,7 +314,7 @@ $forum_page['crumbs'] = array(
 );
 
 // Load JS for timezone detection
-$forum_loader->add_js($base_url.'/include/js/min/punbb.timezone.min.js');
+$forum_loader->add_js($base_url.'/include/js/punbb.timezone.js');
 $forum_loader->add_js('PUNBB.timezone.detect_on_register_form();', array('type' => 'inline'));
 
 

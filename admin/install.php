@@ -64,7 +64,6 @@ function generate_config_file()
 	$config_body .= "\n\n// Disable forum CSRF checking by removing // from the following line\n//define('FORUM_DISABLE_CSRF_CONFIRM', 1);";
 	$config_body .= "\n\n// Disable forum hooks (extensions) by removing // from the following line\n//define('FORUM_DISABLE_HOOKS', 1);";
 	$config_body .= "\n\n// Disable forum output buffering by removing // from the following line\n//define('FORUM_DISABLE_BUFFERING', 1);";
-	$config_body .= "\n\n// Disable forum async JS loader by removing // from the following line\n//define('FORUM_DISABLE_ASYNC_JS_LOADER', 1);";
 	$config_body .= "\n\n// Disable forum extensions version check by removing // from the following line\n//define('FORUM_DISABLE_EXTENSIONS_VERSION_CHECK', 1);";
 
 	return $config_body;
@@ -145,7 +144,7 @@ if (!isset($_POST['form_sent']))
 <head>
 	<meta charset="utf-8" />
 	<title>PunBB Installation</title>
-	<link rel="stylesheet" type="text/css" href="<?php echo FORUM_ROOT ?>style/Oxygen/Oxygen.min.css" />
+	<link rel="stylesheet" type="text/css" href="<?php echo FORUM_ROOT ?>style/Oxygen/Oxygen.css" />
 </head>
 <body>
 <div id="brd-install" class="brd-page">
@@ -364,8 +363,8 @@ if (!isset($_POST['form_sent']))
 
 </div>
 </div>
-	<script src="<?php echo FORUM_ROOT ?>include/js/min/punbb.common.min.js"></script>
-	<script src="<?php echo FORUM_ROOT ?>include/js/min/punbb.install.min.js"></script>
+	<script src="<?php echo FORUM_ROOT ?>include/js/punbb.common.js"></script>
+	<script src="<?php echo FORUM_ROOT ?>include/js/punbb.install.js"></script>
 </body>
 </html>
 <?php
@@ -1893,7 +1892,7 @@ else
 <head>
 	<meta charset="utf-8" />
 	<title>PunBB Installation</title>
-	<link rel="stylesheet" type="text/css" href="<?php echo FORUM_ROOT ?>style/Oxygen/Oxygen.min.css" />
+	<link rel="stylesheet" type="text/css" href="<?php echo FORUM_ROOT ?>style/Oxygen/Oxygen.css" />
 </head>
 <body>
 <div id="brd-install" class="brd-page">
