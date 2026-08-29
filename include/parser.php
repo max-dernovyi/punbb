@@ -139,7 +139,7 @@ function preparse_tags($text, &$errors, $is_signature = false)
 		'*'		=> array('b', 'i', 'u', 'color', 'colour', 'url', 'email', 'list', 'img'),
 		'list'	=> array('*'),
 		'url'	=> array('b', 'i', 'u', 'color', 'colour', 'img'),
-		'email' => array('b', 'i', 'u', 'color', 'colour', 'img'),
+		'email' => array(),
 		'img'	=> array()
 	);
 	// Tags we can automatically fix bad nesting
@@ -769,6 +769,12 @@ $text);
 		$replace_callback[] = 'handle_list_tag($matches[2], $matches[1])';
 	}
 
+    $pattern[] = '#\[email\]([^\[]*?)\[/email\]#';
+    $pattern[] = '#\[email=([^\[]+?)\](.*?)\[/email\]#';
+
+    $replace[] = '<a href=\"mailto:$matches[1]\">$matches[1]</a>';
+    $replace[] = '<a href=\"mailto:$matches[1]\">$matches[2]</a>';
+
 	$pattern[] = '#\[b\](.*?)\[/b\]#ms';
 	$pattern[] = '#\[i\](.*?)\[/i\]#ms';
 	$pattern[] = '#\[u\](.*?)\[/u\]#ms';
@@ -799,12 +805,6 @@ $text);
 
 	$text = preg_replace_callback('#\[url\]([^\[]*?)\[/url\]#', 'callback_handle_url_nobb', $text);
 	$text = preg_replace_callback('#\[url=([^\[]+?)\](.*?)\[/url\]#', 'callback_handle_url_nobb', $text);
-
-	$pattern[] = '#\[email\]([^\[]*?)\[/email\]#';
-	$pattern[] = '#\[email=([^\[]+?)\](.*?)\[/email\]#';
-
-	$replace[] = '<a href=\"mailto:$matches[1]\">$matches[1]</a>';
-	$replace[] = '<a href=\"mailto:$matches[1]\">$matches[2]</a>';
 
 	$return = ($hook = get_hook('ps_do_bbcode_replace')) ? eval($hook) : null;
 	if ($return !== null)
