@@ -50,7 +50,7 @@ if (isset($_GET['install']) || isset($_GET['install_hotfix']))
 		$manifest = is_readable(FORUM_ROOT.'extensions/'.$id.'/manifest.xml') ? file_get_contents(FORUM_ROOT.'extensions/'.$id.'/manifest.xml') : false;
 	else
 	{
-		$remote_file = get_remote_file('http://punbb.informer.com/update/manifest/'.$id.'.xml', 16);
+		$remote_file = get_remote_file('https://punbb.informer.com/update/manifest/'.$id.'.xml', 16);
 		if (!empty($remote_file['content']))
 			$manifest = $remote_file['content'];
 	}
@@ -60,21 +60,11 @@ if (isset($_GET['install']) || isset($_GET['install_hotfix']))
 	$errors = validate_manifest($ext_data, $id);
 
 	/*
+	 * TODO
 	 * Errors must be fully specified instead "bad request" message only
 	 */
-	if (!empty($errors)) {
-		foreach ($errors as $i => $cur_error) {
-			$errors[$i] = '<li class="warn"><span>' . $cur_error . '</span></li>';
-		}
-		$msg_errors =
-			'<div class="ct-box error-box"><h2 class="warn hn">'
-				. $lang_admin_ext['Install ext errors']
-				. '<ul class="error-list">'
-					. implode("\n", $errors)
-				. '</ul>'
-			. '</div>';
-		message(isset($_GET['install'])? $msg_errors : $lang_admin_ext['Hotfix download failed']);
-	}
+	if (!empty($errors))
+		message(isset($_GET['install']) ? $lang_common['Bad request'] : $lang_admin_ext['Hotfix download failed']);
 
 	// Get core amd major versions
 	if (!defined('FORUM_DISABLE_EXTENSIONS_VERSION_CHECK'))
@@ -111,7 +101,7 @@ if (isset($_GET['install']) || isset($_GET['install_hotfix']))
 	{
 
 		$ext_dependancy_id = is_array($dependency) ? $dependency['content'] : $dependency;
-
+		
 	    if (!array_key_exists($ext_dependancy_id, $installed_ext))
 	    {
 		   $errors[] = sprintf($lang_admin_ext['Missing dependency'], $ext_dependancy_id);
@@ -353,7 +343,7 @@ if (isset($_GET['install']) || isset($_GET['install_hotfix']))
 		</div>
 <?php
     }
-?>
+?>	
 		<form class="frm-form" method="post" accept-charset="utf-8" action="<?php echo $base_url.'/admin/extensions.php'.(isset($_GET['install']) ? '?install=' : '?install_hotfix=').$id ?>">
 			<div class="hidden">
 				<input type="hidden" name="csrf_token" value="<?php echo generate_form_token($base_url.'/admin/extensions.php'.(isset($_GET['install']) ? '?install=' : '?install_hotfix=').$id) ?>" />
@@ -1002,17 +992,7 @@ else
 			$errors = validate_manifest($ext_data, $entry);
 			if (!empty($errors))
 			{
-				foreach ($errors as $i => $cur_error) {
-					$errors[$i] = '<li class="warn"><span>' . $cur_error . '</span></li>';
-				}
-				$forum_page['ext_error'][] =
-					'<div class="ext-error databox db' . ++$forum_page['item_num'] . '">'
-						. "\n\t\t\t\t"
-						. '<h3 class="legend"><span>' . sprintf($lang_admin_ext['Extension loading error'], forum_htmlencode($entry)) . '</span></h3>'
-						. "\n\t\t\t\t"
-						. '<p><ul class="error-list">' . implode(' ', $errors) . '</ul></p>'
-						. "\n\t\t\t"
-					. '</div>';
+				$forum_page['ext_error'][] = '<div class="ext-error databox db'.++$forum_page['item_num'].'">'."\n\t\t\t\t".'<h3 class="legend"><span>'.sprintf($lang_admin_ext['Extension loading error'], forum_htmlencode($entry)).'</span></h3>'."\n\t\t\t\t".'<p>'.implode(' ', $errors).'</p>'."\n\t\t\t".'</div>';
 				++$num_failed;
 			}
 			else

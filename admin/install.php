@@ -10,7 +10,7 @@
  */
 
 
-define('MIN_PHP_VERSION', '5.0.0');
+define('MIN_PHP_VERSION', '5.4.0');
 define('MIN_MYSQL_VERSION', '4.1.2');
 
 define('FORUM_ROOT', '../');
@@ -485,17 +485,7 @@ else
 
 			if (!$row || !isset($row['Value']) || strtolower($row['Value']) != 'yes')
 			{
-				// check InnoDB support for new mysql versions
-				$result = $forum_db->query("SHOW ENGINES");
-				$found_innodb = false;
-				while ($row = $forum_db->fetch_assoc($result)) {
-					if ($row["Engine"] == "InnoDB") {
-						$found_innodb = true;
-					}
-				}
-				if (!$found_innodb) {
-					error($lang_install['MySQL InnoDB Not Supported']);
-				}
+				error($lang_install['MySQL InnoDB Not Supported']);
 			}
 		}
 	}
@@ -984,8 +974,8 @@ else
 
 	if (in_array($db_type, array('mysql', 'mysqli', 'mysql_innodb', 'mysqli_innodb')))
 	{
-		$schema['UNIQUE KEYS']['user_id_ident_idx'] = array('user_id', 'ident(40)');
-		$schema['INDEXES']['ident_idx'] = array('ident(40)');
+		$schema['UNIQUE KEYS']['user_id_ident_idx'] = array('user_id', 'ident(25)');
+		$schema['INDEXES']['ident_idx'] = array('ident(25)');
 	}
 
 	$forum_db->create_table('online', $schema);
@@ -1384,20 +1374,20 @@ else
 				'datatype'		=> 'VARCHAR(100)',
 				'allow_null'	=> true
 			),
-			'linkedin'			=> array(
+			'skype'			=> array(
 				'datatype'		=> 'VARCHAR(100)',
 				'allow_null'	=> true
 			),
-			'skype'			=> array(
+			'icq'				=> array(
+				'datatype'		=> 'VARCHAR(12)',
+				'allow_null'	=> true
+			),
+			'linkedin'			=> array(
 				'datatype'		=> 'VARCHAR(100)',
 				'allow_null'	=> true
 			),
 			'jabber'			=> array(
 				'datatype'		=> 'VARCHAR(80)',
-				'allow_null'	=> true
-			),
-			'icq'				=> array(
-				'datatype'		=> 'VARCHAR(12)',
 				'allow_null'	=> true
 			),
 			'msn'				=> array(
@@ -1910,6 +1900,7 @@ else
 		}
 	}
 
+    require_once FORUM_ROOT.'include/xml.php';
 
 ?>
 <!DOCTYPE html>

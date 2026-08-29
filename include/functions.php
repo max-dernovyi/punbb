@@ -2,7 +2,7 @@
 /**
  * Loads common functions used throughout the site.
  *
- * @copyright (C) 2008-2016 PunBB, partially based on code (C) 2008-2009 FluxBB.org
+ * @copyright (C) 2008-2012 PunBB, partially based on code (C) 2008-2009 FluxBB.org
  * @license http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  * @package PunBB
  */
@@ -43,8 +43,6 @@ function forum_session_start() {
 	// Check if session already started
 	if ($forum_session_started && session_id())
 		return;
-
-	session_cache_limiter(FALSE);
 
 	// Check session id
 	$forum_session_id = NULL;
@@ -163,13 +161,10 @@ function forum_remove_bad_characters()
 
 	($hook = get_hook('fn_remove_bad_characters_start')) ? eval($hook) : null;
 
-	if (!function_exists('_forum_remove_bad_characters'))
+	function _forum_remove_bad_characters($array)
 	{
-	    function _forum_remove_bad_characters($array)
-	    {
-	        global $bad_utf8_chars;
-		    return is_array($array) ? array_map('_forum_remove_bad_characters', $array) : str_replace($bad_utf8_chars, '', $array);
-	    }
+		global $bad_utf8_chars;
+		return is_array($array) ? array_map('_forum_remove_bad_characters', $array) : str_replace($bad_utf8_chars, '', $array);
 	}
 
 	$_GET = _forum_remove_bad_characters($_GET);
@@ -439,10 +434,10 @@ function format_time($timestamp, $type = FORUM_FT_DATETIME, $date_format = null,
 	if ($timestamp == '')
 		return ($no_text ? '' : $lang_common['Never']);
 
-	if ($date_format === null)
+	if ($date_format == null)
 		$date_format = $forum_date_formats[$forum_user['date_format']];
 
-	if ($time_format === null)
+	if ($time_format == null)
 		$time_format = $forum_time_formats[$forum_user['time_format']];
 
 	$diff = ($forum_user['timezone'] + $forum_user['dst']) * 3600;
@@ -660,7 +655,7 @@ function paginate($num_pages, $cur_page, $link, $separator, $args = null, $is_de
 {
 	global $forum_url, $lang_common;
 
-	if ($is_default_scheme === null)
+	if ($is_default_scheme == null)
 		$forum_url_page = $forum_url['page'];
 	else
 	{
@@ -802,7 +797,7 @@ function forum_link($link, $args = null)
 		return $return;
 
 	$gen_link = $link;
-	if ($args === null)
+	if ($args == null)
 		$gen_link = $base_url.'/'.$link;
 	else if (!is_array($args))
 		$gen_link = $base_url.'/'.str_replace('$1', $args, $link);
@@ -832,7 +827,7 @@ function forum_sublink($link, $sublink, $subarg, $args = null)
 		return forum_link($link, $args);
 
 	$gen_link = $link;
-	if (!is_array($args) && $args !== null)
+	if (!is_array($args) && $args != null)
 		$gen_link = str_replace('$1', $args, $link);
 	else
 	{
@@ -1418,7 +1413,7 @@ function cookie_login(&$forum_user)
 					'UNIQUE'	=> 'user_id='.$forum_user['id']
 				);
 
-				if ($forum_user['prev_url'] !== null)
+				if ($forum_user['prev_url'] != null)
 				{
 					$query['REPLACE'] .= ', prev_url';
 					$query['VALUES'] .= ', \''.$forum_db->escape($forum_user['prev_url']).'\'';
@@ -1455,7 +1450,7 @@ function cookie_login(&$forum_user)
 				);
 
 				$current_url = get_current_url(255);
-				if ($current_url !== null && !defined('FORUM_REQUEST_AJAX'))
+				if ($current_url != null && !defined('FORUM_REQUEST_AJAX'))
 					$query['SET'] .= ', prev_url=\''.$forum_db->escape($current_url).'\'';
 
 				if ($forum_user['idle'] == '1')
@@ -1532,7 +1527,7 @@ function set_default_user()
 				'UNIQUE'	=> 'user_id=1 AND ident=\''.$forum_db->escape($remote_addr).'\''
 			);
 
-			if ($forum_user['prev_url'] !== null)
+			if ($forum_user['prev_url'] != null)
 			{
 				$query['REPLACE'] .= ', prev_url';
 				$query['VALUES'] .= ', \''.$forum_db->escape($forum_user['prev_url']).'\'';
@@ -1550,7 +1545,7 @@ function set_default_user()
 			);
 
 			$current_url = get_current_url(255);
-			if ($current_url !== null)
+			if ($current_url != null)
 				$query['SET'] .= ', prev_url=\''.$forum_db->escape($current_url).'\'';
 
 			($hook = get_hook('fn_set_default_user_qr_update_online_guest_user')) ? eval($hook) : null;
@@ -2117,7 +2112,7 @@ function add_topic($post_info, &$new_tid, &$new_pid)
 	);
 
 	// If it's a guest post, there might be an e-mail address we need to include
-	if ($post_info['is_guest'] && $post_info['poster_email'] !== null)
+	if ($post_info['is_guest'] && $post_info['poster_email'] != null)
 	{
 		$query['INSERT'] .= ', poster_email';
 		$query['VALUES'] .= ', \''.$forum_db->escape($post_info['poster_email']).'\'';
@@ -2325,7 +2320,7 @@ function add_post($post_info, &$new_pid)
 	);
 
 	// If it's a guest post, there might be an e-mail address we need to include
-	if ($post_info['is_guest'] && $post_info['poster_email'] !== null)
+	if ($post_info['is_guest'] && $post_info['poster_email'] != null)
 	{
 		$query['INSERT'] .= ', poster_email';
 		$query['VALUES'] .= ', \''.$forum_db->escape($post_info['poster_email']).'\'';
@@ -3011,7 +3006,7 @@ function csrf_confirm_form()
 	($hook = get_hook('fn_csrf_confirm_form_pre_header_load')) ? eval($hook) : null;
 
 ?>
-<div class="main">
+<div id="brd-main" class="main">
 	<div class="main-head">
 		<h2 class="hn"><span><?php echo $lang_common['Confirm action head'] ?></span></h2>
 	</div>
@@ -3150,7 +3145,10 @@ function maintenance_message()
 	// START SUBST - <!-- forum_head -->
 	ob_start();
 
-	require FORUM_ROOT.'style/'.$forum_user['style'].'/'.$forum_user['style'].'.php';
+	if (file_exists(FORUM_ROOT.'style/'.$forum_user['style'].'/'.$forum_user['style'].'.php'))
+		require FORUM_ROOT.'style/'.$forum_user['style'].'/'.$forum_user['style'].'.php';
+	else
+		$forum_loader->add_css($base_url.'/style/print.css', array('type' => 'url', 'group' => FORUM_CSS_GROUP_SYSTEM, 'media' => 'screen'));
 	echo $forum_loader->render_css();
 
 	$tpl_temp = forum_trim(ob_get_contents());
@@ -3208,7 +3206,7 @@ function maintenance_message()
 // Display $message and redirect user to $destination_url
 function redirect($destination_url, $message)
 {
-	global $forum_db, $forum_config, $lang_common, $forum_user, $base_url, $forum_loader, $forum_flash;
+	global $forum_db, $forum_config, $lang_common, $forum_user, $base_url, $forum_loader;
 
 	define('FORUM_PAGE', 'redirect');
 
@@ -3235,12 +3233,8 @@ function redirect($destination_url, $message)
 	}	
 	
 	// If the delay is 0 seconds, we might as well skip the redirect all together
-	if ($forum_config['o_redirect_delay'] == '0') {
-        if (!$forum_flash->get_message()) {
-            $forum_flash->add_info($message);
-        }
+	if ($forum_config['o_redirect_delay'] == '0')
 		header('Location: '.str_replace('&amp;', '&', $destination_url));
-    }
 
 	// Send no-cache headers
 	header('Expires: Thu, 21 Jul 1977 07:30:00 GMT');	// When yours truly first set eyes on this world! :)
@@ -3274,7 +3268,10 @@ function redirect($destination_url, $message)
 	ob_start();
 
 	// Include stylesheets
-	require FORUM_ROOT.'style/'.$forum_user['style'].'/'.$forum_user['style'].'.php';
+	if (file_exists(FORUM_ROOT.'style/'.$forum_user['style'].'/'.$forum_user['style'].'.php'))
+		require FORUM_ROOT.'style/'.$forum_user['style'].'/'.$forum_user['style'].'.php';
+	else
+		$forum_loader->add_css($base_url.'/style/print.css', array('type' => 'url', 'group' => FORUM_CSS_GROUP_SYSTEM, 'media' => 'screen'));
 
 	$head_temp = forum_trim(ob_get_contents());
 	$num_temp = 0;

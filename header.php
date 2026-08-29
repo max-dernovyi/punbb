@@ -116,7 +116,10 @@ $forum_head['author'] = '<link rel="author" type="text/html" href="'.forum_link(
 ob_start();
 
 // Include stylesheets
-require FORUM_ROOT.'style/'.$forum_user['style'].'/'.$forum_user['style'].'.php';
+if (file_exists(FORUM_ROOT.'style/'.$forum_user['style'].'/'.$forum_user['style'].'.php'))
+	require FORUM_ROOT.'style/'.$forum_user['style'].'/'.$forum_user['style'].'.php';
+else
+	$forum_loader->add_css($base_url.'/style/print.css', array('type' => 'url', 'group' => FORUM_CSS_GROUP_SYSTEM, 'media' => 'screen'));
 
 $head_temp = forum_trim(ob_get_contents());
 $num_temp = 0;

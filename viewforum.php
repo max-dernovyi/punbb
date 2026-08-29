@@ -28,7 +28,7 @@ if ($id < 1)
 
 // Fetch some info about the forum
 $query = array(
-	'SELECT'	=> 'f.forum_name, f.redirect_url, f.moderators, f.num_topics, f.sort_by, fp.post_topics, f.forum_desc',
+	'SELECT'	=> 'f.forum_name, f.redirect_url, f.moderators, f.num_topics, f.sort_by, fp.post_topics',
 	'FROM'		=> 'forums AS f',
 	'JOINS'		=> array(
 		array(
@@ -259,7 +259,7 @@ if (!empty($topics))
 
 		$forum_page['item_subject']['starter'] = '<span class="item-starter">'.sprintf($lang_forum['Topic starter'], forum_htmlencode($cur_topic['poster'])).'</span>';
 
-		if ($cur_topic['moved_to'] !== null)
+		if ($cur_topic['moved_to'] != null)
 		{
 			$forum_page['item_status']['moved'] = 'moved';
 			$forum_page['item_title']['link'] = '<span class="item-status"><em class="moved">'.sprintf($lang_forum['Item status'], $lang_forum['Moved']).'</em></span> <a href="'.forum_link($forum_url['topic'], array($cur_topic['moved_to'], sef_friendly($cur_topic['subject']))).'">'.forum_htmlencode($cur_topic['subject']).'</a>';
