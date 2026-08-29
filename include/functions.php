@@ -227,11 +227,45 @@ function forum_setcookie($name, $value, $expire)
 }
 
 
+// Splits a URL the forum is allowed to fetch into its transport parts.
+// Only http and https are fetchable: every caller asks for one of them, and a
+// redirect re-enters get_remote_file(), so a Location: naming file://, gopher://
+// or any other wrapper is refused here instead of being handed to a transport.
+function forum_remote_url_parts($url)
+{
+	if (!is_string($url))
+		return false;
+
+	$parsed_url = parse_url(trim($url));
+	if (!is_array($parsed_url) || empty($parsed_url['host']))
+		return false;
+
+	$scheme = isset($parsed_url['scheme']) ? strtolower($parsed_url['scheme']) : '';
+	if ($scheme !== 'http' && $scheme !== 'https')
+		return false;
+
+	$port = isset($parsed_url['port']) ? intval($parsed_url['port']) : ($scheme === 'https' ? 443 : 80);
+	if ($port < 1 || $port > 65535)
+		return false;
+
+	return array(
+		'scheme'	=> $scheme,
+		'transport'	=> $scheme === 'https' ? 'ssl' : 'tcp',
+		'host'		=> $parsed_url['host'],
+		'port'		=> $port,
+		'path'		=> (!empty($parsed_url['path']) ? $parsed_url['path'] : '/').(!empty($parsed_url['query']) ? '?'.$parsed_url['query'] : '')
+	);
+}
+
+
 // Attempts to fetch the provided URL using any available means
 function get_remote_file($url, $timeout, $head_only = false, $max_redirects = 10)
 {
 	$result = null;
-	$parsed_url = parse_url($url);
+	$parsed_url = forum_remote_url_parts($url);
+	if ($parsed_url === false)
+		return null;
+
 	$allow_url_fopen = strtolower(@ini_get('allow_url_fopen'));
 
 	// Quite unlikely that this will be allowed on a shared host, but it can't hurt
@@ -292,15 +326,31 @@ function get_remote_file($url, $timeout, $head_only = false, $max_redirects = 10
 			}
 		}
 	}
-	// fsockopen() is the second best thing
-	else if (function_exists('fsockopen'))
+	// A raw socket is the second best thing
+	else if (function_exists('stream_socket_client'))
 	{
-		$remote = @fsockopen($parsed_url['host'], !empty($parsed_url['port']) ? intval($parsed_url['port']) : 80, $errno, $errstr, $timeout);
+		// The transport follows the scheme: an https:// URL is never fetched in
+		// cleartext on port 80, and the peer certificate is verified.
+		$stream_context = stream_context_create(array(
+			'ssl' => array(
+				'verify_peer'		=> true,
+				'verify_peer_name'	=> true,
+				'peer_name'			=> $parsed_url['host'],
+				'SNI_enabled'		=> true,
+				'allow_self_signed'	=> false
+			)
+		));
+
+		$remote = @stream_socket_client(
+			$parsed_url['transport'].'://'.$parsed_url['host'].':'.$parsed_url['port'],
+			$errno, $errstr, $timeout, STREAM_CLIENT_CONNECT, $stream_context
+		);
 		if ($remote)
 		{
 			// Send a standard HTTP 1.0 request for the page
-			fwrite($remote, ($head_only ? 'HEAD' : 'GET').' '.(!empty($parsed_url['path']) ? $parsed_url['path'] : '/').(!empty($parsed_url['query']) ? '?'.$parsed_url['query'] : '').' HTTP/1.0'."\r\n");
-			fwrite($remote, 'Host: '.$parsed_url['host']."\r\n");
+			fwrite($remote, ($head_only ? 'HEAD' : 'GET').' '.$parsed_url['path'].' HTTP/1.0'."\r\n");
+			$default_port = ($parsed_url['scheme'] === 'https') ? 443 : 80;
+			fwrite($remote, 'Host: '.$parsed_url['host'].($parsed_url['port'] !== $default_port ? ':'.$parsed_url['port'] : '')."\r\n");
 			fwrite($remote, 'User-Agent: PunBB'."\r\n");
 			fwrite($remote, 'Connection: Close'."\r\n\r\n");
 
@@ -1405,6 +1455,18 @@ function generate_form_token($target_url)
 		return $return;
 
 	return sha1(str_replace('&amp;', '&', $target_url).$forum_user['csrf_token']);
+}
+
+
+// Checks a submitted CSRF token against the one $target should carry
+// $token is whatever arrived in the request, so it may be absent or an array.
+function csrf_token_matches($token, $target)
+{
+	$return = ($hook = get_hook('fn_csrf_token_matches_start')) ? eval($hook) : null;
+	if ($return !== null)
+		return $return;
+
+	return is_string($token) && hash_equals(generate_form_token($target), $token);
 }
 
 

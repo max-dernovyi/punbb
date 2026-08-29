@@ -161,8 +161,9 @@ if (isset($_POST['form_sent']))
 		}
 	}
 
-	// If we're an administrator or moderator, make sure the CSRF token in $_POST is valid
-	if ($forum_user['is_admmod'] && (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== generate_form_token(get_current_url())))
+	// FORUM_SKIP_CSRF_CONFIRM turns the global gate off for this whole script, so the
+	// token is checked here - for every poster, not only for the ones who can moderate.
+	if (!csrf_token_matches($_POST['csrf_token'] ?? null, get_current_url()))
 		$errors[] = $lang_post['CSRF token mismatch'];
 
 	// Clean up message from POST

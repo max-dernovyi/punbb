@@ -247,11 +247,15 @@ else if ($action == 'forget' || $action == 'forget_2')
 
 					($hook = get_hook('li_forgot_pass_pre_flood_check')) ? eval($hook) : null;
 
+					// An administrator's password is not resettable by mail, and
+					// a second request inside the window is not resent. Both
+					// skip the mail without saying so: the page answers the
+					// same whatever the address turns out to be.
 					if ($cur_hit['group_id'] == FORUM_ADMIN)
-						message(sprintf($lang_login['Email important'], '<a href="mailto:'.forum_htmlencode($forum_config['o_admin_email']).'">'.forum_htmlencode($forum_config['o_admin_email']).'</a>'));
+						continue;
 
 					if ($cur_hit['last_email_sent'] != '' && (time() - $cur_hit['last_email_sent']) < $forgot_pass_timeout && (time() - $cur_hit['last_email_sent']) >= 0)
-						message(sprintf($lang_login['Email flood'], $forgot_pass_timeout));
+						continue;
 
 					// Generate a new password activation key
 					$new_password_key = random_key(8, true);
@@ -273,11 +277,12 @@ else if ($action == 'forget' || $action == 'forget_2')
 
 					forum_mail($email, $mail_subject, $cur_mail_message);
 				}
-
-				message(sprintf($lang_login['Forget mail'], '<a href="mailto:'.forum_htmlencode($forum_config['o_admin_email']).'">'.forum_htmlencode($forum_config['o_admin_email']).'</a>'));
 			}
-			else
-				$errors[] = sprintf($lang_login['No e-mail match'], forum_htmlencode($email));
+
+			// Outside the branch on purpose. Whether the address is registered,
+			// belongs to an administrator or was asked for a minute ago, an
+			// unauthenticated visitor gets one and the same answer.
+			message(sprintf($lang_login['Forget mail'], '<a href="mailto:'.forum_htmlencode($forum_config['o_admin_email']).'">'.forum_htmlencode($forum_config['o_admin_email']).'</a>'));
 		}
 	}
 
