@@ -533,6 +533,12 @@ function generate_updates_cache()
 		$output = xml_to_array(forum_trim($result['content']));
 		$output = current($output);
 
+		// A forum on the latest release gets "<updates></updates>", and
+		// current() answers false for it. Writing the cache keys into that
+		// false is an 8.1 deprecation and, before 8.1, a silent array cast.
+		if (!is_array($output))
+			$output = array();
+
 		if (!empty($output['hotfix']) && is_array($output['hotfix']) && !is_array(current($output['hotfix'])))
 			$output['hotfix'] = array($output['hotfix']);
 
