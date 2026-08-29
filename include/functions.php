@@ -50,6 +50,22 @@ function forum_session_start() {
 	if ($forum_session_started && session_id())
 		return;
 
+	// An embedding application may have started the session before the forum was
+	// loaded. PHP warns on every session_*() configuration call once a session is
+	// active, and those warnings print before any header() the forum still needs.
+	if (session_status() === PHP_SESSION_ACTIVE)
+	{
+		if (!isset($_SESSION['initiated']))
+		{
+			session_regenerate_id();
+			$_SESSION['initiated'] = TRUE;
+		}
+
+		$forum_session_started = TRUE;
+
+		return;
+	}
+
 	session_cache_limiter(FALSE);
 
 	// Keep the session cookie in step with forum_setcookie(). SameSite is left
@@ -1536,9 +1552,11 @@ function authenticate_user($user, $password, $password_is_hash = false)
 	$result = $forum_db->query_build($query) or error(__FILE__, __LINE__);
 	$forum_user = $forum_db->fetch_assoc($result);
 
+	// The plaintext branch serves extern.php's HTTP Basic authentication, so it
+	// has to read every stored format the login page reads.
 	if (!isset($forum_user['id']) ||
-		($password_is_hash && $password != $forum_user['password']) ||
-		(!$password_is_hash && forum_hash($password, $forum_user['salt']) != $forum_user['password']))
+		($password_is_hash && !hash_equals((string) $forum_user['password'], (string) $password)) ||
+		(!$password_is_hash && !forum_password_verify($password, $forum_user['password'], $forum_user['salt'])))
 		set_default_user();
 
 	($hook = get_hook('fn_authenticate_user_end')) ? eval($hook) : null;
