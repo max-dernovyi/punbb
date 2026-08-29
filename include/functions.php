@@ -146,10 +146,16 @@ function forum_remove_bad_characters()
 
 	($hook = get_hook('fn_remove_bad_characters_start')) ? eval($hook) : null;
 
-	function _forum_remove_bad_characters($array)
+	// Declared inside the function upstream, so a second call is a fatal
+	// redeclaration. The fork guarded it; the 1.4.5 import brought the
+	// unguarded version back.
+	if (!function_exists('_forum_remove_bad_characters'))
 	{
-		global $bad_utf8_chars;
-		return is_array($array) ? array_map('_forum_remove_bad_characters', $array) : str_replace($bad_utf8_chars, '', $array);
+		function _forum_remove_bad_characters($array)
+		{
+			global $bad_utf8_chars;
+			return is_array($array) ? array_map('_forum_remove_bad_characters', $array) : str_replace($bad_utf8_chars, '', $array);
+		}
 	}
 
 	$_GET = _forum_remove_bad_characters($_GET);

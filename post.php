@@ -545,6 +545,7 @@ if (!empty($forum_page['checkboxes']))
 	</div>
 <?php
 
+($hook = get_hook('po_main_output_end')) ? eval($hook) : null;
 
 // Check if the topic review is to be displayed
 if ($tid && $forum_config['o_topic_review'] != '0')
