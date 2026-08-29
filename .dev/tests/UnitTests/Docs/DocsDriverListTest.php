@@ -54,7 +54,7 @@ class DocsDriverListTest extends TestCase {
 	public function testChangeLogHasAnEntryForThisRelease(): void {
 		$changelog = $this->doc('ChangeLog');
 
-		$this->assertStringStartsWith('PunBB 1.5.0-php84', $changelog);
+		$this->assertStringStartsWith('PunBB 1.5.0', $changelog);
 		$this->assertStringContainsString('PHP '.$this->release(), $changelog);
 
 		foreach (self::REMOVED as $db_type)

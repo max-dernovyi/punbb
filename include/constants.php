@@ -1,7 +1,7 @@
 <?php
 
 // Define the version and database revision that this code was written for
-define('FORUM_VERSION', '1.4.6');
+define('FORUM_VERSION', '1.5.0');
 define('FORUM_DB_REVISION', 5);
 
 // The PHP version this release requires

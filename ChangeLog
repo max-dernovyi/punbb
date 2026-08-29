@@ -1,8 +1,10 @@
-PunBB 1.5.0-php84
-unreleased
+PunBB 1.5.0
+2026-08-29
 ====================
 
  * PHP 8.4 is now the minimum supported version; PHP 5 and 7 support is dropped.
+ * Includes the upstream 1.4.5 and 1.4.6 releases: the PHP-compatibility groundwork of 1.4.5 and the 1.4.6 hardening of the email BBCode tag, where no tag may nest inside [email] and the email patterns run before the formatting ones.
+ * Restored the fixes this fork had made on top of 1.4.4 that the upstream archives, built from plain 1.4.4, had reverted: pagination in userlist/admin, InnoDB detection on current MySQL, f.forum_desc in viewforum, the po_main_output_end hook, ident(40) for IPv6 addresses, the InnoDB transaction commit on close, the redeclaration guard in forum_remove_bad_characters() and the extension manifest's PHP version and extension checks.
  * Dependencies are managed by Composer 2: 'composer install --no-dev' must be run in the forum directory before the first request, because include/autoload.php requires vendor/autoload.php and stops the forum without it. The forum itself has no runtime packages - the autoloader is the only thing generated. .htaccess.dist denies access to vendor/ and the tooling manifests; merge it into your .htaccess.
  * Removed the 'mysql', 'mysql_innodb' and 'sqlite' (SQLite2) database drivers along with the PHP extensions they needed. Supported drivers are 'mysqli', 'mysqli_innodb', 'pgsql' and 'sqlite3'; a forum on a removed driver must change $db_type in config.php before db_update.php will run.
  * Replaced create_function() with closures in the BBCode parser and the admin index. Extensions hooking ps_do_bbcode_replace may push either callables or the old code strings into $replace/$replace_callback; the strings are compiled with the original semantics.

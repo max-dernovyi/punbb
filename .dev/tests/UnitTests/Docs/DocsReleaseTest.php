@@ -23,7 +23,7 @@ class DocsReleaseTest extends TestCase
 		return file_get_contents($path);
 	}
 
-	/** The 1.5.0-php84 entry, up to the previous release heading. */
+	/** The 1.5.0 entry, up to the previous release heading. */
 	private function currentChangeLogEntry(): string
 	{
 		$changelog = $this->doc('ChangeLog');
