@@ -117,11 +117,12 @@ function server_parse($socket, $expected_response)
 	while (substr($server_response, 3, 1) != ' ')
 	{
 		if (!($server_response = fgets($socket, 256)))
-			error('Couldn\'t get mail server response codes.<br />Please contact the forum administrator.', __FILE__, __LINE__);
+			error($expected_response.' Couldn\'t get mail server response codes.<br />Please contact the forum administrator.', __FILE__, __LINE__);
 	}
 
-	if (!(substr($server_response, 0, 3) == $expected_response))
-		error('Unable to send e-mail.<br />Please contact the forum administrator with the following error message reported by the SMTP server: "'.$server_response.'"', __FILE__, __LINE__);
+	if (!(substr($server_response, 0, 3) == $expected_response)) {
+        error($expected_response.' Unable to send e-mail.<br />Please contact the forum administrator with the following error message reported by the SMTP server: "'.$server_response.'"', __FILE__, __LINE__);
+        }
 }
 
 
@@ -132,7 +133,6 @@ function server_parse($socket, $expected_response)
 function smtp_mail($to, $subject, $message, $headers = '')
 {
 	global $forum_config;
-
 	$recipients = explode(',', $to);
 
 	// Sanitize the message

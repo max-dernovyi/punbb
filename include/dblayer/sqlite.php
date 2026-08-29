@@ -2,7 +2,7 @@
 /**
  * A database layer class that relies on the SQLite PHP extension.
  *
- * @copyright (C) 2008-2016 PunBB, partially based on code (C) 2008-2009 FluxBB.org
+ * @copyright (C) 2008-2012 PunBB, partially based on code (C) 2008-2009 FluxBB.org
  * @license http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  * @package PunBB
  */
@@ -15,25 +15,24 @@ if (!function_exists('sqlite_open'))
 
 class DBLayer
 {
-	var $prefix;
-	var $link_id;
-	var $query_result;
-	var $in_transaction = 0;
+    public $prefix;
+    public $link_id;
+    public $query_result;
+    public $in_transaction = 0;
 
-	var $saved_queries = array();
-	var $num_queries = 0;
+    public $saved_queries = array();
+    public $num_queries = 0;
 
-	var $error_no = false;
-	var $error_msg = 'Unknown';
+    public $error_no = false;
+    public $error_msg = 'Unknown';
 
-	var $datatype_transformations = array(
+    public $datatype_transformations = array(
 		'/^SERIAL$/'															=>	'INTEGER',
 		'/^(TINY|SMALL|MEDIUM|BIG)?INT( )?(\\([0-9]+\\))?( )?(UNSIGNED)?$/i'	=>	'INTEGER',
 		'/^(TINY|MEDIUM|LONG)?TEXT$/i'											=>	'TEXT'
 	);
 
-
-	function __construct($db_host, $db_username, $db_password, $db_name, $db_prefix, $p_connect)
+	public function __construct($db_host, $db_username, $db_password, $db_name, $db_prefix, $p_connect)
 	{
 		// Prepend $db_name with the path to the forum root directory
 		$db_name = FORUM_ROOT.$db_name;
@@ -65,20 +64,14 @@ class DBLayer
 			return $this->link_id;
 	}
 
-	function __destruct()
-	{
-	    $this->close();
-	}
-	
-	function start_transaction()
+	public function start_transaction()
 	{
 		++$this->in_transaction;
 
 		return (@sqlite_query($this->link_id, 'BEGIN')) ? true : false;
 	}
 
-
-	function end_transaction()
+	public function end_transaction()
 	{
 		--$this->in_transaction;
 
@@ -91,8 +84,7 @@ class DBLayer
 		}
 	}
 
-
-	function query($sql, $unbuffered = false)
+	public function query($sql, $unbuffered = false)
 	{
 		if (strlen($sql) > FORUM_DATABASE_QUERY_MAXIMUM_LENGTH)
 			exit('Insane query. Aborting.');
@@ -131,8 +123,7 @@ class DBLayer
 		}
 	}
 
-
-	function query_build($query, $return_query_string = false, $unbuffered = false)
+	public function query_build($query, $return_query_string = false, $unbuffered = false)
 	{
 		$sql = '';
 
@@ -222,8 +213,7 @@ class DBLayer
 		return ($return_query_string) ? $sql : $this->query($sql, $unbuffered);
 	}
 
-
-	function result($query_id = 0, $row = 0, $col = 0)
+	public function result($query_id = 0, $row = 0, $col = 0)
 	{
 		if ($query_id)
 		{
@@ -237,8 +227,7 @@ class DBLayer
 			return false;
 	}
 
-
-	function fetch_assoc($query_id = 0)
+	public function fetch_assoc($query_id = 0)
 	{
 		if ($query_id)
 		{
@@ -264,56 +253,47 @@ class DBLayer
 			return false;
 	}
 
-
-	function fetch_row($query_id = 0)
+	public function fetch_row($query_id = 0)
 	{
 		return ($query_id) ? @sqlite_fetch_array($query_id, SQLITE_NUM) : false;
 	}
 
-
-	function num_rows($query_id = 0)
+	public function num_rows($query_id = 0)
 	{
 		return ($query_id) ? @sqlite_num_rows($query_id) : false;
 	}
 
-
-	function affected_rows()
+	public function affected_rows()
 	{
 		return ($this->query_result) ? @sqlite_changes($this->link_id) : false;
 	}
 
-
-	function insert_id()
+	public function insert_id()
 	{
 		return ($this->link_id) ? @sqlite_last_insert_rowid($this->link_id) : false;
 	}
 
-
-	function get_num_queries()
+	public function get_num_queries()
 	{
 		return $this->num_queries;
 	}
 
-
-	function get_saved_queries()
+	public function get_saved_queries()
 	{
 		return $this->saved_queries;
 	}
 
-
-	function free_result($query_id = false)
+	public function free_result($query_id = false)
 	{
 		return true;
 	}
 
-
-	function escape($str)
+	public function escape($str)
 	{
 		return is_array($str) ? '' : sqlite_escape_string($str);
 	}
 
-
-	function error()
+	public function error()
 	{
 		$result['error_sql'] = @current(@end($this->saved_queries));
 		$result['error_no'] = $this->error_no;
@@ -322,8 +302,7 @@ class DBLayer
 		return $result;
 	}
 
-
-	function close()
+	public function close()
 	{
 		if ($this->link_id)
 		{
@@ -341,14 +320,12 @@ class DBLayer
 			return false;
 	}
 
-
-	function set_names($names)
+	public function set_names($names)
 	{
 		return;
 	}
 
-
-	function get_version()
+	public function get_version()
 	{
 		return array(
 			'name'		=> 'SQLite',
@@ -356,15 +333,13 @@ class DBLayer
 		);
 	}
 
-
-	function table_exists($table_name, $no_prefix = false)
+	public function table_exists($table_name, $no_prefix = false)
 	{
 		$result = $this->query('SELECT 1 FROM sqlite_master WHERE name = \''.($no_prefix ? '' : $this->prefix).$this->escape($table_name).'\' AND type=\'table\'');
 		return $this->num_rows($result) > 0;
 	}
 
-
-	function field_exists($table_name, $field_name, $no_prefix = false)
+	public function field_exists($table_name, $field_name, $no_prefix = false)
 	{
 		$result = $this->query('SELECT sql FROM sqlite_master WHERE name = \''.($no_prefix ? '' : $this->prefix).$this->escape($table_name).'\' AND type=\'table\'');
 		if (!$this->num_rows($result))
@@ -373,15 +348,13 @@ class DBLayer
 		return preg_match('/[\r\n]'.preg_quote($field_name).' /', $this->result($result));
 	}
 
-
-	function index_exists($table_name, $index_name, $no_prefix = false)
+	public function index_exists($table_name, $index_name, $no_prefix = false)
 	{
 		$result = $this->query('SELECT 1 FROM sqlite_master WHERE tbl_name = \''.($no_prefix ? '' : $this->prefix).$this->escape($table_name).'\' AND name = \''.($no_prefix ? '' : $this->prefix).$this->escape($table_name).'_'.$this->escape($index_name).'\' AND type=\'index\'');
 		return $this->num_rows($result) > 0;
 	}
 
-
-	function create_table($table_name, $schema, $no_prefix = false)
+	public function create_table($table_name, $schema, $no_prefix = false)
 	{
 		if ($this->table_exists($table_name, $no_prefix))
 			return;
@@ -428,8 +401,7 @@ class DBLayer
 		}
 	}
 
-
-	function drop_table($table_name, $no_prefix = false)
+	public function drop_table($table_name, $no_prefix = false)
 	{
 		if (!$this->table_exists($table_name, $no_prefix))
 			return;
@@ -437,8 +409,7 @@ class DBLayer
 		$this->query('DROP TABLE '.($no_prefix ? '' : $this->prefix).$table_name) or error(__FILE__, __LINE__);
 	}
 
-
-	function get_table_info($table_name, $no_prefix = false)
+	public function get_table_info($table_name, $no_prefix = false)
 	{
 		// Grab table info
 		$result = $this->query('SELECT sql FROM sqlite_master WHERE tbl_name = \''.($no_prefix ? '' : $this->prefix).$this->escape($table_name).'\' ORDER BY type DESC') or error(__FILE__, __LINE__);
@@ -476,8 +447,7 @@ class DBLayer
 		return $table;
 	}
 
-
-	function add_field($table_name, $field_name, $field_type, $allow_null, $default_value = null, $after_field = 0, $no_prefix = false)
+	public function add_field($table_name, $field_name, $field_type, $allow_null, $default_value = null, $after_field = 0, $no_prefix = false)
 	{
 		if ($this->field_exists($table_name, $field_name, $no_prefix))
 			return;
@@ -536,14 +506,12 @@ class DBLayer
 		$this->drop_table($table_name.'_t'.$now, $no_prefix);
 	}
 
-
-	function alter_field($table_name, $field_name, $field_type, $allow_null, $default_value = null, $after_field = 0, $no_prefix = false)
+	public function alter_field($table_name, $field_name, $field_type, $allow_null, $default_value = null, $after_field = 0, $no_prefix = false)
 	{
 		return;
 	}
 
-
-	function drop_field($table_name, $field_name, $no_prefix = false)
+	public function drop_field($table_name, $field_name, $no_prefix = false)
 	{
 		if (!$this->field_exists($table_name, $field_name, $no_prefix))
 			return;
@@ -594,8 +562,7 @@ class DBLayer
 		$this->drop_table($table_name.'_t'.$now, $no_prefix);
 	}
 
-
-	function add_index($table_name, $index_name, $index_fields, $unique = false, $no_prefix = false)
+	public function add_index($table_name, $index_name, $index_fields, $unique = false, $no_prefix = false)
 	{
 		if ($this->index_exists($table_name, $index_name, $no_prefix))
 			return;
@@ -603,8 +570,7 @@ class DBLayer
 		$this->query('CREATE '.($unique ? 'UNIQUE ' : '').'INDEX '.($no_prefix ? '' : $this->prefix).$table_name.'_'.$index_name.' ON '.($no_prefix ? '' : $this->prefix).$table_name.'('.implode(',', $index_fields).')') or error(__FILE__, __LINE__);
 	}
 
-
-	function drop_index($table_name, $index_name, $no_prefix = false)
+	public function drop_index($table_name, $index_name, $no_prefix = false)
 	{
 		if (!$this->index_exists($table_name, $index_name, $no_prefix))
 			return;

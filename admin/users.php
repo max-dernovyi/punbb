@@ -851,7 +851,7 @@ else if (isset($_GET['find_user']))
 	//Check up for order_by and direction values
 	$order_by = isset($_GET['order_by']) ? forum_trim($_GET['order_by']) : null;
 	$direction = isset($_GET['direction']) ? forum_trim($_GET['direction']) : null;
-	if ($order_by === null || $direction === null)
+	if ($order_by == null || $direction == null)
 		message($lang_common['Bad request']);
 
 	if (!in_array($order_by, array('username', 'email', 'num_posts', 'num_posts', 'registered')) || !in_array($direction, array('ASC', 'DESC')))
@@ -967,7 +967,7 @@ else if (isset($_GET['find_user']))
 	$forum_page['num_pages'] = ceil($forum_page['num_users'] / $forum_user['disp_topics']);
 	$forum_page['page'] = (!isset($_GET['p']) || !is_numeric($_GET['p']) || $_GET['p'] <= 1 || $_GET['p'] > $forum_page['num_pages']) ? 1 : $_GET['p'];
 	$forum_page['start_from'] = $forum_user['disp_topics'] * ($forum_page['page'] - 1);
-	$forum_page['finish_at'] = min(($forum_user['disp_topics']), ($forum_page['num_users']));
+	$forum_page['finish_at'] = min(($forum_page['start_from'] + $forum_user['disp_topics']), ($forum_page['num_users']));
 
 	// Setup breadcrumbs
 	$forum_page['crumbs'] = array(

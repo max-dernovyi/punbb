@@ -6,7 +6,7 @@ Thank you for downloading PunBB.
 
 	 Quick install
 	---------------
- 1. Download the latest revision of PunBB from http://punbb.informer.com/. Decompress the PunBB archive to a directory.
+ 1. Download the latest revision of PunBB from https://punbb.informer.com/. Decompress the PunBB archive to a directory.
  2. Copy (or upload) all the files contained in this archive into the directory where you want to run your forums. (e.g. /home/user/www/punbb/)
  3. Run install.php from the forum admin directory (e.g. open http://example.com/punbb/admin/install.php in your browser). Follow the instructions.
 
@@ -20,7 +20,7 @@ Thank you for downloading PunBB.
 	----------------------------------------------
 NOTE: Make a backup of your current forum directory before proceeding. Also, don't forget to make a backup of your forum database. Use the tool mysqldump for MySQL and pg_dump if you are using PostgreSQL. If you're using SQLite, just make a backup copy of the SQLite database file. You can also make database backups via most administration tools such as MySQL Administrator, phpMyAdmin and phpPgAdmin.
 
- 1. Download the latest revision of PunBB from http://punbb.informer.com/. Decompress the PunBB archive to a directory.
+ 1. Download the latest revision of PunBB from https://punbb.informer.com/. Decompress the PunBB archive to a directory.
  2. Replace your old 1.2 directory with the contents of the archive's version 1.4.
  3. Run db_update.php from the forum admin directory (e.g. open http://example.com/punbb/admin/db_update.php in your browser). Follow the instructions.
 
@@ -57,14 +57,14 @@ NOTE: You may use the pun_repository official PunBB extension to download and in
 
 	 Links
 	-------
- - Documentation: http://punbb.informer.com/wiki/
- - Internationalization: http://punbb.informer.com/wiki/punbb13/language_packs
- - Styles: http://punbb.informer.com/wiki/punbb13/syles
- - Extensions repository: http://punbb.informer.com/extensions/
- - Community Forums: http://punbb.informer.com/forums/
+ - Documentation: https://punbb.informer.com/wiki/
+ - Internationalization: https://punbb.informer.com/wiki/punbb13/language_packs
+ - Styles: https://punbb.informer.com/wiki/punbb13/syles
+ - Extensions repository: https://punbb.informer.com/extensions/
+ - Community Forums: https://punbb.informer.com/forums/
  - Twitter: https://twitter.com/punbb_forum
  - Development: https://github.com/punbb/punbb
- - Reporting PunBB core SECURITY bugs (only!): http://punbb.informer.com/bugreport.php
+ - Reporting PunBB core SECURITY bugs (only!): https://punbb.informer.com/bugreport.php
 
 	 Copyright and disclaimer
 	--------------------------

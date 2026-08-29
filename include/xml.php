@@ -18,11 +18,14 @@ if (!defined('FORUM'))
 //
 function xml_to_array($raw_xml)
 {
+    $multi_key = array();
+    $multi_key2 = array();
 	$xml_parser = xml_parser_create();
 	xml_parser_set_option($xml_parser, XML_OPTION_CASE_FOLDING, 0);
 	xml_parser_set_option($xml_parser, XML_OPTION_SKIP_WHITE, 0);
 	xml_parse_into_struct($xml_parser, $raw_xml, $vals);
 	xml_parser_free($xml_parser);
+	unset($xml_parser);
 
 	$_tmp = '';
 	foreach ($vals as $xml_elem)
@@ -204,28 +207,6 @@ function validate_manifest($xml_array, $folder_name)
 					$last_element = array_pop($tokenized_hook);
 					if (is_array($last_element) && $last_element[0] == T_INLINE_HTML)
 						$errors[] = $lang_admin_ext['extension/hooks/hook error4'];
-				}
-			}
-		}
-
-		if (isset($ext['minphpversion'])) {
-			if (version_compare(PHP_VERSION, $ext['minphpversion'], "<")) {
-				$errors[] = $lang_admin_ext['The minimum required version of PHP'] . $ext['minphpversion'];
-			}
-		}
-		if (isset($ext['maxphpversion'])) {
-			if (version_compare(PHP_VERSION, $ext['maxphpversion'], ">")) {
-				$errors[] = $lang_admin_ext['The maximum required version of PHP'] . $ext['maxphpversion'];
-			}
-		}
-		if (isset($ext['phpextensions'])) {
-			$installed_phpextensions = array_flip(get_loaded_extensions());
-			foreach (explode(",", $ext['phpextensions']) as $v) {
-				$v = trim($v);
-				if ($v != "") {
-					if (!isset($installed_phpextensions[$v])) {
-						$errors[] = $lang_admin_ext['PHP extension is required'] . $v;
-					}
 				}
 			}
 		}

@@ -2,7 +2,7 @@
 /**
  * A database layer class that relies on the MySQLi PHP extension.
  *
- * @copyright (C) 2008-2016 PunBB, partially based on code (C) 2008-2009 FluxBB.org
+ * @copyright (C) 2008-2012 PunBB, partially based on code (C) 2008-2009 FluxBB.org
  * @license http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  * @package PunBB
  */
@@ -12,23 +12,21 @@
 if (!function_exists('mysqli_connect'))
 	exit('This PHP environment doesn\'t have Improved MySQL (mysqli) support built in. Improved MySQL support is required if you want to use a MySQL 4.1 (or later) database to run this forum. Consult the PHP documentation for further assistance.');
 
-
 class DBLayer
 {
-	var $prefix;
-	var $link_id;
-	var $query_result;
-	var $in_transaction = 0;
+    public $prefix;
+    public $link_id;
+    public $query_result;
+    public $in_transaction = 0;
 
-	var $saved_queries = array();
-	var $num_queries = 0;
+    public $saved_queries = array();
+    public $num_queries = 0;
 
-	var $datatype_transformations = array(
+    public $datatype_transformations = array(
 		'/^SERIAL$/'	=>	'INT(10) UNSIGNED AUTO_INCREMENT'
 	);
 
-
-	function __construct($db_host, $db_username, $db_password, $db_name, $db_prefix, $foo)
+	public function __construct($db_host, $db_username, $db_password, $db_name, $db_prefix, $foo)
 	{
 		$this->prefix = $db_prefix;
 
@@ -51,20 +49,14 @@ class DBLayer
 		return $this->link_id;
 	}
 
-	function __destruct()
-	{
-	    $this->close();
-	}
-	
-	function start_transaction()
+	public function start_transaction()
 	{
 		++$this->in_transaction;
 
 		return mysqli_query($this->link_id, 'START TRANSACTION');
 	}
 
-
-	function end_transaction()
+	public function end_transaction()
 	{
 		--$this->in_transaction;
 
@@ -77,8 +69,7 @@ class DBLayer
 		}
 	}
 
-
-	function query($sql, $unbuffered = false)
+	public function query($sql, $unbuffered = false)
 	{
 		if (strlen($sql) > FORUM_DATABASE_QUERY_MAXIMUM_LENGTH)
 			exit('Insane query. Aborting.');
@@ -111,8 +102,7 @@ class DBLayer
 		}
 	}
 
-
-	function query_build($query, $return_query_string = false, $unbuffered = false)
+	public function query_build($query, $return_query_string = false, $unbuffered = false)
 	{
 		$sql = '';
 
@@ -178,8 +168,7 @@ class DBLayer
 		return ($return_query_string) ? $sql : $this->query($sql, $unbuffered);
 	}
 
-
-	function result($query_id = 0, $row = 0, $col = 0)
+	public function result($query_id = 0, $row = 0, $col = 0)
 	{
 		if ($query_id)
 		{
@@ -193,62 +182,52 @@ class DBLayer
 			return false;
 	}
 
-
-	function fetch_assoc($query_id = 0)
+	public function fetch_assoc($query_id = 0)
 	{
 		return ($query_id) ? @mysqli_fetch_assoc($query_id) : false;
 	}
 
-
-	function fetch_row($query_id = 0)
+	public function fetch_row($query_id = 0)
 	{
 		return ($query_id) ? @mysqli_fetch_row($query_id) : false;
 	}
 
-
-	function num_rows($query_id = 0)
+	public function num_rows($query_id = 0)
 	{
 		return ($query_id) ? @mysqli_num_rows($query_id) : false;
 	}
 
-
-	function affected_rows()
+	public function affected_rows()
 	{
 		return ($this->link_id) ? @mysqli_affected_rows($this->link_id) : false;
 	}
 
-
-	function insert_id()
+	public function insert_id()
 	{
 		return ($this->link_id) ? @mysqli_insert_id($this->link_id) : false;
 	}
 
-
-	function get_num_queries()
+	public function get_num_queries()
 	{
 		return $this->num_queries;
 	}
 
-
-	function get_saved_queries()
+	public function get_saved_queries()
 	{
 		return $this->saved_queries;
 	}
 
-
-	function free_result($query_id = false)
+	public function free_result($query_id = false)
 	{
 		return ($query_id) ? @mysqli_free_result($query_id) : false;
 	}
 
-
-	function escape($str)
+	public function escape($str)
 	{
 		return is_array($str) ? '' : mysqli_real_escape_string($this->link_id, $str);
 	}
 
-
-	function error()
+	public function error()
 	{
 		$result['error_sql'] = @current(@end($this->saved_queries));
 		$result['error_no'] = @mysqli_errno($this->link_id);
@@ -257,19 +236,10 @@ class DBLayer
 		return $result;
 	}
 
-
-	function close()
+	public function close()
 	{
 		if ($this->link_id)
 		{
-		    if ($this->in_transaction)
-		    {
-		        if (defined('FORUM_SHOW_QUERIES') || defined('FORUM_DEBUG'))
-		            $this->saved_queries[] = array('COMMIT', 0);
-		    
-		        @mysqli_query($this->link_id, 'COMMIT');
-		    }
-		    		    
 			if ($this->query_result)
 				@mysqli_free_result($this->query_result);
 
@@ -279,14 +249,12 @@ class DBLayer
 			return false;
 	}
 
-
-	function set_names($names)
+	public function set_names($names)
 	{
 		return $this->query('SET NAMES \''.$this->escape($names).'\'');
 	}
 
-
-	function get_version()
+	public function get_version()
 	{
 		$result = $this->query('SELECT VERSION()');
 
@@ -296,22 +264,19 @@ class DBLayer
 		);
 	}
 
-
-	function table_exists($table_name, $no_prefix = false)
+	public function table_exists($table_name, $no_prefix = false)
 	{
 		$result = $this->query('SHOW TABLES LIKE \''.($no_prefix ? '' : $this->prefix).$this->escape($table_name).'\'');
 		return $this->num_rows($result) > 0;
 	}
 
-
-	function field_exists($table_name, $field_name, $no_prefix = false)
+	public function field_exists($table_name, $field_name, $no_prefix = false)
 	{
 		$result = $this->query('SHOW COLUMNS FROM '.($no_prefix ? '' : $this->prefix).$table_name.' LIKE \''.$this->escape($field_name).'\'');
 		return $this->num_rows($result) > 0;
 	}
 
-
-	function index_exists($table_name, $index_name, $no_prefix = false)
+	public function index_exists($table_name, $index_name, $no_prefix = false)
 	{
 		$exists = false;
 
@@ -328,8 +293,7 @@ class DBLayer
 		return $exists;
 	}
 
-
-	function create_table($table_name, $schema, $no_prefix = false)
+	public function create_table($table_name, $schema, $no_prefix = false)
 	{
 		if ($this->table_exists($table_name, $no_prefix))
 			return;
@@ -379,8 +343,7 @@ class DBLayer
 		$this->query($query) or error(__FILE__, __LINE__);
 	}
 
-
-	function drop_table($table_name, $no_prefix = false)
+	public function drop_table($table_name, $no_prefix = false)
 	{
 		if (!$this->table_exists($table_name, $no_prefix))
 			return;
@@ -388,8 +351,7 @@ class DBLayer
 		$this->query('DROP TABLE '.($no_prefix ? '' : $this->prefix).$table_name) or error(__FILE__, __LINE__);
 	}
 
-
-	function add_field($table_name, $field_name, $field_type, $allow_null, $default_value = null, $after_field = null, $no_prefix = false)
+	public function add_field($table_name, $field_name, $field_type, $allow_null, $default_value = null, $after_field = null, $no_prefix = false)
 	{
 		if ($this->field_exists($table_name, $field_name, $no_prefix))
 			return;
@@ -399,11 +361,10 @@ class DBLayer
 		if ($default_value !== null && !is_int($default_value) && !is_float($default_value))
 			$default_value = '\''.$this->escape($default_value).'\'';
 
-		$this->query('ALTER TABLE '.($no_prefix ? '' : $this->prefix).$table_name.' ADD '.$field_name.' '.$field_type.($allow_null ? ' ' : ' NOT NULL').($default_value !== null ? ' DEFAULT '.$default_value : ' ').($after_field !== null ? ' AFTER '.$after_field : '')) or error(__FILE__, __LINE__);
+		$this->query('ALTER TABLE '.($no_prefix ? '' : $this->prefix).$table_name.' ADD '.$field_name.' '.$field_type.($allow_null ? ' ' : ' NOT NULL').($default_value !== null ? ' DEFAULT '.$default_value : ' ').($after_field != null ? ' AFTER '.$after_field : '')) or error(__FILE__, __LINE__);
 	}
 
-
-	function alter_field($table_name, $field_name, $field_type, $allow_null, $default_value = null, $after_field = null, $no_prefix = false)
+	public function alter_field($table_name, $field_name, $field_type, $allow_null, $default_value = null, $after_field = null, $no_prefix = false)
 	{
 		if (!$this->field_exists($table_name, $field_name, $no_prefix))
 			return;
@@ -413,11 +374,10 @@ class DBLayer
 		if ($default_value !== null && !is_int($default_value) && !is_float($default_value))
 			$default_value = '\''.$this->escape($default_value).'\'';
 
-		$this->query('ALTER TABLE '.($no_prefix ? '' : $this->prefix).$table_name.' MODIFY '.$field_name.' '.$field_type.($allow_null ? ' ' : ' NOT NULL').($default_value !== null ? ' DEFAULT '.$default_value : ' ').($after_field !== null ? ' AFTER '.$after_field : '')) or error(__FILE__, __LINE__);
+		$this->query('ALTER TABLE '.($no_prefix ? '' : $this->prefix).$table_name.' MODIFY '.$field_name.' '.$field_type.($allow_null ? ' ' : ' NOT NULL').($default_value !== null ? ' DEFAULT '.$default_value : ' ').($after_field != null ? ' AFTER '.$after_field : '')) or error(__FILE__, __LINE__);
 	}
 
-
-	function drop_field($table_name, $field_name, $no_prefix = false)
+	public function drop_field($table_name, $field_name, $no_prefix = false)
 	{
 		if (!$this->field_exists($table_name, $field_name, $no_prefix))
 			return;
@@ -425,8 +385,7 @@ class DBLayer
 		$this->query('ALTER TABLE '.($no_prefix ? '' : $this->prefix).$table_name.' DROP '.$field_name) or error(__FILE__, __LINE__);
 	}
 
-
-	function add_index($table_name, $index_name, $index_fields, $unique = false, $no_prefix = false)
+	public function add_index($table_name, $index_name, $index_fields, $unique = false, $no_prefix = false)
 	{
 		if ($this->index_exists($table_name, $index_name, $no_prefix))
 			return;
@@ -434,8 +393,7 @@ class DBLayer
 		$this->query('ALTER TABLE '.($no_prefix ? '' : $this->prefix).$table_name.' ADD '.($unique ? 'UNIQUE ' : '').'INDEX '.($no_prefix ? '' : $this->prefix).$table_name.'_'.$index_name.' ('.implode(',', $index_fields).')') or error(__FILE__, __LINE__);
 	}
 
-
-	function drop_index($table_name, $index_name, $no_prefix = false)
+	public function drop_index($table_name, $index_name, $no_prefix = false)
 	{
 		if (!$this->index_exists($table_name, $index_name, $no_prefix))
 			return;
