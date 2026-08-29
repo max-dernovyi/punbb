@@ -423,8 +423,8 @@ if (isset($_GET['tid']))
 
 
 	// Determine the post offset (based on $_GET['p'])
-	$forum_page['num_pages'] = ceil(($cur_topic['num_replies'] + 1) / $forum_user['disp_posts']);
-	$forum_page['page'] = (!isset($_GET['p']) || !is_numeric($_GET['p']) || $_GET['p'] <= 1 || $_GET['p'] > $forum_page['num_pages']) ? 1 : intval($_GET['p']);
+	$forum_page['num_pages'] = (int) ceil(($cur_topic['num_replies'] + 1) / $forum_user['disp_posts']);
+	$forum_page['page'] = (!isset($_GET['p']) || !is_numeric($_GET['p']) || $_GET['p'] <= 1 || $_GET['p'] > $forum_page['num_pages']) ? 1 : (int) $_GET['p'];
 	$forum_page['start_from'] = $forum_user['disp_posts'] * ($forum_page['page'] - 1);
 	$forum_page['finish_at'] = min(($forum_page['start_from'] + $forum_user['disp_posts']), ($cur_topic['num_replies'] + 1));
 	$forum_page['items_info'] = generate_items_info($lang_misc['Posts'], ($forum_page['start_from'] + 1), ($cur_topic['num_replies'] + 1));
@@ -665,7 +665,7 @@ if (isset($_REQUEST['move_topics']) || isset($_POST['move_topics_to']))
 	{
 		($hook = get_hook('mr_confirm_move_topics_form_submitted')) ? eval($hook) : null;
 
-		$topics = isset($_POST['topics']) && !empty($_POST['topics']) ? explode(',', $_POST['topics']) : array();
+		$topics = (isset($_POST['topics']) && is_string($_POST['topics']) && $_POST['topics'] != '') ? explode(',', $_POST['topics']) : array();
 		$topics = array_map('intval', $topics);
 
 		$move_to_forum = isset($_POST['move_to_forum']) ? intval($_POST['move_to_forum']) : 0;
@@ -1460,9 +1460,9 @@ if ($cur_forum['num_topics'] == 0)
 require FORUM_ROOT.'lang/'.$forum_user['language'].'/forum.php';
 
 // Determine the topic offset (based on $_GET['p'])
-$forum_page['num_pages'] = ceil($cur_forum['num_topics'] / $forum_user['disp_topics']);
+$forum_page['num_pages'] = (int) ceil($cur_forum['num_topics'] / $forum_user['disp_topics']);
 
-$forum_page['page'] = (!isset($_GET['p']) || !is_numeric($_GET['p']) || $_GET['p'] <= 1 || $_GET['p'] > $forum_page['num_pages']) ? 1 : $_GET['p'];
+$forum_page['page'] = (!isset($_GET['p']) || !is_numeric($_GET['p']) || $_GET['p'] <= 1 || $_GET['p'] > $forum_page['num_pages']) ? 1 : (int) $_GET['p'];
 $forum_page['start_from'] = $forum_user['disp_topics'] * ($forum_page['page'] - 1);
 $forum_page['finish_at'] = min(($forum_page['start_from'] + $forum_user['disp_topics']), ($cur_forum['num_topics']));
 $forum_page['items_info'] = generate_items_info($lang_misc['Topics'], ($forum_page['start_from'] + 1), $cur_forum['num_topics']);
@@ -1641,7 +1641,7 @@ $forum_page['item_header']['info']['lastpost'] = '<strong class="info-lastpost">
 			if (empty($forum_page['item_status']))
 				$forum_page['item_status']['normal'] = 'normal';
 
-			$forum_page['item_pages'] = ceil(($cur_topic['num_replies'] + 1) / $forum_user['disp_posts']);
+			$forum_page['item_pages'] = (int) ceil(($cur_topic['num_replies'] + 1) / $forum_user['disp_posts']);
 
 			if ($forum_page['item_pages'] > 1)
 				$forum_page['item_nav']['pages'] = '<span>'.$lang_forum['Pages'].'&#160;</span>'.paginate($forum_page['item_pages'], -1, $forum_url['topic'], $lang_common['Page separator'], array($cur_topic['id'], sef_friendly($cur_topic['subject'])));

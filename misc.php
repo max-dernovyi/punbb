@@ -199,7 +199,7 @@ else if (isset($_GET['email']))
 
 	// User pressed the cancel button
 	if (isset($_POST['cancel']))
-		redirect(forum_htmlencode($_POST['redirect_url']), $lang_common['Cancel redirect']);
+		redirect(forum_htmlencode($_POST['redirect_url'] ?? ''), $lang_common['Cancel redirect']);
 
 	$query = array(
 		'SELECT'	=> 'u.username, u.email, u.email_setting',
@@ -228,8 +228,8 @@ else if (isset($_GET['email']))
 		($hook = get_hook('mi_email_form_submitted')) ? eval($hook) : null;
 
 		// Clean up message and subject from POST
-		$subject = forum_trim($_POST['req_subject']);
-		$message = forum_trim($_POST['req_message']);
+		$subject = forum_trim($_POST['req_subject'] ?? '');
+		$message = forum_trim($_POST['req_message'] ?? '');
 
 		if ($subject == '')
 			$errors[] = $lang_misc['No e-mail subject'];
@@ -285,7 +285,7 @@ else if (isset($_GET['email']))
 
 			($hook = get_hook('mi_email_pre_redirect')) ? eval($hook) : null;
 
-			redirect(forum_htmlencode($_POST['redirect_url']), $lang_misc['E-mail sent redirect']);
+			redirect(forum_htmlencode($_POST['redirect_url'] ?? ''), $lang_misc['E-mail sent redirect']);
 		}
 	}
 
@@ -425,7 +425,7 @@ else if (isset($_GET['report']))
 			message(sprintf($lang_misc['Report flood'], $forum_user['g_email_flood']));
 
 		// Clean up reason from POST
-		$reason = forum_linebreaks(forum_trim($_POST['req_reason']));
+		$reason = forum_linebreaks(forum_trim($_POST['req_reason'] ?? ''));
 		if ($reason == '')
 			message($lang_misc['No reason']);
 

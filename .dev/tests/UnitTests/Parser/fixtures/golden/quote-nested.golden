@@ -1,0 +1,14 @@
+===== message =====
+<p>tail</p>
+===== message-errors =====
+
+===== signature =====
+</p><div class="quotebox"><cite>Outer wrote:</cite><blockquote><p></p><div class="quotebox"><cite>Inner wrote:</cite><blockquote><p></p><div class="quotebox"><cite>Deepest wrote:</cite><blockquote><p></p><div class="quotebox"><cite>TooDeep wrote:</cite><blockquote><p>depth limit</p></blockquote></div><p></p></blockquote></div><p></p></blockquote></div><p></p></blockquote></div><p><br />tail
+===== signature-errors =====
+Signature may not contain of the text formatting tags (BBCode) [quote], [code] or [list]. Please choose another tags or delete it.
+===== clickable-unicode =====
+[quote=Outer][quote=Inner][quote=Deepest][quote=TooDeep]depth limit[/quote][/quote][/quote][/quote]
+tail
+===== clickable-ascii =====
+[quote=Outer][quote=Inner][quote=Deepest][quote=TooDeep]depth limit[/quote][/quote][/quote][/quote]
+tail

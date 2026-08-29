@@ -28,11 +28,11 @@ require FORUM_ROOT.'lang/'.$forum_user['language'].'/admin_categories.php';
 // Add a new category
 if (isset($_POST['add_cat']))
 {
-	$new_cat_name = forum_trim($_POST['new_cat_name']);
+	$new_cat_name = forum_trim($_POST['new_cat_name'] ?? '');
 	if ($new_cat_name == '')
 		message($lang_admin_categories['Must name category']);
 
-	$new_cat_pos = intval($_POST['position']);
+	$new_cat_pos = intval($_POST['position'] ?? 0);
 
 	($hook = get_hook('acg_add_cat_form_submitted')) ? eval($hook) : null;
 
@@ -57,7 +57,7 @@ if (isset($_POST['add_cat']))
 // Delete a category
 else if (isset($_POST['del_cat']) || isset($_POST['del_cat_comply']))
 {
-	$cat_to_delete = intval($_POST['cat_to_delete']);
+	$cat_to_delete = intval($_POST['cat_to_delete'] ?? 0);
 	if ($cat_to_delete < 1)
 		message($lang_common['Bad request']);
 
@@ -214,8 +214,11 @@ else if (isset($_POST['del_cat']) || isset($_POST['del_cat_comply']))
 
 else if (isset($_POST['update']))	// Change position and name of the categories
 {
+	if (!isset($_POST['cat_order']) || !is_array($_POST['cat_order']) || !isset($_POST['cat_name']) || !is_array($_POST['cat_name']))
+		message($lang_common['Bad request']);
+
 	$cat_order = array_map('intval', $_POST['cat_order']);
-	$cat_name = array_map('trim', $_POST['cat_name']);
+	$cat_name = array_map(function ($value) { return is_string($value) ? trim($value) : ''; }, $_POST['cat_name']);
 
 	($hook = get_hook('acg_update_cats_form_submitted')) ? eval($hook) : null;
 

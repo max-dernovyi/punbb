@@ -1,0 +1,48 @@
+includes:
+	- phpstan-baseline.neon
+
+parameters:
+	level: 2
+	paths:
+		- admin
+		- include
+		- delete.php
+		- edit.php
+		- extern.php
+		- footer.php
+		- header.php
+		- help.php
+		- index.php
+		- login.php
+		- misc.php
+		- moderate.php
+		- post.php
+		- profile.php
+		- register.php
+		- rewrite.php
+		- search.php
+		- userlist.php
+		- viewforum.php
+		- viewtopic.php
+	excludePaths:
+		analyseAndScan:
+			- vendor
+			- .dev/tmp (?)
+			- cache
+			- extensions
+			- include/js
+	bootstrapFiles:
+		- .dev/phpstan/bootstrap.php
+	ignoreErrors:
+		# cache/ is generated at runtime, so these paths exist or not depending on
+		# whether the checkout happens to have an installed forum in it.
+		-
+			message: '#^Path in (require|include)\(\) "\./cache/cache_[^"]+" is not a file or it does not exist\.$#'
+			reportUnmatched: false
+		# config.php, include/essentials.php, include/common.php, the cache files
+		# and the language packs define these at global scope; PHPStan does not
+		# follow includes, so every entry point that reads one looks undefined.
+		-
+			identifier: variable.undefined
+			message: '#^Variable \$(base_url|cookie_(domain|name|path|secure)|db_(host|name|password|prefix|type|username)|forum_(config|date_formats|db|flash|loader|page|rewrite_rules|start|stats|time_formats|updates|url|user)|lang_\w+|p_connect|smilies|tpl_main) might not be defined\.$#'
+			reportUnmatched: false

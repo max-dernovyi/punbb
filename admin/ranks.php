@@ -28,8 +28,8 @@ require FORUM_ROOT.'lang/'.$forum_user['language'].'/admin_ranks.php';
 // Add a rank
 if (isset($_POST['add_rank']))
 {
-	$rank = forum_trim($_POST['new_rank']);
-	$min_posts = intval($_POST['new_min_posts']);
+	$rank = forum_trim($_POST['new_rank'] ?? '');
+	$min_posts = intval($_POST['new_min_posts'] ?? 0);
 
 	if ($rank == '')
 		message($lang_admin_ranks['Title message']);
@@ -53,7 +53,7 @@ if (isset($_POST['add_rank']))
 		message(sprintf($lang_admin_ranks['Min posts occupied message'], $min_posts));
 
 	$query = array(
-		'INSERT'	=> 'rank, min_posts',
+		'INSERT'	=> $forum_db->quote_identifier('rank').', min_posts',
 		'INTO'		=> 'ranks',
 		'VALUES'	=> '\''.$forum_db->escape($rank).'\', '.$min_posts
 	);
@@ -79,10 +79,13 @@ if (isset($_POST['add_rank']))
 // Update a rank
 else if (isset($_POST['update']))
 {
+	if (!is_array($_POST['update']))
+		message($lang_common['Bad request']);
+
 	$id = intval(key($_POST['update']));
 
-	$rank = forum_trim($_POST['rank'][$id]);
-	$min_posts = intval($_POST['min_posts'][$id]);
+	$rank = forum_trim($_POST['rank'][$id] ?? '');
+	$min_posts = intval($_POST['min_posts'][$id] ?? 0);
 
 	if ($rank == '')
 		message($lang_admin_ranks['Title message']);
@@ -107,7 +110,7 @@ else if (isset($_POST['update']))
 
 	$query = array(
 		'UPDATE'	=> 'ranks',
-		'SET'		=> 'rank=\''.$forum_db->escape($rank).'\', min_posts='.$min_posts,
+		'SET'		=> $forum_db->quote_identifier('rank').'=\''.$forum_db->escape($rank).'\', min_posts='.$min_posts,
 		'WHERE'		=> 'id='.$id
 	);
 
@@ -132,6 +135,9 @@ else if (isset($_POST['update']))
 // Remove a rank
 else if (isset($_POST['remove']))
 {
+	if (!is_array($_POST['remove']))
+		message($lang_common['Bad request']);
+
 	$id = intval(key($_POST['remove']));
 
 	($hook = get_hook('ark_remove_form_submitted')) ? eval($hook) : null;

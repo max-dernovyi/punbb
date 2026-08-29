@@ -1,7 +1,9 @@
 <?php
 
-class ParseMessageTest extends PHPUnit_Framework_TestCase {
-	public function testParseMessageTag_i() {
+use PHPUnit\Framework\TestCase;
+
+class ParseMessageTest extends TestCase {
+	public function testParseMessageTag_i(): void {
 		$errors = array();
 
 		$result = '<p><em>In vino veritas — Ёжик тумане (封鎖進階設定)</em></p>';
@@ -10,7 +12,7 @@ class ParseMessageTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals($result, parse_message(preparse_bbcode(forum_trim($src), $errors), $errors));
 	}
 
-	public function testParseMessageTag_b() {
+	public function testParseMessageTag_b(): void {
 		$errors = array();
 
 		$result = '<p><strong>In vino veritas — Ёжик тумане (封鎖進階設定)</strong></p>';
@@ -19,7 +21,7 @@ class ParseMessageTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals($result, parse_message(preparse_bbcode(forum_trim($src), $errors), $errors));
 	}
 
-	public function testParseMessageTag_h() {
+	public function testParseMessageTag_h(): void {
 		$errors = array();
 
 		$result = '<h5>In vino veritas — Ёжик тумане (封鎖進階設定)</h5>';
@@ -28,7 +30,7 @@ class ParseMessageTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals($result, parse_message(preparse_bbcode(forum_trim($src), $errors), $errors));
 	}
 
-	public function testParseMessageTag_u() {
+	public function testParseMessageTag_u(): void {
 		$errors = array();
 
 		$result = '<p><span class="bbu">In vino veritas — Ёжик тумане (封鎖進階設定)</span></p>';
@@ -38,7 +40,7 @@ class ParseMessageTest extends PHPUnit_Framework_TestCase {
 	}
 
 	// [color]
-	public function test_parse_message_color_hex() {
+	public function test_parse_message_color_hex(): void {
 		$errors = array();
 
 		$result = '<p><span style="color: #ff0000">In vino veritas — Ёжик тумане (封鎖進階設定)</span></p>';
@@ -48,7 +50,7 @@ class ParseMessageTest extends PHPUnit_Framework_TestCase {
 	}
 
 	// [color]
-	public function test_parse_message_color_name() {
+	public function test_parse_message_color_name(): void {
 		$errors = array();
 
 		$result = '<p><span style="color: red">In vino veritas — Ёжик тумане (封鎖進階設定)</span></p>';
@@ -58,7 +60,7 @@ class ParseMessageTest extends PHPUnit_Framework_TestCase {
 	}
 
 	// combine simple tags
-	public function test_parse_message_combine_simple_tags() {
+	public function test_parse_message_combine_simple_tags(): void {
 		$errors = array();
 
 		$result = '<p><em><span class="bbu"><strong><span style="color: red">In vino veritas — Ёжик тумане (封鎖進階設定)</span></strong></span></em></p>';
@@ -69,7 +71,7 @@ class ParseMessageTest extends PHPUnit_Framework_TestCase {
 
 
 	// urls
-	public function test_parse_message_url_1() {
+	public function test_parse_message_url_1(): void {
 		$errors = array();
 
 		$result = '<p><a href="http://localhost/punbb13/">Форум</a></p>';
@@ -79,7 +81,7 @@ class ParseMessageTest extends PHPUnit_Framework_TestCase {
 	}
 
 	// urls
-	public function test_parse_message_url_2() {
+	public function test_parse_message_url_2(): void {
 		$errors = array();
 
 		$result = '<p><a href="http://localhost/punbb13/">http://localhost/punbb13/</a></p>';
@@ -88,7 +90,7 @@ class ParseMessageTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals($result, parse_message(preparse_bbcode(forum_trim($src), $errors), $errors));
 	}
 
-	public function test_parse_message_url_3() {
+	public function test_parse_message_url_3(): void {
 		$errors = array();
 
 		$result = '<p><a href="http://ya.ru/">http://ya.ru/</a></p>';
@@ -97,7 +99,7 @@ class ParseMessageTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals($result, parse_message(preparse_bbcode(forum_trim($src), $errors), $errors));
 	}
 
-	public function test_parse_message_url_4() {
+	public function test_parse_message_url_4(): void {
 		$errors = array();
 
 		$result = '<p>Посмотрите на <a href="http://xn--d1acpjx3f.xn--p1ai/">http://яндекс.рф/</a> сайте</p>';
@@ -106,7 +108,7 @@ class ParseMessageTest extends PHPUnit_Framework_TestCase {
 		$this->assertEquals($result, parse_message(preparse_bbcode(forum_trim($src), $errors), $errors));
 	}
 
-	public function test_parse_message_url_5() {
+	public function test_parse_message_url_5(): void {
 		$errors = array();
 
 		$result = '<p>Посмотрите на <a href="http://www.xn--d1acpjx3f.xn--p1ai">www.яндекс.рф</a>/ сайте</p>';
@@ -116,7 +118,7 @@ class ParseMessageTest extends PHPUnit_Framework_TestCase {
 	}
 
 	// urls email
-	public function test_parse_message_url_mailto_1() {
+	public function test_parse_message_url_mailto_1(): void {
 		$errors = array();
 
 		$result = '<p><a href="mailto:name@example.com">name@example.com</a></p>';
@@ -126,7 +128,7 @@ class ParseMessageTest extends PHPUnit_Framework_TestCase {
 	}
 
 	// urls email
-	public function test_parse_message_url_mailto_2() {
+	public function test_parse_message_url_mailto_2(): void {
 		$errors = array();
 
 		$result = '<p><a href="mailto:name@example.com">My e-mail address (Мой элетроящик)</a></p>';
@@ -137,7 +139,7 @@ class ParseMessageTest extends PHPUnit_Framework_TestCase {
 
 
 	// quoting
-	public function test_parse_message_quote_1() {
+	public function test_parse_message_quote_1(): void {
 		$errors = array();
 
 		$result = '<div class="quotebox"><cite>James wrote:</cite><blockquote><p>This is the text I want to quote.</p></blockquote></div>';
@@ -147,7 +149,7 @@ class ParseMessageTest extends PHPUnit_Framework_TestCase {
 	}
 
 	// quoting
-	public function test_parse_message_quote_2() {
+	public function test_parse_message_quote_2(): void {
 		$errors = array();
 
 		$result = '<div class="quotebox"><blockquote><p>This is the text I want to quote.</p></blockquote></div>';
@@ -157,7 +159,7 @@ class ParseMessageTest extends PHPUnit_Framework_TestCase {
 	}
 
 	// quoting
-	public function test_parse_message_quote_3() {
+	public function test_parse_message_quote_3(): void {
 		$errors = array();
 
 		$result = '<div class="quotebox"><cite>Певица &#91;] Ёлка wrote:</cite><blockquote><p>This is the text I want to quote.</p></blockquote></div>';
@@ -167,7 +169,7 @@ class ParseMessageTest extends PHPUnit_Framework_TestCase {
 	}
 
 	// quoting
-	public function test_parse_message_quote_4() {
+	public function test_parse_message_quote_4(): void {
 		$errors = array();
 
 		$result = '<div class="quotebox"><cite>Певица &#91;] Ёлка wrote:</cite><blockquote><p>This is the text I want to quote.</p></blockquote></div>';
@@ -178,7 +180,7 @@ class ParseMessageTest extends PHPUnit_Framework_TestCase {
 
 
 	// Code
-	public function test_parse_message_code_1() {
+	public function test_parse_message_code_1(): void {
 		$errors = array();
 
 		$result = '<div class="codebox"><pre><code>This is some code.</code></pre></div>';
@@ -188,7 +190,7 @@ class ParseMessageTest extends PHPUnit_Framework_TestCase {
 	}
 
 	// Code
-	public function test_parse_message_code_long() {
+	public function test_parse_message_code_long(): void {
 		$errors = array();
 
 		$result = '<div class="codebox"><pre><code>This is a long piece of code. [i]This is a long piece of code.[/i] [url=&quot;http://yandex.ru/&quot;]This is a long piece of code[/url]. This is a long piece of code. This is a long piece of code.</code></pre></div>';
@@ -198,7 +200,7 @@ class ParseMessageTest extends PHPUnit_Framework_TestCase {
 	}
 
 	// Code
-	public function test_parse_message_code_quote() {
+	public function test_parse_message_code_quote(): void {
 		$errors = array();
 
 		$result = '<div class="codebox"><pre><code>This is a long &#039;piece&#039; of code</code></pre></div>';
@@ -210,7 +212,7 @@ class ParseMessageTest extends PHPUnit_Framework_TestCase {
 
 
 	// Big message with a many elements
-	public function test_parse_message_large_1() {
+	public function test_parse_message_large_1(): void {
 		$errors = array();
 
 		$result = '<p>PunBB 1.3.5 is released</p><p><strong>1.3.4 to 1.3.5 changes</strong><br /></p><ul><li><p>a lot of bugs fixed (CSS &amp; markup, added missing lang entries on language files, correct path and alerts on install, fixed typos and more);</p></li><li><p>hidden guest email;</p></li><li><p>increased visit timeout;</p></li><li><p>deleting non-activated users on registering;</p></li><li><p>correct deprecated function calls;</p></li><li><p>added paginal navigation on pages admin users and bans, added validation timezone and report length, added hooks;</p></li></ul><p><strong>How to upgrade</strong><br /></p><ul><li><p>make a backup of the database and files;</p></li><li><p>turn the Maintenance mode on (via admin panel);</p></li><li><p>overwrite old files with new ones;</p></li><li><p>after owerwriting, verify that the cache, img/avatars and extensions (for pun_repository) directories have enough write permissions (usually 777);</p></li><li><p>clear cache directory;</p></li><li><p>go to the forum index and run db_update.php script;</p></li><li><p>turn the Maintenance mode off.</p></li></ul><p><strong>A note to developers</strong><br />Please check your extensions, styles and language packs for compatibility with the version 1.3.5. The following may be of use to you:<br /></p><ul><li><p><a href="http://punbb.informer.com/trac/changeset?new=1725%40punbb%2Ftrunk%2Fstyle%2FOxygen&amp;old=1668%40punbb%2Ftrunk%2Fstyle%2FOxygen">CSS changes</a>;</p></li><li><p><a href="http://punbb.informer.com/trac/changeset?new=1725%40punbb%2Ftrunk%2Flang%2FEnglish&amp;old=1668%40punbb%2Ftrunk%2Flang%2FEnglish">language files changes</a>.</p></li></ul><p>Downloads: get the latest PunBB on <a href="http://punbb.informer.com/downloads.php#1.3.5">Downloads page</a> or via <a href="http://punbb.informer.com/trac/browser/punbb/tags/punbb-1.3.5">Subversion repository</a>.</p><div class="codebox"><pre><code>// Code

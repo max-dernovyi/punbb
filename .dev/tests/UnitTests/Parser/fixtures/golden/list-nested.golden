@@ -1,0 +1,12 @@
+===== message =====
+<ul><li><p>outer</p><ol class="decimal"><li><p>inner one</p></li><li><p>inner two</p></li></ol></li><li><p>outer again</p></li></ul>
+===== message-errors =====
+
+===== signature =====
+[list=*]<br />[*]outer[list=1]<br />[*]inner one[/*]<br />[*]inner two[/*]<br />[/list][/*]<br />[*]outer again[/*]<br />[/list]
+===== signature-errors =====
+Signature may not contain of the text formatting tags (BBCode) [quote], [code] or [list]. Please choose another tags or delete it.
+===== clickable-unicode =====
+[list][*]outer[list=1][*]inner one[*]inner two[/list][*]outer again[/list]
+===== clickable-ascii =====
+[list][*]outer[list=1][*]inner one[*]inner two[/list][*]outer again[/list]

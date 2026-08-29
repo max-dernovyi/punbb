@@ -15,19 +15,19 @@ if (!function_exists('pg_connect'))
 
 class DBLayer
 {
-    public $prefix;
-    public $link_id;
-    public $query_result;
-    public $last_query_text = array();
-    public $in_transaction = 0;
+	public $prefix;
+	public $link_id;
+	public $query_result;
+	public string $last_query_text = '';
+	public int $in_transaction = 0;
 
-    public $saved_queries = array();
-    public $num_queries = 0;
+	public array $saved_queries = array();
+	public int $num_queries = 0;
 
-    public $error_no = false;
-    public $error_msg = 'Unknown';
+	public $error_no = false;
+	public $error_msg = 'Unknown';
 
-    public $datatype_transformations = array(
+	public array $datatype_transformations = array(
 		'/^(TINY|SMALL)INT( )?(\\([0-9]+\\))?( )?(UNSIGNED)?$/i'			=>	'SMALLINT',
 		'/^(MEDIUM)?INT( )?(\\([0-9]+\\))?( )?(UNSIGNED)?$/i'				=>	'INTEGER',
 		'/^BIGINT( )?(\\([0-9]+\\))?( )?(UNSIGNED)?$/i'						=>	'BIGINT',
@@ -39,6 +39,8 @@ class DBLayer
 	public function __construct($db_host, $db_username, $db_password, $db_name, $db_prefix, $p_connect)
 	{
 		$this->prefix = $db_prefix;
+
+		$connect_str = array();
 
 		if ($db_host)
 		{
@@ -66,7 +68,11 @@ class DBLayer
 			$this->link_id = @pg_connect(implode(' ', $connect_str));
 
 		if (!$this->link_id)
-			error('Unable to connect to PostgreSQL server.', __FILE__, __LINE__);
+		{
+			$this->error_msg = 'Unable to connect to PostgreSQL server.';
+
+			error($this->error_msg, __FILE__, __LINE__);
+		}
 
 		// Setup the client-server character set (UTF-8)
 		if (!defined('FORUM_NO_SET_NAMES'))
@@ -75,11 +81,44 @@ class DBLayer
 		return $this->link_id;
 	}
 
+	public function __destruct()
+	{
+	    $this->close();
+	}
+
+
+	/**
+	 * Render the forum's error page for the failure just recorded.
+	 *
+	 * The file and line reported are the caller's, not this file's: a failure
+	 * has to say which query site produced it, the way the
+	 * "or error(__FILE__, __LINE__)" call sites used to.
+	 */
+	public function report_error()
+	{
+		foreach (debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS) as $frame)
+		{
+			if (isset($frame['file']) && $frame['file'] !== __FILE__)
+				return error($frame['file'], $frame['line']);
+		}
+
+		return error(__FILE__, __LINE__);
+	}
+
+
 	public function start_transaction()
 	{
 		++$this->in_transaction;
 
-		return (@pg_query($this->link_id, 'BEGIN')) ? true : false;
+		if (@pg_query($this->link_id, 'BEGIN'))
+			return true;
+
+		--$this->in_transaction;
+		$this->error_msg = @pg_last_error($this->link_id);
+
+		$this->report_error();
+
+		return false;
 	}
 
 	public function end_transaction()
@@ -88,11 +127,15 @@ class DBLayer
 
 		if (@pg_query($this->link_id, 'COMMIT'))
 			return true;
-		else
-		{
-			@pg_query($this->link_id, 'ROLLBACK');
-			return false;
-		}
+
+		// A commit that did not go through leaves the transaction open; roll it
+		// back before the error page ends the request.
+		$this->error_msg = @pg_last_error($this->link_id);
+		@pg_query($this->link_id, 'ROLLBACK');
+
+		$this->report_error();
+
+		return false;
 	}
 
 	public function query($sql, $unbuffered = false)	// $unbuffered is ignored since there is no pgsql_unbuffered_query()
@@ -109,14 +152,17 @@ class DBLayer
 		@pg_send_query($this->link_id, $sql);
 		$this->query_result = @pg_get_result($this->link_id);
 
-		if (pg_result_status($this->query_result) != PGSQL_FATAL_ERROR)
+		// Since PHP 8.1 pg_result_status() is typed PgSql\Result and raises an
+		// uncaught TypeError on the false pg_get_result() returns for a dead
+		// connection, so the failure has to be caught before it is called.
+		if ($this->query_result !== false && pg_result_status($this->query_result) != PGSQL_FATAL_ERROR)
 		{
 			if (defined('FORUM_SHOW_QUERIES') || defined('FORUM_DEBUG'))
 				$this->saved_queries[] = array($sql, sprintf('%.5f', forum_microtime() - $q_start));
 
 			++$this->num_queries;
 
-			$this->last_query_text[$this->query_result] = $sql;
+			$this->last_query_text = $sql;
 
 			return $this->query_result;
 		}
@@ -125,12 +171,17 @@ class DBLayer
 			if (defined('FORUM_SHOW_QUERIES') || defined('FORUM_DEBUG'))
 				$this->saved_queries[] = array($sql, 0);
 
-			$this->error_msg = @pg_result_error($this->query_result);
+			$this->last_query_text = '';
+			$this->error_msg = ($this->query_result !== false) ? @pg_result_error($this->query_result) : @pg_last_error($this->link_id);
 
 			if ($this->in_transaction)
 				@pg_query($this->link_id, 'ROLLBACK');
 
 			--$this->in_transaction;
+
+			// Same contract as the mysqli drivers: a failed query renders the
+			// forum error page rather than handing false back to the caller.
+			$this->report_error();
 
 			return false;
 		}
@@ -255,9 +306,9 @@ class DBLayer
 	{
 		$query_id = $this->query_result;
 
-		if ($query_id && $this->last_query_text[$query_id] != '')
+		if ($query_id && $this->last_query_text != '')
 		{
-			if (preg_match('/^INSERT INTO ([a-z0-9\_\-]+)/is', $this->last_query_text[$query_id], $table_name))
+			if (preg_match('/^INSERT INTO ([a-z0-9\_\-]+)/is', $this->last_query_text, $table_name))
 			{
 				// Hack (don't ask)
 				if (substr($table_name[1], -6) == 'groups')
@@ -286,21 +337,49 @@ class DBLayer
 		if (!$query_id)
 			$query_id = $this->query_result;
 
-		return ($query_id) ? @pg_free_result($query_id) : false;
+		if (!$query_id)
+			return false;
+
+		// PHP 8.1+ throws on an already-closed PgSql\Result where ext/pgsql used to warn and return false
+		try
+		{
+			return @pg_free_result($query_id);
+		}
+		catch (Error $e)
+		{
+			return false;
+		}
 	}
 
 	public function escape($str)
 	{
-		return is_array($str) ? '' : pg_escape_string($str);
+		// Letting pg_escape_string() find the connection itself is deprecated
+		// since PHP 8.1, and it escapes by the server's rules anyway.
+		return is_array($str) ? '' : pg_escape_string($this->link_id, $str);
+	}
+
+
+	/**
+	 * Quote an identifier. The shared application SQL uses this for the few
+	 * column names that are reserved words on some server (MySQL 8 made RANK
+	 * one); here it is the SQL standard double quote.
+	 */
+	public function quote_identifier($name)
+	{
+		return '"'.str_replace('"', '""', $name).'"';
 	}
 
 	public function error()
 	{
-		$result['error_sql'] = @current(@end($this->saved_queries));
-		$result['error_no'] = false;
-		$result['error_msg'] = $this->error_msg;
+		// current(false) is a TypeError on PHP 8, and the query log is empty
+		// whenever the failure is the connection itself.
+		$last_query = end($this->saved_queries);
 
-		return $result;
+		return array(
+			'error_sql'	=> is_array($last_query) ? current($last_query) : '',
+			'error_no'	=> false,
+			'error_msg'	=> $this->error_msg
+		);
 	}
 
 	public function close()
@@ -316,9 +395,20 @@ class DBLayer
 			}
 
 			if ($this->query_result)
-				@pg_free_result($this->query_result);
+				$this->free_result($this->query_result);
 
-			return @pg_close($this->link_id);
+			$link_id = $this->link_id;
+			$this->link_id = null;
+
+			// PHP 8.1+ throws on an already-closed PgSql\Connection where ext/pgsql used to warn and return false
+			try
+			{
+				return @pg_close($link_id);
+			}
+			catch (Error $e)
+			{
+				return false;
+			}
 		}
 		else
 			return false;

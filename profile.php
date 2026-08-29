@@ -81,8 +81,8 @@ if ($action == 'change_pass')
 			{
 				($hook = get_hook('pf_change_pass_key_form_submitted')) ? eval($hook) : null;
 
-				$new_password1 = forum_trim($_POST['req_new_password1']);
-				$new_password2 = ($forum_config['o_mask_passwords'] == '1') ? forum_trim($_POST['req_new_password2']) : $new_password1;
+				$new_password1 = forum_trim($_POST['req_new_password1'] ?? '');
+				$new_password2 = ($forum_config['o_mask_passwords'] == '1') ? forum_trim($_POST['req_new_password2'] ?? '') : $new_password1;
 
 				if (utf8_strlen($new_password1) < 4)
 					$errors[] = $lang_profile['Pass too short'];
@@ -92,7 +92,7 @@ if ($action == 'change_pass')
 				// Did everything go according to plan?
 				if (empty($errors))
 				{
-					$new_password_hash = forum_hash($new_password1, $user['salt']);
+					$new_password_hash = forum_password_hash($new_password1);
 
 					$query = array(
 						'UPDATE'	=> 'users',
@@ -225,8 +225,8 @@ if ($action == 'change_pass')
 		($hook = get_hook('pf_change_pass_normal_form_submitted')) ? eval($hook) : null;
 
 		$old_password = isset($_POST['req_old_password']) ? forum_trim($_POST['req_old_password']) : '';
-		$new_password1 = forum_trim($_POST['req_new_password1']);
-		$new_password2 = ($forum_config['o_mask_passwords'] == '1') ? forum_trim($_POST['req_new_password2']) : $new_password1;
+		$new_password1 = forum_trim($_POST['req_new_password1'] ?? '');
+		$new_password2 = ($forum_config['o_mask_passwords'] == '1') ? forum_trim($_POST['req_new_password2'] ?? '') : $new_password1;
 
 		if (utf8_strlen($new_password1) < 4)
 			$errors[] = $lang_profile['Pass too short'];
@@ -236,9 +236,7 @@ if ($action == 'change_pass')
 		$authorized = false;
 		if (!empty($user['password']))
 		{
-			$old_password_hash = forum_hash($old_password, $user['salt']);
-
-			if (($user['password'] == $old_password_hash) || $forum_user['is_admmod'])
+			if (forum_password_verify($old_password, $user['password'], $user['salt']) || $forum_user['is_admmod'])
 				$authorized = true;
 		}
 
@@ -248,7 +246,7 @@ if ($action == 'change_pass')
 		// Did everything go according to plan?
 		if (empty($errors))
 		{
-			$new_password_hash = forum_hash($new_password1, $user['salt']);
+			$new_password_hash = forum_password_hash($new_password1);
 
 			$query = array(
 				'UPDATE'	=> 'users',
@@ -261,9 +259,11 @@ if ($action == 'change_pass')
 
 			if ($forum_user['id'] == $id)
 			{
-				$cookie_data = @explode('|', base64_decode($_COOKIE[$cookie_name]));
+				$cookie_raw = (isset($_COOKIE[$cookie_name]) && is_string($_COOKIE[$cookie_name])) ? $_COOKIE[$cookie_name] : '';
+				$cookie_data = explode('|', base64_decode($cookie_raw));
+				$cookie_expire = isset($cookie_data[2]) ? intval($cookie_data[2]) : 0;
 
-				$expire = ($cookie_data[2] > time() + $forum_config['o_timeout_visit']) ? time() + 1209600 : time() + $forum_config['o_timeout_visit'];
+				$expire = ($cookie_expire > time() + $forum_config['o_timeout_visit']) ? time() + 1209600 : time() + $forum_config['o_timeout_visit'];
 				forum_setcookie($cookie_name, base64_encode($forum_user['id'].'|'.$new_password_hash.'|'.$expire.'|'.sha1($user['salt'].$new_password_hash.forum_hash($expire, $user['salt']))), $expire);
 			}
 
@@ -429,14 +429,15 @@ else if ($action == 'change_email')
 	{
 		($hook = get_hook('pf_change_email_normal_form_submitted')) ? eval($hook) : null;
 
-		if (forum_hash($_POST['req_password'], $forum_user['salt']) !== $forum_user['password'])
+		$req_password = isset($_POST['req_password']) && is_string($_POST['req_password']) ? $_POST['req_password'] : '';
+		if (!forum_password_verify($req_password, $forum_user['password'], $forum_user['salt']))
 			$errors[] = $lang_profile['Wrong password'];
 
 		if (!defined('FORUM_EMAIL_FUNCTIONS_LOADED'))
 			require FORUM_ROOT.'include/email.php';
 
 		// Validate the email-address
-		$new_email = strtolower(forum_trim($_POST['req_new_email']));
+		$new_email = strtolower(forum_trim($_POST['req_new_email'] ?? ''));
 		if (!is_valid_email($new_email))
 			$errors[] = $lang_common['Invalid e-mail'];
 
@@ -790,7 +791,7 @@ else if (isset($_POST['update_group_membership']))
 
 	($hook = get_hook('pf_change_group_form_submitted')) ? eval($hook) : null;
 
-	$new_group_id = intval($_POST['group_id']);
+	$new_group_id = intval($_POST['group_id'] ?? 0);
 
 	$query = array(
 		'UPDATE'	=> 'users',
@@ -829,7 +830,7 @@ else if (isset($_POST['update_forums']))
 
 	($hook = get_hook('pf_forum_moderators_form_submitted')) ? eval($hook) : null;
 
-	$moderator_in = (isset($_POST['moderator_in'])) ? array_keys($_POST['moderator_in']) : array();
+	$moderator_in = (isset($_POST['moderator_in']) && is_array($_POST['moderator_in'])) ? array_keys($_POST['moderator_in']) : array();
 
 	// Loop through all forums
 	$query = array(
@@ -900,10 +901,15 @@ else if (isset($_POST['form_sent']))
 	{
 		$form = array();
 
+		if (!isset($_POST['form']) || !is_array($_POST['form']))
+			return $form;
+
 		foreach ($_POST['form'] as $key => $value)
 		{
+			// Every allowed element is a text input; an array-valued key is a
+			// crafted request, not a value to validate.
 			if (in_array($key, $allowed_elements))
-				$form[$key] = $value;
+				$form[$key] = is_string($value) ? $value : '';
 		}
 
 		return $form;
@@ -911,12 +917,22 @@ else if (isset($_POST['form_sent']))
 
 	$username_updated = false;
 
+	// An unknown section reaches the switch default, where only an extension hook
+	// fills $form — the update below still has to have an array to walk.
+	$form = array();
+
 	// Validate input depending on section
 	switch ($section)
 	{
 		case 'identity':
 		{
-			$form = extract_elements(array('realname', 'url', 'location', 'jabber', 'icq', 'msn', 'aim', 'yahoo', 'facebook', 'twitter', 'linkedin', 'skype'));
+			$identity_fields = array('realname', 'url', 'location', 'jabber', 'icq', 'msn', 'aim', 'yahoo', 'facebook', 'twitter', 'linkedin', 'skype');
+			$form = extract_elements($identity_fields);
+
+			// All of them are text inputs: an absent one is an empty value
+			foreach ($identity_fields as $identity_field)
+				if (!isset($form[$identity_field]))
+					$form[$identity_field] = '';
 
 			($hook = get_hook('pf_change_details_identity_validation')) ? eval($hook) : null;
 
@@ -925,8 +941,8 @@ else if (isset($_POST['form_sent']))
 				// Are we allowed to change usernames?
 				if ($forum_user['g_id'] == FORUM_ADMIN || ($forum_user['g_moderator'] == '1' && $forum_user['g_mod_rename_users'] == '1'))
 				{
-					$form['username'] = forum_trim($_POST['req_username']);
-					$old_username = forum_trim($_POST['old_username']);
+					$form['username'] = forum_trim($_POST['req_username'] ?? '');
+					$old_username = forum_trim($_POST['old_username'] ?? '');
 
 					// Validate the new username
 					$errors = array_merge($errors, validate_username($form['username'], $id));
@@ -937,7 +953,7 @@ else if (isset($_POST['form_sent']))
 
 				// We only allow administrators to update the post count
 				if ($forum_user['g_id'] == FORUM_ADMIN)
-					$form['num_posts'] = intval($_POST['num_posts']);
+					$form['num_posts'] = intval($_POST['num_posts'] ?? 0);
 			}
 
 			if ($forum_user['is_admmod'])
@@ -946,19 +962,19 @@ else if (isset($_POST['form_sent']))
 					require FORUM_ROOT.'include/email.php';
 
 				// Validate the email-address
-				$form['email'] = strtolower(forum_trim($_POST['req_email']));
+				$form['email'] = strtolower(forum_trim($_POST['req_email'] ?? ''));
 				if (!is_valid_email($form['email']))
 					$errors[] = $lang_common['Invalid e-mail'];
 			}
 
 			if ($forum_user['is_admmod'])
-				$form['admin_note'] = forum_trim($_POST['admin_note']);
+				$form['admin_note'] = forum_trim($_POST['admin_note'] ?? '');
 
 			if ($forum_user['g_id'] == FORUM_ADMIN)
-				$form['title'] = forum_trim($_POST['title']);
+				$form['title'] = forum_trim($_POST['title'] ?? '');
 			else if ($forum_user['g_set_title'] == '1')
 			{
-				$form['title'] = forum_trim($_POST['title']);
+				$form['title'] = forum_trim($_POST['title'] ?? '');
 
 				if ($form['title'] != '')
 				{
@@ -1017,7 +1033,7 @@ else if (isset($_POST['form_sent']))
 				message($lang_common['Bad request']);
 			}
 
-			$form['email_setting'] = intval($form['email_setting']);
+			$form['email_setting'] = intval($form['email_setting'] ?? 0);
 			if ($form['email_setting'] < 0 || $form['email_setting'] > 2) $form['email_setting'] = 1;
 
 			if ($forum_config['o_subscriptions'] == '1')
@@ -1034,10 +1050,12 @@ else if (isset($_POST['form_sent']))
 					message($lang_common['Bad request']);
 			}
 
-			if ($form['disp_topics'] != '' && intval($form['disp_topics']) < 3) $form['disp_topics'] = 3;
-			if ($form['disp_topics'] != '' && intval($form['disp_topics']) > 75) $form['disp_topics'] = 75;
-			if ($form['disp_posts'] != '' && intval($form['disp_posts']) < 3) $form['disp_posts'] = 3;
-			if ($form['disp_posts'] != '' && intval($form['disp_posts']) > 75) $form['disp_posts'] = 75;
+			// Absent means "leave the column alone", so clamp only what was posted
+			if (isset($form['disp_topics']) && $form['disp_topics'] != '')
+				$form['disp_topics'] = min(max(intval($form['disp_topics']), 3), 75);
+
+			if (isset($form['disp_posts']) && $form['disp_posts'] != '')
+				$form['disp_posts'] = min(max(intval($form['disp_posts']), 3), 75);
 
 			if (!isset($form['show_smilies']) || $form['show_smilies'] != '1') $form['show_smilies'] = '0';
 			if (!isset($form['show_img']) || $form['show_img'] != '1') $form['show_img'] = '0';
@@ -1063,7 +1081,7 @@ else if (isset($_POST['form_sent']))
 			($hook = get_hook('pf_change_details_signature_validation')) ? eval($hook) : null;
 
 			// Clean up signature from POST
-			$form['signature'] = forum_linebreaks(forum_trim($_POST['signature']));
+			$form['signature'] = forum_linebreaks(forum_trim($_POST['signature'] ?? ''));
 
 			// Validate signature
 			if (utf8_strlen($form['signature']) > $forum_config['p_sig_length'])
@@ -1100,6 +1118,10 @@ else if (isset($_POST['form_sent']))
 			}
 			else
 				$uploaded_file = $_FILES['req_file'];
+
+			// A multi-file req_file[] gives array-valued members — a malformed request, not an upload.
+			if (!is_array($uploaded_file) || !isset($uploaded_file['tmp_name']) || !is_string($uploaded_file['tmp_name']))
+				message($lang_common['Bad request']);
 
 			// Make sure the upload went smooth
 			if (isset($uploaded_file['error']) && empty($errors))
@@ -1161,8 +1183,18 @@ else if (isset($_POST['form_sent']))
 						($hook = get_hook('pf_change_details_avatar_modify_size')) ? eval($hook) : null;
 
 						// Now check the width, height, type
-						list($width, $height, $type,) = @/**/getimagesize($avatar_tmp_file);
-						if (empty($width) || empty($height) || $width > $forum_config['o_avatars_width'] || $height > $forum_config['o_avatars_height'])
+						$avatar_size = forum_avatar_size($avatar_tmp_file);
+						if ($avatar_size === false)
+						{
+							// Not an image at all — this used to unpack false into nulls
+							@unlink($avatar_tmp_file);
+							$errors[] = $lang_profile['Bad type'];
+							$width = $height = $type = 0;
+						}
+						else
+							list($width, $height, $type) = $avatar_size;
+
+						if (empty($errors) && ($width > $forum_config['o_avatars_width'] || $height > $forum_config['o_avatars_height']))
 						{
 							@unlink($avatar_tmp_file);
 							$errors[] = sprintf($lang_profile['Too wide or high'], $forum_config['o_avatars_width'], $forum_config['o_avatars_height']);
@@ -1195,7 +1227,7 @@ else if (isset($_POST['form_sent']))
 						($hook = get_hook('pf_change_details_avatar_determine_extension')) ? eval($hook) : null;
 
 						// Check type from getimagesize type format
-						if (!in_array($avatar_type, $allowed_types) || empty($extension))
+						if (empty($errors) && (!in_array($avatar_type, $allowed_types) || empty($extension)))
 						{
 							@unlink($avatar_tmp_file);
 							$errors[] = $lang_profile['Bad type'];
@@ -1450,20 +1482,13 @@ if ($forum_user['id'] != $id &&
 		// IDNA url handling
 		if (defined('FORUM_SUPPORT_PCRE_UNICODE') && defined('FORUM_ENABLE_IDNA'))
 		{
-			// Load the IDNA class for international url handling
-			require_once FORUM_ROOT.'include/idna/idna_convert.class.php';
-
-			$idn = new idna_convert();
-			$idn->set_parameter('encoding', 'utf8');
-			$idn->set_parameter('strict', false);
-
 			if (preg_match('!^(https?|ftp|news){1}'.preg_quote('://xn--', '!').'!', $url_source))
 			{
-				$user['url'] = $idn->decode($url_source);
+				$user['url'] = forum_idna_decode($url_source);
 			}
 			else
 			{
-				$url_source = $idn->encode($url_source);
+				$url_source = forum_idna_encode($url_source);
 			}
 		}
 
@@ -1725,20 +1750,13 @@ else
 			// IDNA url handling
 			if (defined('FORUM_SUPPORT_PCRE_UNICODE') && defined('FORUM_ENABLE_IDNA'))
 			{
-				// Load the IDNA class for international url handling
-				require_once FORUM_ROOT.'include/idna/idna_convert.class.php';
-
-				$idn = new idna_convert();
-				$idn->set_parameter('encoding', 'utf8');
-				$idn->set_parameter('strict', false);
-
 				if (preg_match('!^(https?|ftp|news){1}'.preg_quote('://xn--', '!').'!', $url_source))
 				{
-					$user['url'] = $idn->decode($url_source);
+					$user['url'] = forum_idna_decode($url_source);
 				}
 				else
 				{
-					$url_source = $idn->encode($url_source);
+					$url_source = forum_idna_encode($url_source);
 				}
 			}
 

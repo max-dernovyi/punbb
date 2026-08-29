@@ -1,7 +1,9 @@
 <?php
 
-class DoClicableTest extends PHPUnit_Framework_TestCase {
-    public function testDoClicable() {
+use PHPUnit\Framework\TestCase;
+
+class DoClicableTest extends TestCase {
+    public function testDoClicable(): void {
         $this->assertEquals('[url=http://xn--caf-dma.com]http://café.com[/url]',
             do_clickable('http://xn--caf-dma.com', TRUE));
 

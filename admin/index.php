@@ -69,20 +69,17 @@ if ($forum_user['g_id'] == FORUM_ADMIN)
 // Get the server load averages (if possible)
 if (function_exists('sys_getloadavg') && is_array($load_averages = sys_getloadavg()))
 {
-	array_walk($load_averages,
-	function () use (&$v) {
-		$v = forum_number_format(round($v, 2), 2);
-	});
+	array_walk($load_averages, function (&$v) { $v = forum_number_format(round($v, 2), 2); });
 	$server_load = $load_averages[0].' '.$load_averages[1].' '.$load_averages[2];
 }
-else if (@/**/is_readable('/proc/loadavg'))
+// @ because /proc is outside open_basedir on a lot of shared hosts, and the
+// probe warning is not something the admin can act on
+else if (@is_readable('/proc/loadavg') && ($fh = @fopen('/proc/loadavg', 'r')) !== false)
 {
-	// We use @ just in case
-	$fh = @/**/fopen('/proc/loadavg', 'r');
-	$load_averages = @fread($fh, 64);
-	@/**/fclose($fh);
+	$load_averages = fread($fh, 64);
+	fclose($fh);
 
-	$load_averages = empty($load_averages) ? array() : explode(' ', $load_averages);
+	$load_averages = ($load_averages === false || $load_averages === '') ? array() : explode(' ', $load_averages);
 	$server_load = isset($load_averages[2]) ? forum_number_format(round($load_averages[0], 2), 2).' '.forum_number_format(round($load_averages[1], 2), 2).' '.forum_number_format(round($load_averages[2], 2), 2) : 'Not available';
 }
 else if (!in_array(PHP_OS, array('WINNT', 'WIN32')) && preg_match('/averages?: ([0-9\.]+),[\s]+([0-9\.]+),[\s]+([0-9\.]+)/i', @exec('uptime'), $load_averages))
@@ -103,7 +100,7 @@ $result = $forum_db->query_build($query) or error(__FILE__, __LINE__);
 $num_online = $forum_db->result($result);
 
 // Collect some additional info about MySQL
-if (in_array($db_type, array('mysql', 'mysqli', 'mysql_innodb', 'mysqli_innodb')))
+if (in_array($db_type, array('mysqli', 'mysqli_innodb')))
 {
 	// Calculate total db size/row count
 	$result = $forum_db->query('SHOW TABLE STATUS FROM `'.$db_name.'` LIKE \''.$db_prefix.'%\'') or error(__FILE__, __LINE__);

@@ -1,0 +1,11 @@
+<?php
+foreach (array('t1', 'x2') as $entry)
+{
+	switch (substr($entry, 0, 1))
+	{
+		case 't': $type = 'topics'; break;
+		default: continue 2;
+	}
+
+	echo $type;
+}

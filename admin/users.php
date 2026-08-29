@@ -182,7 +182,7 @@ if (isset($_GET['ip_stats']))
 // Show users that have at one time posted with the specified IP address
 else if (isset($_GET['show_users']))
 {
-	$ip = $_GET['show_users'];
+	$ip = is_string($_GET['show_users']) ? $_GET['show_users'] : '';
 
 	if (empty($ip) || (!preg_match('/[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}/', $ip) && !preg_match('/^((([0-9A-Fa-f]{1,4}:){7}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){6}:[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){5}:([0-9A-Fa-f]{1,4}:)?[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){4}:([0-9A-Fa-f]{1,4}:){0,2}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){3}:([0-9A-Fa-f]{1,4}:){0,3}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){2}:([0-9A-Fa-f]{1,4}:){0,4}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){6}((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|(([0-9A-Fa-f]{1,4}:){0,5}:((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|(::([0-9A-Fa-f]{1,4}:){0,5}((\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b)\.){3}(\b((25[0-5])|(1\d{2})|(2[0-4]\d)|(\d{1,2}))\b))|([0-9A-Fa-f]{1,4}::([0-9A-Fa-f]{1,4}:){0,5}[0-9A-Fa-f]{1,4})|(::([0-9A-Fa-f]{1,4}:){0,6}[0-9A-Fa-f]{1,4})|(([0-9A-Fa-f]{1,4}:){1,7}:))$/', $ip)))
 		message($lang_admin_users['Invalid IP address']);
@@ -560,8 +560,8 @@ else if (isset($_POST['ban_users']) || isset($_POST['ban_users_comply']))
 
 	if (isset($_POST['ban_users_comply']))
 	{
-		$ban_message = forum_trim($_POST['ban_message']);
-		$ban_expire = forum_trim($_POST['ban_expire']);
+		$ban_message = forum_trim($_POST['ban_message'] ?? '');
+		$ban_expire = forum_trim($_POST['ban_expire'] ?? '');
 
 		($hook = get_hook('aus_ban_users_form_submitted')) ? eval($hook) : null;
 
@@ -722,7 +722,7 @@ else if (isset($_POST['change_group']) || isset($_POST['change_group_comply']) |
 
 	if (isset($_POST['change_group_comply']))
 	{
-		$move_to_group = intval($_POST['move_to_group']);
+		$move_to_group = intval($_POST['move_to_group'] ?? 0);
 
 		($hook = get_hook('aus_change_group_form_submitted')) ? eval($hook) : null;
 
@@ -964,10 +964,10 @@ else if (isset($_GET['find_user']))
 
 	$result = $forum_db->query_build($query) or error(__FILE__, __LINE__);
 	$forum_page['num_users'] = $forum_db->result($result);
-	$forum_page['num_pages'] = ceil($forum_page['num_users'] / $forum_user['disp_topics']);
-	$forum_page['page'] = (!isset($_GET['p']) || !is_numeric($_GET['p']) || $_GET['p'] <= 1 || $_GET['p'] > $forum_page['num_pages']) ? 1 : $_GET['p'];
+	$forum_page['num_pages'] = (int) ceil($forum_page['num_users'] / $forum_user['disp_topics']);
+	$forum_page['page'] = (!isset($_GET['p']) || !is_numeric($_GET['p']) || $_GET['p'] <= 1 || $_GET['p'] > $forum_page['num_pages']) ? 1 : (int) $_GET['p'];
 	$forum_page['start_from'] = $forum_user['disp_topics'] * ($forum_page['page'] - 1);
-	$forum_page['finish_at'] = min(($forum_page['start_from'] + $forum_user['disp_topics']), ($forum_page['num_users']));
+	$forum_page['finish_at'] = min(($forum_user['disp_topics']), ($forum_page['num_users']));
 
 	// Setup breadcrumbs
 	$forum_page['crumbs'] = array(

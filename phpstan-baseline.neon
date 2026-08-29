@@ -1,0 +1,307 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Variable \$ban_id might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: admin/bans.php
+
+		-
+			message: '#^Variable \$check_for_updates might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: admin/db_update.php
+
+		-
+			message: '#^Variable \$written might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: admin/db_update.php
+
+		-
+			message: '#^Variable \$notices in empty\(\) always exists and is always falsy\.$#'
+			identifier: empty.variable
+			count: 2
+			path: admin/extensions.php
+
+		-
+			message: '#^Variable \$base_group might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: admin/groups.php
+
+		-
+			message: '#^Variable \$group_id might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: admin/groups.php
+
+		-
+			message: '#^Variable \$hide_smilies might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: edit.php
+
+		-
+			message: '#^Variable \$message might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: edit.php
+
+		-
+			message: '#^Variable \$subject might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: edit.php
+
+		-
+			message: '#^Variable \$fids in empty\(\) always exists and is not falsy\.$#'
+			identifier: empty.variable
+			count: 1
+			path: extern.php
+
+		-
+			message: '#^Variable \$nfids in empty\(\) always exists and is not falsy\.$#'
+			identifier: empty.variable
+			count: 1
+			path: extern.php
+
+		-
+			message: '#^Variable \$id might not be defined\.$#'
+			identifier: variable.undefined
+			count: 5
+			path: header.php
+
+		-
+			message: '#^Variable \$user might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: header.php
+
+		-
+			message: '#^Variable \$visit_links in empty\(\) always exists and is always falsy\.$#'
+			identifier: empty.variable
+			count: 1
+			path: header.php
+
+		-
+			message: '#^Variable \$visit_links in empty\(\) always exists and is not falsy\.$#'
+			identifier: empty.variable
+			count: 1
+			path: header.php
+
+		-
+			message: '#^Inner named functions are not supported by PHPStan\. Consider refactoring to an anonymous function, class method, or a top\-level\-defined function\. See issue \#165 \(https\://github\.com/phpstan/phpstan/issues/165\) for more details\.$#'
+			identifier: function.inner
+			count: 1
+			path: include/common_admin.php
+
+		-
+			message: '#^Variable \$forum_page in empty\(\) is never defined\.$#'
+			identifier: empty.variable
+			count: 1
+			path: include/common_admin.php
+
+		-
+			message: '#^Constructor of class DBLayer has an unused parameter \$foo\.$#'
+			identifier: constructor.unusedParameter
+			count: 1
+			path: include/dblayer/mysqli.php
+
+		-
+			message: '#^Result of function mysqli_free_result \(void\) is used\.$#'
+			identifier: function.void
+			count: 1
+			path: include/dblayer/mysqli.php
+
+		-
+			message: '#^Variable \$q_start might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: include/dblayer/mysqli.php
+
+		-
+			message: '#^Constructor of class DBLayer has an unused parameter \$foo\.$#'
+			identifier: constructor.unusedParameter
+			count: 1
+			path: include/dblayer/mysqli_innodb.php
+
+		-
+			message: '#^Result of function mysqli_free_result \(void\) is used\.$#'
+			identifier: function.void
+			count: 1
+			path: include/dblayer/mysqli_innodb.php
+
+		-
+			message: '#^Variable \$q_start might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: include/dblayer/mysqli_innodb.php
+
+		-
+			message: '#^Variable \$q_start might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: include/dblayer/pgsql.php
+
+		-
+			message: '#^Constructor of class DBLayer has an unused parameter \$db_host\.$#'
+			identifier: constructor.unusedParameter
+			count: 1
+			path: include/dblayer/sqlite3.php
+
+		-
+			message: '#^Constructor of class DBLayer has an unused parameter \$db_password\.$#'
+			identifier: constructor.unusedParameter
+			count: 1
+			path: include/dblayer/sqlite3.php
+
+		-
+			message: '#^Constructor of class DBLayer has an unused parameter \$db_username\.$#'
+			identifier: constructor.unusedParameter
+			count: 1
+			path: include/dblayer/sqlite3.php
+
+		-
+			message: '#^Constructor of class DBLayer has an unused parameter \$p_connect\.$#'
+			identifier: constructor.unusedParameter
+			count: 1
+			path: include/dblayer/sqlite3.php
+
+		-
+			message: '#^Variable \$q_start might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: include/dblayer/sqlite3.php
+
+		-
+			message: '#^Function _csrf_confirm_form not found\.$#'
+			identifier: function.notFound
+			count: 3
+			path: include/functions.php
+
+		-
+			message: '#^Function _forum_remove_bad_characters not found\.$#'
+			identifier: function.notFound
+			count: 4
+			path: include/functions.php
+
+		-
+			message: '#^Inner named functions are not supported by PHPStan\. Consider refactoring to an anonymous function, class method, or a top\-level\-defined function\. See issue \#165 \(https\://github\.com/phpstan/phpstan/issues/165\) for more details\.$#'
+			identifier: function.inner
+			count: 2
+			path: include/functions.php
+
+		-
+			message: '#^Variable \$cookie_data in empty\(\) always exists and is not falsy\.$#'
+			identifier: empty.variable
+			count: 1
+			path: include/functions.php
+
+		-
+			message: '#^Variable \$pages in empty\(\) always exists and is always falsy\.$#'
+			identifier: empty.variable
+			count: 1
+			path: include/functions.php
+
+		-
+			message: '#^Variable \$replace_callback might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: include/parser.php
+
+		-
+			message: '#^Variable \$cur_words might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: include/search_idx.php
+
+		-
+			message: '#^Undefined variable\: \$xml_array$#'
+			identifier: variable.undefined
+			count: 3
+			path: include/xml.php
+
+		-
+			message: '#^Variable \$xml_array in isset\(\) is never defined\.$#'
+			identifier: isset.variable
+			count: 3
+			path: include/xml.php
+
+		-
+			message: '#^Variable \$new_topics might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: index.php
+
+		-
+			message: '#^Variable \$form_password_hash might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: login.php
+
+		-
+			message: '#^Variable \$hide_smilies might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: post.php
+
+		-
+			message: '#^Variable \$message might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: post.php
+
+		-
+			message: '#^Variable \$new_pid might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: post.php
+
+		-
+			message: '#^Variable \$subject might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: post.php
+
+		-
+			message: '#^Variable \$errors in empty\(\) always exists and is always falsy\.$#'
+			identifier: empty.variable
+			count: 1
+			path: profile.php
+
+		-
+			message: '#^Variable \$old_username might not be defined\.$#'
+			identifier: variable.undefined
+			count: 6
+			path: profile.php
+
+		-
+			message: '#^Variable \$action might not be defined\.$#'
+			identifier: variable.undefined
+			count: 1
+			path: search.php
+
+		-
+			message: '#^Variable \$cur_forum might not be defined\.$#'
+			identifier: variable.undefined
+			count: 2
+			path: search.php
+
+		-
+			message: '#^Variable \$search_id might not be defined\.$#'
+			identifier: variable.undefined
+			count: 5
+			path: search.php
+
+		-
+			message: '#^Variable \$show_as might not be defined\.$#'
+			identifier: variable.undefined
+			count: 15
+			path: search.php
+
+		-
+			message: '#^Variable \$url_type might not be defined\.$#'
+			identifier: variable.undefined
+			count: 5
+			path: search.php

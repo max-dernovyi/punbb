@@ -1,0 +1,14 @@
+<?php
+// `continue` inside a switch inside a loop: PHP compiles it as `break` and
+// prints a compile-time warning. Stored with a non-.php extension so the
+// repository-wide lint gate does not pick the fixture up itself.
+foreach (array('t1', 'x2') as $entry)
+{
+	switch (substr($entry, 0, 1))
+	{
+		case 't': $type = 'topics'; break;
+		default: continue;
+	}
+
+	echo $type;
+}

@@ -1,0 +1,18 @@
+===== message =====
+<h5>Heading</h5><div class="quotebox"><cite>Kitchen wrote:</cite><blockquote><ol class="decimal"><li><p>one <img src="http://localhost/img/smilies/smile.png" width="15" height="15" alt="smile" /></p></li><li><p><strong>two</strong></p></li></ol></blockquote></div><div class="codebox"><pre><code>raw [b]code[/b] http://example.com</code></pre></div><p>tail with <a href="http://www.example.com">www.example.com</a> and <span class="postimg"><img src="http://example.com/i.png" alt="http://example.com/i.png" /></span></p>
+===== message-errors =====
+
+===== signature =====
+</p><h5>Heading</h5><p><br /></p><div class="quotebox"><cite>Kitchen wrote:</cite><blockquote><p>[list=1]<br />[*]one <img src="http://localhost/img/smilies/smile.png" width="15" height="15" alt="smile" />[/*]<br />[*]<strong>two</strong>[/*]<br />[/list]</p></blockquote></div><p><br />[code]raw <strong>code</strong> http://example.com[/code]<br />tail with <a href="http://www.example.com">www.example.com</a> and [img]http://example.com/i.png[/img]
+===== signature-errors =====
+Signature may not contain of the text formatting tags (BBCode) [quote], [code] or [list]. Please choose another tags or delete it.
+===== clickable-unicode =====
+[h]Heading[/h]
+[quote=Kitchen][list=1][*]one :)[*][b]two[/b][/list][/quote]
+[code]raw [b]code[/b] [url]http://example.com[/url][/code]
+tail with [url=http://www.example.com]www.example.com[/url] and [img]http://example.com/i.png[/img]
+===== clickable-ascii =====
+[h]Heading[/h]
+[quote=Kitchen][list=1][*]one :)[*][b]two[/b][/list][/quote]
+[code]raw [b]code[/b] [url]http://example.com[/url][/code]
+tail with [url=http://www.example.com]www.example.com[/url] and [img]http://example.com/i.png[/img]

@@ -26,7 +26,7 @@ PUNBB.install = (function () {
 		selectDB_update: function () {
 			var selected_db = get('req_db_type')[get('req_db_type').selectedIndex].value;
 
-			if (selected_db === 'sqlite' || selected_db === 'sqlite3') {
+			if (selected_db === 'sqlite3') {
 				PUNBB.common.addClass(get('db_host_block'), 'hidden');
 				PUNBB.common.addClass(get('db_username_block'), 'hidden');
 				PUNBB.common.addClass(get('db_password_block'), 'hidden');

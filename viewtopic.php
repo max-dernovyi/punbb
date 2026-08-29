@@ -59,7 +59,7 @@ if ($pid)
 	$result = $forum_db->query_build($query) or error(__FILE__, __LINE__);
 	$num_posts = $forum_db->result($result) + 1;
 
-	$_GET['p'] = ceil($num_posts / $forum_user['disp_posts']);
+	$_GET['p'] = (int) ceil($num_posts / $forum_user['disp_posts']);
 }
 
 // If action=new, we redirect to the first new post (if any)
@@ -171,8 +171,8 @@ if (!$forum_user['is_guest'])
 }
 
 // Determine the post offset (based on $_GET['p'])
-$forum_page['num_pages'] = ceil(($cur_topic['num_replies'] + 1) / $forum_user['disp_posts']);
-$forum_page['page'] = (!isset($_GET['p']) || !is_numeric($_GET['p']) || $_GET['p'] <= 1 || $_GET['p'] > $forum_page['num_pages']) ? 1 : $_GET['p'];
+$forum_page['num_pages'] = (int) ceil(($cur_topic['num_replies'] + 1) / $forum_user['disp_posts']);
+$forum_page['page'] = (!isset($_GET['p']) || !is_numeric($_GET['p']) || $_GET['p'] <= 1 || $_GET['p'] > $forum_page['num_pages']) ? 1 : (int) $_GET['p'];
 $forum_page['start_from'] = $forum_user['disp_posts'] * ($forum_page['page'] - 1);
 $forum_page['finish_at'] = min(($forum_page['start_from'] + $forum_user['disp_posts']), ($cur_topic['num_replies'] + 1));
 $forum_page['items_info'] = generate_items_info($lang_topic['Posts'], ($forum_page['start_from'] + 1), ($cur_topic['num_replies'] + 1));

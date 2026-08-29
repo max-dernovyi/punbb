@@ -1,0 +1,14 @@
+===== message =====
+<p><a href="mailto:user@example.com">user@example.com</a><br /><a href="mailto:user@example.com">mail me</a></p>
+===== message-errors =====
+
+===== signature =====
+<a href="mailto:user@example.com">user@example.com</a><br /><a href="mailto:user@example.com">mail me</a>
+===== signature-errors =====
+
+===== clickable-unicode =====
+[email]user@example.com[/email]
+[email=user@example.com]mail me[/email]
+===== clickable-ascii =====
+[email]user@example.com[/email]
+[email=user@example.com]mail me[/email]

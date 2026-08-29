@@ -58,7 +58,7 @@ if (isset($_REQUEST['add_ban']) || isset($_GET['edit_ban']))
 		}
 		else	// Otherwise the username is in POST
 		{
-			$ban_user = forum_trim($_POST['new_ban_user']);
+			$ban_user = forum_trim($_POST['new_ban_user'] ?? '');
 
 			($hook = get_hook('aba_add_ban_form_submitted')) ? eval($hook) : null;
 
@@ -243,11 +243,11 @@ if (isset($_REQUEST['add_ban']) || isset($_GET['edit_ban']))
 // Add/edit a ban (stage 2)
 else if (isset($_POST['add_edit_ban']))
 {
-	$ban_user = forum_trim($_POST['ban_user']);
-	$ban_ip = forum_trim($_POST['ban_ip']);
-	$ban_email = strtolower(forum_trim($_POST['ban_email']));
-	$ban_message = forum_trim($_POST['ban_message']);
-	$ban_expire = forum_trim($_POST['ban_expire']);
+	$ban_user = forum_trim($_POST['ban_user'] ?? '');
+	$ban_ip = forum_trim($_POST['ban_ip'] ?? '');
+	$ban_email = strtolower(forum_trim($_POST['ban_email'] ?? ''));
+	$ban_message = forum_trim($_POST['ban_message'] ?? '');
+	$ban_expire = forum_trim($_POST['ban_expire'] ?? '');
 
 	if ($ban_user == '' && $ban_ip == '' && $ban_email == '')
 		message($lang_admin_bans['Must enter message']);
@@ -327,7 +327,7 @@ else if (isset($_POST['add_edit_ban']))
 	$ban_email = ($ban_email != '') ? '\''.$forum_db->escape($ban_email).'\'' : 'NULL';
 	$ban_message = ($ban_message != '') ? '\''.$forum_db->escape($ban_message).'\'' : 'NULL';
 
-	if ($_POST['mode'] == 'add')
+	if (($_POST['mode'] ?? '') == 'add')
 	{
 		$query = array(
 			'INSERT'	=> 'username, ip, email, message, expire, ban_creator',
@@ -343,7 +343,7 @@ else if (isset($_POST['add_edit_ban']))
 		$query = array(
 			'UPDATE'	=> 'bans',
 			'SET'		=> 'username='.$ban_user.', ip='.$ban_ip.', email='.$ban_email.', message='.$ban_message.', expire='.$ban_expire,
-			'WHERE'		=> 'id='.intval($_POST['ban_id'])
+			'WHERE'		=> 'id='.intval($_POST['ban_id'] ?? 0)
 		);
 
 		($hook = get_hook('aba_qr_update_ban')) ? eval($hook) : null;
@@ -356,11 +356,11 @@ else if (isset($_POST['add_edit_ban']))
 
 	generate_bans_cache();
 
-	$forum_flash->add_info((($_POST['mode'] == 'edit') ? $lang_admin_bans['Ban edited'] : $lang_admin_bans['Ban added']));
+	$forum_flash->add_info(((($_POST['mode'] ?? '') == 'edit') ? $lang_admin_bans['Ban edited'] : $lang_admin_bans['Ban added']));
 
 	($hook = get_hook('aba_add_edit_ban_pre_redirect')) ? eval($hook) : null;
 
-	redirect(forum_link($forum_url['admin_bans']), (($_POST['mode'] == 'edit') ? $lang_admin_bans['Ban edited'] : $lang_admin_bans['Ban added']));
+	redirect(forum_link($forum_url['admin_bans']), ((($_POST['mode'] ?? '') == 'edit') ? $lang_admin_bans['Ban edited'] : $lang_admin_bans['Ban added']));
 }
 
 
@@ -425,10 +425,10 @@ $query = array(
 
 $result = $forum_db->query_build($query) or error(__FILE__, __LINE__);
 $forum_page['num_bans'] = $forum_db->result($result);
-$forum_page['num_pages'] = ceil($forum_page['num_bans'] / $forum_user['disp_topics']);
-$forum_page['page'] = (!isset($_GET['p']) || !is_numeric($_GET['p']) || $_GET['p'] <= 1 || $_GET['p'] > $forum_page['num_pages']) ? 1 : intval($_GET['p']);
+$forum_page['num_pages'] = (int) ceil($forum_page['num_bans'] / $forum_user['disp_topics']);
+$forum_page['page'] = (!isset($_GET['p']) || !is_numeric($_GET['p']) || $_GET['p'] <= 1 || $_GET['p'] > $forum_page['num_pages']) ? 1 : (int) $_GET['p'];
 $forum_page['start_from'] = $forum_user['disp_topics'] * ($forum_page['page'] - 1);
-$forum_page['finish_at'] = min(($forum_page['start_from'] + $forum_user['disp_topics']), ($forum_page['num_bans']));
+$forum_page['finish_at'] = min(($forum_user['disp_topics']), ($forum_page['num_bans']));
 
 // Generate paging
 $forum_page['page_post']['paging']='<p class="paging"><span class="pages">'.$lang_common['Pages'].'</span> '.paginate($forum_page['num_pages'], $forum_page['page'], $forum_url['admin_bans'], $lang_common['Paging separator'], null, true).'</p>';

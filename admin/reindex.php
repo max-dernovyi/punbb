@@ -65,14 +65,12 @@ if (isset($_GET['i_per_page']) && isset($_GET['i_start_at']))
 		// Reset the sequence for the search words (not needed for SQLite)
 		switch ($db_type)
 		{
-			case 'mysql':
-			case 'mysql_innodb':
 			case 'mysqli':
 			case 'mysqli_innodb':
 				$result = $forum_db->query('ALTER TABLE '.$forum_db->prefix.'search_words auto_increment=1') or error(__FILE__, __LINE__);
 				break;
 
-			case 'pgsql';
+			case 'pgsql':
 				$result = $forum_db->query('SELECT setval(\''.$forum_db->prefix.'search_words_id_seq\', 1, false)') or error(__FILE__, __LINE__);
 		}
 	}
@@ -132,9 +130,9 @@ body {
 		echo sprintf($lang_admin_reindex['Processing post'], $cur_post[0], $cur_post[2]).'<br />'."\n";
 
 		if ($cur_post[0] == $cur_post[4])	// This is the "topic post" so we have to index the subject as well
-			update_search_index('post', $cur_post[0], $cur_post[1], $cur_post[3]);
+			update_search_index('post', $cur_post[0], $cur_post[1] ?? '', $cur_post[3]);
 		else
-			update_search_index('post', $cur_post[0], $cur_post[1]);
+			update_search_index('post', $cur_post[0], $cur_post[1] ?? '');
 
 		$post_id = $cur_post[0];
 	}

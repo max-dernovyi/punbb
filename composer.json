@@ -1,0 +1,35 @@
+{
+    "name": "punbb/punbb",
+    "description": "PunBB forum software",
+    "type": "project",
+    "license": "GPL-2.0-or-later",
+    "require": {
+        "php": ">=8.4",
+        "ext-intl": "*",
+        "ext-json": "*",
+        "ext-mbstring": "*",
+        "ext-xml": "*"
+    },
+    "require-dev": {
+        "php-parallel-lint/php-parallel-lint": "^1.4",
+        "phpstan/phpstan": "^2",
+        "phpunit/phpunit": "^12"
+    },
+    "minimum-stability": "stable",
+    "config": {
+        "optimize-autoloader": true,
+        "platform": {
+            "php": "8.4"
+        },
+        "sort-packages": true
+    },
+    "scripts": {
+        "post-install-cmd": "@protect-vendor",
+        "post-update-cmd": "@protect-vendor",
+        "protect-vendor": "@php -r \"file_put_contents('vendor/.htaccess', implode(PHP_EOL, ['# Composer tree. Never served.', '<IfModule mod_authz_core.c>', 'Require all denied', '</IfModule>', '<IfModule !mod_authz_core.c>', 'Order allow,deny', 'Deny from all', '</IfModule>', '']));\"",
+        "lint": "@php .dev/bin/lint.php",
+        "smoke": "@php .dev/bin/smoke.php",
+        "stan": "phpstan analyse --memory-limit=1G",
+        "test": "phpunit"
+    }
+}

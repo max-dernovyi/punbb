@@ -51,8 +51,8 @@ else if (isset($_GET['action']))
 	// If it's a regular search (keywords and/or author)
 	if ($action == 'search')
 	{
-		$keywords = (isset($_GET['keywords']) && is_string($_GET['keywords'])) ? forum_trim($_GET['keywords']) : null;
-		$author = (isset($_GET['author']) && is_string($_GET['author'])) ? forum_trim($_GET['author']) : null;
+		$keywords = (isset($_GET['keywords']) && is_string($_GET['keywords'])) ? forum_trim($_GET['keywords']) : '';
+		$author = (isset($_GET['author']) && is_string($_GET['author'])) ? forum_trim($_GET['author']) : '';
 		$sort_dir = (isset($_GET['sort_dir'])) ? (($_GET['sort_dir'] == 'DESC') ? 'DESC' : 'ASC') : 'DESC';
 		$show_as = (isset($_GET['show_as'])) ? $_GET['show_as'] : 'posts';
 		$sort_by = (isset($_GET['sort_by'])) ? intval($_GET['sort_by']) : null;
@@ -362,7 +362,7 @@ if (isset($query))
 
 			$forum_page['item_body']['subject']['title'] = '<h3 class="hn"><span class="item-num">'.forum_number_format($forum_page['start_from'] + $forum_page['item_count']).'</span> '.implode(' ', $forum_page['item_title']).'</h3>';
 
-			$forum_page['item_pages'] = ceil(($cur_set['num_replies'] + 1) / $forum_user['disp_posts']);
+			$forum_page['item_pages'] = (int) ceil(($cur_set['num_replies'] + 1) / $forum_user['disp_posts']);
 
 			if ($forum_page['item_pages'] > 1)
 				$forum_page['item_nav']['pages'] = '<span>'.$lang_forum['Pages'].'&#160;</span>'.paginate($forum_page['item_pages'], -1, $forum_url['topic'], $lang_common['Page separator'], array($cur_set['tid'], sef_friendly($cur_set['subject'])));

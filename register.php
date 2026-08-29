@@ -126,8 +126,8 @@ else if (isset($_POST['form_sent']))
 	// Did everything go according to plan so far?
 	if (empty($errors))
 	{
-		$username = forum_trim($_POST['req_username']);
-		$email1 = strtolower(forum_trim($_POST['req_email1']));
+		$username = forum_trim($_POST['req_username'] ?? '');
+		$email1 = strtolower(forum_trim($_POST['req_email1'] ?? ''));
 
 		if ($forum_config['o_regs_verify'] == '1')
 		{
@@ -136,8 +136,8 @@ else if (isset($_POST['form_sent']))
 		}
 		else
 		{
-			$password1 = forum_trim($_POST['req_password1']);
-			$password2 = ($forum_config['o_mask_passwords'] == '1') ? forum_trim($_POST['req_password2']) : $password1;
+			$password1 = forum_trim($_POST['req_password1'] ?? '');
+			$password2 = ($forum_config['o_mask_passwords'] == '1') ? forum_trim($_POST['req_password2'] ?? '') : $password1;
 		}
 
 		// Validate the username
@@ -200,6 +200,9 @@ else if (isset($_POST['form_sent']))
 			// Make sure we got a valid language string
 			if (isset($_POST['language']))
 			{
+				if (!is_string($_POST['language']))
+					message($lang_common['Bad request']);
+
 				$language = preg_replace('#[\.\\\/]#', '', $_POST['language']);
 				if (!file_exists(FORUM_ROOT.'lang/'.$language.'/common.php'))
 					message($lang_common['Bad request']);
@@ -209,7 +212,7 @@ else if (isset($_POST['form_sent']))
 
 			$initial_group_id = ($forum_config['o_regs_verify'] == '0') ? $forum_config['o_default_user_group'] : FORUM_UNVERIFIED;
 			$salt = random_key(12);
-			$password_hash = forum_hash($password1, $salt);
+			$password_hash = forum_password_hash($password1);
 
 			// Validate timezone and DST
 			$timezone = (isset($_POST['timezone'])) ? floatval($_POST['timezone']) : $forum_config['o_default_timezone'];
@@ -311,7 +314,7 @@ $forum_page['crumbs'] = array(
 );
 
 // Load JS for timezone detection
-$forum_loader->add_js($base_url.'/include/js/min/punbb.timezone.min.js');
+$forum_loader->add_js($base_url.'/include/js/punbb.timezone.js');
 $forum_loader->add_js('PUNBB.timezone.detect_on_register_form();', array('type' => 'inline'));
 
 

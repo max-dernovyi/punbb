@@ -1,0 +1,16 @@
+===== message =====
+<p>trailing punctuation <a href="http://example.com/page.">http://example.com/page.</a> here<br />comma <a href="http://example.com/page,">http://example.com/page,</a> here<br />already tagged <a href="http://example.com/page">http://example.com/page</a> here</p>
+===== message-errors =====
+
+===== signature =====
+trailing punctuation <a href="http://example.com/page.">http://example.com/page.</a> here<br />comma <a href="http://example.com/page,">http://example.com/page,</a> here<br />already tagged <a href="http://example.com/page">http://example.com/page</a> here
+===== signature-errors =====
+
+===== clickable-unicode =====
+trailing punctuation [url]http://example.com/page.[/url] here
+comma [url]http://example.com/page,[/url] here
+already tagged [url]http://example.com/page[/url] here
+===== clickable-ascii =====
+trailing punctuation [url]http://example.com/page.[/url] here
+comma [url]http://example.com/page,[/url] here
+already tagged [url]http://example.com/page[/url] here

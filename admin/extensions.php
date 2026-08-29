@@ -43,9 +43,11 @@ if (isset($_GET['install']) || isset($_GET['install_hotfix']))
 	if (isset($_POST['install_cancel']))
 		redirect(forum_link(isset($_GET['install']) ? $forum_url['admin_extensions_manage'] : $forum_url['admin_extensions_hotfixes']), $lang_admin_common['Cancel redirect']);
 
-	$id = preg_replace('/[^0-9a-z_]/', '', isset($_GET['install']) ? $_GET['install'] : $_GET['install_hotfix']);
+	$id = isset($_GET['install']) ? $_GET['install'] : $_GET['install_hotfix'];
+	$id = preg_replace('/[^0-9a-z_]/', '', is_string($id) ? $id : '');
 
 	// Load manifest (either locally or from punbb.informer.com updates service)
+	$manifest = false;
 	if (isset($_GET['install']))
 		$manifest = is_readable(FORUM_ROOT.'extensions/'.$id.'/manifest.xml') ? file_get_contents(FORUM_ROOT.'extensions/'.$id.'/manifest.xml') : false;
 	else
@@ -418,6 +420,9 @@ else if (isset($_GET['uninstall']))
 
 	($hook = get_hook('aex_uninstall_selected')) ? eval($hook) : null;
 
+	if (!is_string($_GET['uninstall']))
+		message($lang_common['Bad request']);
+
 	$id = preg_replace('/[^0-9a-z_]/', '', $_GET['uninstall']);
 
 	// Fetch info about the extension
@@ -628,6 +633,9 @@ else if (isset($_GET['uninstall']))
 // Enable or disable an extension
 else if (isset($_GET['flip']))
 {
+	if (!is_string($_GET['flip']))
+		message($lang_common['Bad request']);
+
 	$id = preg_replace('/[^0-9a-z_]/', '', $_GET['flip']);
 
 	// We validate the CSRF token. If it's set in POST and we're at this point, the token is valid.
@@ -964,7 +972,7 @@ else
 	$d = dir(FORUM_ROOT.'extensions');
 	while (($entry = $d->read()) !== false)
 	{
-		if ($entry{0} != '.' && is_dir(FORUM_ROOT.'extensions/'.$entry))
+		if ($entry[0] != '.' && is_dir(FORUM_ROOT.'extensions/'.$entry))
 		{
 			if (preg_match('/[^0-9a-z_]/', $entry))
 			{

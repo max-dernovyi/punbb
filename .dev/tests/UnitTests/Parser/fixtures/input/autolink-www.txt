@@ -1,0 +1,3 @@
+www www.example.com here
+ftp host ftp.example.com/pub here
+port www.example.com:8080/path here

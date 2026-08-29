@@ -10,30 +10,36 @@
 //
 // Common helpers and forum's wrappers for PHP functions
 //
+// These take a string and return a string. Anything that is not a scalar reaches
+// them as an absent column or request key (null) or as an array-valued request
+// parameter, and every one of them treats it as the empty string.
+//
 
 // Encodes the contents of $str so that they are safe to output on an (X)HTML page
 function forum_htmlencode($str)
 {
-	return htmlspecialchars($str, ENT_QUOTES, 'UTF-8');
+	return htmlspecialchars(is_scalar($str) ? (string) $str : '', ENT_QUOTES, 'UTF-8');
 }
 
 
 // Trim whitespace including non-breaking space
 function forum_trim($str, $charlist = " \t\n\r\0\x0B\xC2\xA0")
 {
-	return utf8_trim($str, $charlist);
+	return utf8_trim(is_scalar($str) ? (string) $str : '', $charlist);
 }
 
 
 // Convert \r\n and \r to \n
 function forum_linebreaks($str)
 {
-	return str_replace(array("\r\n", "\r"), "\n", $str);
+	return str_replace(array("\r\n", "\r"), "\n", is_scalar($str) ? (string) $str : '');
 }
 
 
 // Start PHP session
 function forum_session_start() {
+	global $cookie_path, $cookie_domain, $cookie_secure;
+
 	static $forum_session_started = FALSE;
 
 	$return = ($hook = get_hook('fn_forum_session_start_start')) ? eval($hook) : null;
@@ -44,11 +50,41 @@ function forum_session_start() {
 	if ($forum_session_started && session_id())
 		return;
 
+	// An embedding application may have started the session before the forum was
+	// loaded. PHP warns on every session_*() configuration call once a session is
+	// active, and those warnings print before any header() the forum still needs.
+	if (session_status() === PHP_SESSION_ACTIVE)
+	{
+		if (!isset($_SESSION['initiated']))
+		{
+			session_regenerate_id();
+			$_SESSION['initiated'] = TRUE;
+		}
+
+		$forum_session_started = TRUE;
+
+		return;
+	}
+
+	session_cache_limiter(FALSE);
+
+	// Keep the session cookie in step with forum_setcookie(). SameSite is left
+	// to php.ini: the forum has no cross-site POST flow that needs the attribute.
+	session_set_cookie_params(array(
+		'lifetime'	=> 0,
+		'path'		=> $cookie_path,
+		'domain'	=> $cookie_domain,
+		// Only ever raise the flag: a php.ini-hardened install must not be
+		// downgraded by a config.php that still carries $cookie_secure = 0.
+		'secure'	=> (bool) $cookie_secure || (bool) ini_get('session.cookie_secure'),
+		'httponly'	=> true,
+	));
+
 	// Check session id
 	$forum_session_id = NULL;
-	if (isset($_COOKIE['PHPSESSID']))
+	if (isset($_COOKIE['PHPSESSID']) && is_string($_COOKIE['PHPSESSID']))
 		$forum_session_id = $_COOKIE['PHPSESSID'];
-	else if (isset($_GET['PHPSESSID']))
+	else if (isset($_GET['PHPSESSID']) && is_string($_GET['PHPSESSID']))
 		$forum_session_id = $_GET['PHPSESSID'];
 
 	if (empty($forum_session_id) || !preg_match('/^[a-z0-9\-,]{16,32}$/i', $forum_session_id))
@@ -90,17 +126,7 @@ function check_is_all_caps($text)
 // Return current timestamp (with microseconds) as a float
 function forum_microtime()
 {
-	if (version_compare(PHP_VERSION, '5.0.0', '>='))
-	{
-		$mt = microtime(true);
-	}
-	else
-	{
-		list($usec, $sec) = explode(' ', microtime());
-		$mt = ((float)/**/$usec + (float)/**/$sec);
-	}
-
-	return $mt;
+	return microtime(true);
 }
 
 
@@ -127,31 +153,6 @@ function array_insert(&$input, $offset, $element, $key = null)
 }
 
 
-// Unset any variables instantiated as a result of register_globals being enabled
-function forum_unregister_globals()
-{
-	$register_globals = @ini_get('register_globals');
-	if ($register_globals === '' || $register_globals === '0' || strtolower($register_globals) === 'off')
-		return;
-
-	// Prevent script.php?GLOBALS[foo]=bar
-	if (isset($_REQUEST['GLOBALS']) || isset($_FILES['GLOBALS']))
-		exit('I\'ll have a steak sandwich and... a steak sandwich.');
-
-	// Variables that shouldn't be unset
-	$no_unset = array('GLOBALS', '_GET', '_POST', '_COOKIE', '_REQUEST', '_SERVER', '_ENV', '_FILES');
-
-	// Remove elements in $GLOBALS that are present in any of the superglobals
-	$input = array_merge($_GET, $_POST, $_COOKIE, $_SERVER, $_ENV, $_FILES, isset($_SESSION) && is_array($_SESSION) ? $_SESSION : array());
-	foreach ($input as $k => $v)
-		if (!in_array($k, $no_unset) && isset($GLOBALS[$k]))
-		{
-			unset($GLOBALS[$k]);
-			unset($GLOBALS[$k]);	// Double unset to circumvent the zend_hash_del_key_or_index hole in PHP <4.4.3 and <5.1.4
-		}
-}
-
-
 // Removes any "bad" characters (characters which mess with the display of a page, are invisible, etc) from user input
 function forum_remove_bad_characters()
 {
@@ -161,10 +162,16 @@ function forum_remove_bad_characters()
 
 	($hook = get_hook('fn_remove_bad_characters_start')) ? eval($hook) : null;
 
-	function _forum_remove_bad_characters($array)
+	// Declared inside the function upstream, so a second call is a fatal
+	// redeclaration. The fork guarded it; the 1.4.5 import brought the
+	// unguarded version back.
+	if (!function_exists('_forum_remove_bad_characters'))
 	{
-		global $bad_utf8_chars;
-		return is_array($array) ? array_map('_forum_remove_bad_characters', $array) : str_replace($bad_utf8_chars, '', $array);
+		function _forum_remove_bad_characters($array)
+		{
+			global $bad_utf8_chars;
+			return is_array($array) ? array_map('_forum_remove_bad_characters', $array) : str_replace($bad_utf8_chars, '', $array);
+		}
 	}
 
 	$_GET = _forum_remove_bad_characters($_GET);
@@ -216,10 +223,7 @@ function forum_setcookie($name, $value, $expire)
 	// Enable sending of a P3P header
 	header('P3P: CP="CUR ADM"');
 
-	if (version_compare(PHP_VERSION, '5.2.0', '>='))
-		setcookie($name, $value, $expire, $cookie_path, $cookie_domain, $cookie_secure, true);
-	else
-		setcookie($name, $value, $expire, $cookie_path.'; HttpOnly', $cookie_domain, $cookie_secure);
+	setcookie($name, $value, $expire, $cookie_path, $cookie_domain, $cookie_secure, true);
 }
 
 
@@ -239,6 +243,9 @@ function get_remote_file($url, $timeout, $head_only = false, $max_redirects = 10
 	{
 		// Setup the transfer
 		$ch = curl_init();
+		if ($ch === false)
+			return null;
+
 		curl_setopt($ch, CURLOPT_URL, $url);
 		curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_0);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -250,7 +257,6 @@ function get_remote_file($url, $timeout, $head_only = false, $max_redirects = 10
 		// Grab the page
 		$content = @curl_exec($ch);
 		$responce_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-		curl_close($ch);
 
 		// Process 301/302 redirect
 		if ($content !== false && ($responce_code == '301' || $responce_code == '302') && $max_redirects > 0)
@@ -273,7 +279,9 @@ function get_remote_file($url, $timeout, $head_only = false, $max_redirects = 10
 				$result['headers'] = explode("\r\n", str_replace("\r\n\r\n", "\r\n", trim($content)));
 			else
 			{
-				preg_match('#HTTP/1.[01] 200 OK#', $content, $match, PREG_OFFSET_CAPTURE);
+				if (!preg_match('#HTTP/1.[01] 200 OK#', $content, $match, PREG_OFFSET_CAPTURE))
+					return $result;
+
 				$last_content = substr($content, $match[0][1]);
 				$content_start = strpos($last_content, "\r\n\r\n");
 				if ($content_start !== false)
@@ -343,31 +351,26 @@ function get_remote_file($url, $timeout, $head_only = false, $max_redirects = 10
 	// Last case scenario, we use file_get_contents provided allow_url_fopen is enabled (any non 200 response results in a failure)
 	else if (in_array($allow_url_fopen, array('on', 'true', '1')))
 	{
-		// PHP5's version of file_get_contents() supports stream options
-		if (version_compare(PHP_VERSION, '5.0.0', '>='))
-		{
-			// Setup a stream context
-			$stream_context = stream_context_create(
-				array(
-					'http' => array(
-						'method'		=> $head_only ? 'HEAD' : 'GET',
-						'user_agent'	=> 'PunBB',
-						'max_redirects'	=> $max_redirects + 1,	// PHP >=5.1.0 only
-						'timeout'		=> $timeout	// PHP >=5.2.1 only
-					)
+		// Setup a stream context
+		$stream_context = stream_context_create(
+			array(
+				'http' => array(
+					'method'		=> $head_only ? 'HEAD' : 'GET',
+					'user_agent'	=> 'PunBB',
+					'max_redirects'	=> $max_redirects + 1,
+					'timeout'		=> $timeout
 				)
-			);
+			)
+		);
 
-			$content = @file_get_contents($url, false, $stream_context);
-		}
-		else
-			$content = @file_get_contents($url);
+		$content = @file_get_contents($url, false, $stream_context);
 
 		// Did we get anything?
 		if ($content !== false)
 		{
-			// Gotta love the fact that $http_response_header just appears in the global scope (*cough* hack! *cough*)
-			$result['headers'] = $http_response_header;
+			// The local the stream wrapper used to conjure up is deprecated in
+			// 8.5; this accessor has replaced it since 8.4.
+			$result['headers'] = http_get_last_response_headers() ?? array();
 			if (!$head_only)
 				$result['content'] = $content;
 		}
@@ -381,6 +384,90 @@ function get_remote_file($url, $timeout, $head_only = false, $max_redirects = 10
 function clean_version($version)
 {
 	return preg_replace('/(\.0)+(?!\.)|(\.0+$)/', '$2', $version);
+}
+
+
+// Database drivers this release supports
+function forum_supported_db_types()
+{
+	return array('mysqli', 'mysqli_innodb', 'pgsql', 'sqlite3');
+}
+
+
+// Supported drivers whose PHP extension is present in this installation.
+// Probing the entry point each driver actually calls, not just the extension:
+// disable_functions leaves the extension loaded but removes the function, and
+// the driver would exit() the moment the installer selected it.
+function forum_available_db_types()
+{
+	$probes = array(
+		'mysqli'		=> array('mysqli', 'mysqli_connect'),
+		'mysqli_innodb'	=> array('mysqli', 'mysqli_connect'),
+		'pgsql'			=> array('pgsql', 'pg_connect'),
+		'sqlite3'		=> array('sqlite3', 'SQLite3'),
+	);
+
+	$available = array();
+	foreach (forum_supported_db_types() as $db_type)
+	{
+		list($extension, $entry_point) = $probes[$db_type];
+
+		if (extension_loaded($extension) && (function_exists($entry_point) || class_exists($entry_point)))
+			$available[] = $db_type;
+	}
+
+	return $available;
+}
+
+
+// Extensions the forum calls into directly and cannot run without
+function forum_required_extensions()
+{
+	return array('mbstring', 'intl', 'json', 'xml');
+}
+
+
+// Unmet requirements for the environment described by the arguments.
+// Kept free of globals so every branch can be exercised in a test.
+function forum_requirement_errors($php_version, $loaded_extensions, $available_db_types)
+{
+	$errors = array();
+
+	if (version_compare($php_version, FORUM_MIN_PHP_VERSION, '<'))
+		$errors[] = 'You are running PHP version '.$php_version.'. PunBB requires at least PHP '.FORUM_MIN_PHP_VERSION.'.';
+
+	$loaded = array_map('strtolower', $loaded_extensions);
+	$missing = array_values(array_diff(forum_required_extensions(), $loaded));
+
+	if (!empty($missing))
+		$errors[] = 'The following required PHP extensions are not loaded: '.implode(', ', $missing).'.';
+
+	if (empty($available_db_types))
+		$errors[] = 'None of the supported database extensions is available. PunBB needs one of: '.implode(', ', forum_supported_db_types()).'.';
+
+	return $errors;
+}
+
+
+// Check this PHP installation against what the release needs.
+// Returns a list of unmet requirements; an empty list means it can run.
+function check_php_requirements()
+{
+	return forum_requirement_errors(PHP_VERSION, get_loaded_extensions(), forum_available_db_types());
+}
+
+
+// Drivers dropped with their PHP extension; maps to the driver to migrate to,
+// or null when $db_type was never one of them
+function forum_removed_db_type_replacement($db_type)
+{
+	$removed = array(
+		'mysql'			=> 'mysqli',
+		'mysql_innodb'	=> 'mysqli_innodb',
+		'sqlite'		=> 'sqlite3',
+	);
+
+	return isset($removed[$db_type]) ? $removed[$db_type] : null;
 }
 
 
@@ -535,6 +622,24 @@ function generate_navlinks()
 	return implode("\n\t\t", $links);
 }
 
+
+
+// Reads the dimensions and image type of an avatar file
+// Returns array($width, $height, $type) or FALSE when the file is not an image
+function forum_avatar_size($file)
+{
+	if (!is_file($file) || !is_readable($file))
+		return false;
+
+	// getimagesize() warns on a truncated or non-image file and returns false;
+	// the return value is what decides here, so the warning is noise.
+	$info = @getimagesize($file);
+
+	if (!is_array($info) || count($info) < 3 || $info[0] <= 0 || $info[1] <= 0)
+		return false;
+
+	return array((int)$info[0], (int)$info[1], (int)$info[2]);
+}
 
 
 // Outputs markup to display a user's avatar
@@ -846,6 +951,20 @@ function forum_sublink($link, $sublink, $subarg, $args = null)
 }
 
 
+// Reduce a UTF-8 string to ASCII, mapping anything else to '?'
+// Transliteration proper is lang/<language>/url_replace.php's job; whatever
+// survives that table has no ASCII spelling and the caller strips the marker.
+function forum_ascii($str)
+{
+	$substitute = mb_substitute_character();
+	mb_substitute_character(0x3F);
+	$ascii = mb_convert_encoding($str ?? '', 'ASCII', 'UTF-8');
+	mb_substitute_character($substitute);
+
+	return $ascii;
+}
+
+
 // Make a string safe to use in a URL
 function sef_friendly($str)
 {
@@ -869,7 +988,7 @@ function sef_friendly($str)
 		return $return;
 
 	$str = strtr($str, $lang_url_replace);
-	$str = strtolower(utf8_decode($str));
+	$str = strtolower(forum_ascii($str));
 	$str = forum_trim(preg_replace(array('/[^a-z0-9\s]/', '/[\s]+/'), array('', '-'), $str), '-');
 
 	foreach ($forum_reserved_strings as $match => $replace)
@@ -890,6 +1009,8 @@ function censor_words($text)
 	$return = ($hook = get_hook('fn_censor_words_start')) ? eval($hook) : null;
 	if ($return !== null)
 		return $return;
+
+	$text = is_scalar($text) ? (string) $text : '';
 
 	// If not already loaded in a previous call, load the cached censors
 	if (!defined('FORUM_CENSORS_LOADED'))
@@ -1026,7 +1147,11 @@ function get_title($user)
 		$ban_list = array();
 
 		foreach ($forum_bans as $cur_ban)
-			$ban_list[] = utf8_strtolower($cur_ban['username']);
+		{
+			// bans.username is NULL for IP-only and e-mail-only bans
+			if (($cur_ban['username'] ?? '') != '')
+				$ban_list[] = utf8_strtolower($cur_ban['username']);
+		}
 	}
 
 	// If not already loaded in a previous call, load the cached ranks
@@ -1154,17 +1279,44 @@ function get_remote_address()
 }
 
 
+// The scheme, host and port the forum is served from, read back out of $base_url.
+// Returns '' when $base_url carries no host, so callers degrade to a root-relative
+// URL instead of falling back to the request headers.
+function forum_base_origin()
+{
+	global $base_url;
+
+	if (!isset($base_url) || !is_string($base_url) || $base_url === '')
+		return '';
+
+	$parts = parse_url($base_url);
+
+	// A $base_url without a scheme parses as a bare path; retry it as an authority,
+	// but only when it cannot be a path in the first place.
+	if (($parts === false || empty($parts['host'])) && $base_url[0] !== '/')
+		$parts = parse_url('//'.$base_url);
+
+	if ($parts === false || empty($parts['host']))
+		return '';
+
+	$scheme = isset($parts['scheme']) ? $parts['scheme'] : 'http';
+	$port = isset($parts['port']) ? ':'.$parts['port'] : '';
+
+	return $scheme.'://'.$parts['host'].$port;
+}
+
+
 // Try to determine the current URL
+// The origin comes from $base_url, never from the request: HTTP_HOST is client-controlled,
+// and CSRF tokens are keyed on this URL, so a proxy rewriting Host would reject every form.
 function get_current_url($max_length = 0)
 {
 	$return = ($hook = get_hook('fn_get_current_url_start')) ? eval($hook) : null;
 	if ($return !== null)
 		return $return;
 
-	$protocol = (!isset($_SERVER['HTTPS']) || strtolower($_SERVER['HTTPS']) == 'off') ? 'http://' : 'https://';
-	$port = (isset($_SERVER['SERVER_PORT']) && (($_SERVER['SERVER_PORT'] != '80' && $protocol == 'http://') || ($_SERVER['SERVER_PORT'] != '443' && $protocol == 'https://')) && strpos($_SERVER['HTTP_HOST'], ':') === false) ? ':'.$_SERVER['SERVER_PORT'] : '';
-
-	$url = $protocol.$_SERVER['HTTP_HOST'].$port.$_SERVER['REQUEST_URI'];
+	// Only the origin is unsafe - the path and query are the request the client asked for.
+	$url = forum_base_origin().(isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '');
 
 	if (strlen($url) <= $max_length || $max_length == 0)
 		return $url;
@@ -1186,9 +1338,13 @@ function validate_search_word($word)
 
 	if (!isset($stopwords))
 	{
-		if (file_exists(FORUM_ROOT.'lang/'.$forum_user['language'].'/stopwords.txt'))
+		// The installer indexes the first post before there is a $forum_user;
+		// without a language there is no stopword list to load.
+		$language = isset($forum_user['language']) ? $forum_user['language'] : '';
+
+		if ($language !== '' && file_exists(FORUM_ROOT.'lang/'.$language.'/stopwords.txt'))
 		{
-			$stopwords = file(FORUM_ROOT.'lang/'.$forum_user['language'].'/stopwords.txt');
+			$stopwords = file(FORUM_ROOT.'lang/'.$language.'/stopwords.txt');
 			$stopwords = array_map('forum_trim', $stopwords);
 			$stopwords = array_filter($stopwords);
 		}
@@ -1263,6 +1419,81 @@ function forum_hash($str, $salt)
 }
 
 
+//
+// Hash a password for storage
+//
+// New and changed passwords are hashed with password_hash(). Nothing stored
+// before is touched: forum_password_verify() still reads every older format,
+// and a row is only rewritten when its owner logs in.
+//
+function forum_password_hash($password)
+{
+	$return = ($hook = get_hook('fn_forum_password_hash_start')) ? eval($hook) : null;
+	if ($return !== null)
+		return $return;
+
+	return password_hash($password, PASSWORD_DEFAULT);
+}
+
+
+//
+// Whether a stored hash was produced by password_hash()
+//
+function forum_password_is_modern($stored_hash)
+{
+	$return = ($hook = get_hook('fn_forum_password_is_modern_start')) ? eval($hook) : null;
+	if ($return !== null)
+		return $return;
+
+	$info = password_get_info((string) $stored_hash);
+
+	return !empty($info['algo']);
+}
+
+
+//
+// Verify a password against any format the forum has ever stored
+//
+// password_hash() output, the salted SHA-1 of forum_hash(), the unsalted SHA-1
+// of 1.3 and the MD5 of 1.2. Comparisons are timing-safe.
+//
+function forum_password_verify($password, $stored_hash, $salt)
+{
+	$return = ($hook = get_hook('fn_forum_password_verify_start')) ? eval($hook) : null;
+	if ($return !== null)
+		return $return;
+
+	$stored_hash = (string) $stored_hash;
+
+	if ($stored_hash === '')
+		return false;
+
+	if (forum_password_is_modern($stored_hash))
+		return password_verify($password, $stored_hash);
+
+	if (strlen($stored_hash) == 40)
+		return hash_equals($stored_hash, forum_hash($password, $salt)) || hash_equals($stored_hash, sha1($password));
+
+	return hash_equals($stored_hash, md5($password));
+}
+
+
+//
+// Whether a verified password should be re-stored in the current format
+//
+function forum_password_needs_rehash($stored_hash)
+{
+	$return = ($hook = get_hook('fn_forum_password_needs_rehash_start')) ? eval($hook) : null;
+	if ($return !== null)
+		return $return;
+
+	if (!forum_password_is_modern($stored_hash))
+		return true;
+
+	return password_needs_rehash($stored_hash, PASSWORD_DEFAULT);
+}
+
+
 // Delete every .php file in the forum's cache directory
 function forum_clear_cache()
 {
@@ -1321,9 +1552,11 @@ function authenticate_user($user, $password, $password_is_hash = false)
 	$result = $forum_db->query_build($query) or error(__FILE__, __LINE__);
 	$forum_user = $forum_db->fetch_assoc($result);
 
+	// The plaintext branch serves extern.php's HTTP Basic authentication, so it
+	// has to read every stored format the login page reads.
 	if (!isset($forum_user['id']) ||
-		($password_is_hash && $password != $forum_user['password']) ||
-		(!$password_is_hash && forum_hash($password, $forum_user['salt']) != $forum_user['password']))
+		($password_is_hash && !hash_equals((string) $forum_user['password'], (string) $password)) ||
+		(!$password_is_hash && !forum_password_verify($password, $forum_user['password'], $forum_user['salt'])))
 		set_default_user();
 
 	($hook = get_hook('fn_authenticate_user_end')) ? eval($hook) : null;
@@ -1346,7 +1579,7 @@ function cookie_login(&$forum_user)
 		return;
 
 	// If a cookie is set, we get the user_id and password hash from it
-	if (!empty($_COOKIE[$cookie_name]))
+	if (!empty($_COOKIE[$cookie_name]) && is_string($_COOKIE[$cookie_name]))
 	{
 		$cookie_data = explode('|', base64_decode($_COOKIE[$cookie_name]));
 
@@ -1460,7 +1693,7 @@ function cookie_login(&$forum_user)
 				$forum_db->query_build($query) or error(__FILE__, __LINE__);
 
 				// Update tracked topics with the current expire time
-				if (isset($_COOKIE[$cookie_name.'_track']))
+				if (isset($_COOKIE[$cookie_name.'_track']) && is_string($_COOKIE[$cookie_name.'_track']))
 					forum_setcookie($cookie_name.'_track', $_COOKIE[$cookie_name.'_track'], $now + $forum_config['o_timeout_visit']);
 			}
 		}
@@ -1800,7 +2033,7 @@ function get_tracked_topics()
 	if ($return !== null)
 		return $return;
 
-	$cookie_data = isset($_COOKIE[$cookie_name.'_track']) ? $_COOKIE[$cookie_name.'_track'] : false;
+	$cookie_data = (isset($_COOKIE[$cookie_name.'_track']) && is_string($_COOKIE[$cookie_name.'_track'])) ? $_COOKIE[$cookie_name.'_track'] : false;
 	if (!$cookie_data)
 		return array('topics' => array(), 'forums' => array());
 
@@ -1815,7 +2048,7 @@ function get_tracked_topics()
 		{
 			case 'f': $type = 'forums'; break;
 			case 't': $type = 'topics'; break;
-			default: continue;
+			default: continue 2;
 		}
 
 		$id = intval(substr($id_data, 1));
@@ -2528,10 +2761,13 @@ function sync_forum($forum_id)
 
 	if ($last_post_info)
 	{
-		$last_post_info['last_poster'] = '\''.$forum_db->escape($last_post_info['last_poster']).'\'';
+		$last_post_info['last_poster'] = '\''.$forum_db->escape($last_post_info['last_poster'] ?? '').'\'';
 	}
 	else
+	{
+		$last_post_info = array();
 		$last_post_info['last_post'] = $last_post_info['last_post_id'] = $last_post_info['last_poster'] = 'NULL';
+	}
 
 	// Now update the forum
 	$query = array(
@@ -2925,7 +3161,7 @@ function csrf_confirm_form()
 
 	// User pressed the cancel button
 	if (isset($_POST['confirm_cancel']))
-		redirect(forum_htmlencode($_POST['prev_url']), $lang_common['Cancel redirect']);
+		redirect(forum_htmlencode($_POST['prev_url'] ?? ''), $lang_common['Cancel redirect']);
 
 	// A helper function for csrf_confirm_form. It takes a multi-dimensional array and returns it as a
 	// single-dimensional array suitable for use in hidden fields.
@@ -3203,6 +3439,73 @@ function maintenance_message()
 }
 
 
+// Returns the host of $url, or NULL when it has none. A $base_url written without a scheme
+// ("example.com/forum") still has an authority - parse_url() only sees it with the '//' prefix.
+function forum_url_host($url)
+{
+	$host = parse_url($url, PHP_URL_HOST);
+	if ($host !== null && $host !== false)
+		return $host;
+
+	$host = parse_url('//'.ltrim($url, '/'), PHP_URL_HOST);
+
+	return ($host === null || $host === false) ? null : $host;
+}
+
+
+// Converts the host of $url to punycode (ToASCII, UTS-46). Anything the converter rejects -
+// an over-long label, a leading hyphen, invalid UTF-8 - is returned unchanged, which is what
+// the forum has always done with input IDNA could not handle.
+function forum_idna_encode($url)
+{
+	return forum_idna_convert($url, true);
+}
+
+
+// Converts a punycoded host back to UTF-8 (ToUnicode, UTS-46), same fallback contract.
+function forum_idna_decode($url)
+{
+	return forum_idna_convert($url, false);
+}
+
+
+// Runs the IDN conversion over the host of $url and nothing else: idn_to_ascii()/idn_to_utf8()
+// read their whole argument as a domain name, so a URL handed to them straight comes back with
+// its path and user info punycoded as well.
+function forum_idna_convert($url, $to_ascii)
+{
+	if ($url === '' || !function_exists('idn_to_ascii'))
+		return $url;
+
+	// scheme :// | user info @ | host | port, path, query, fragment
+	if (!preg_match('!^([a-z][a-z0-9+.\-]*://)?([^/?#]*@)?([^/?#:]*)(.*)$!is', $url, $matches))
+		return $url;
+
+	if ($matches[3] === '')
+		return $url;
+
+	// Non-transitional processing is requested explicitly: it is only the default
+	// since ICU 76, and under an older ICU "straße.de" would map to "strasse.de".
+	$host = $to_ascii
+		? idn_to_ascii($matches[3], IDNA_NONTRANSITIONAL_TO_ASCII, INTL_IDNA_VARIANT_UTS46)
+		: idn_to_utf8($matches[3], IDNA_NONTRANSITIONAL_TO_UNICODE, INTL_IDNA_VARIANT_UTS46);
+
+	if ($host === false || $host === '')
+		return $url;
+
+	// UTS-46 maps a few non-ASCII codepoints onto ASCII (U+FF1C -> "<", U+FF0F -> "/",
+	// U+FF02 -> '"'), so a converted host can carry URL and markup delimiters the input never
+	// had - and callers splice the result into an href unescaped. Anything that is no longer a
+	// plain host name is rejected and the URL comes back unchanged.
+	if ($to_ascii
+		? !preg_match('/^[A-Za-z0-9._-]+$/', $host)
+		: preg_match('/[\x00-\x20\x7F"\'`<>\\\\\/?#@:]/', $host))
+		return $url;
+
+	return $matches[1].$matches[2].$host.$matches[4];
+}
+
+
 // Display $message and redirect user to $destination_url
 function redirect($destination_url, $message)
 {
@@ -3212,12 +3515,39 @@ function redirect($destination_url, $message)
 
 	($hook = get_hook('fn_redirect_start')) ? eval($hook) : null;
 
-	// Prefix with base_url (unless it's there already)
-	if (strpos($destination_url, 'http://') !== 0 && strpos($destination_url, 'https://') !== 0 && strpos($destination_url, '/') !== 0)
-		$destination_url = $base_url.'/'.$destination_url;
+	// Spring cleaning first: browsers drop control characters out of a Location URL before they
+	// parse it, so a check run before this would test a URL the browser never follows -
+	// "/%0d/evil.com" would pass the same-origin test and leave as "//evil.com".
+	$destination_url = preg_replace('/([\x00-\x1f\x7f])|(%0[09ad])|(%7f)|(;[\s]*data[\s]*:)/i', '', $destination_url);
 
-	// Do a little spring cleaning
-	$destination_url = preg_replace('/([\r\n])|(%0[ad])|(;[\s]*data[\s]*:)/i', '', $destination_url);
+	// Prefix with base_url (unless it's there already)
+	$destination_is_local = false;
+	if (strpos($destination_url, 'http://') !== 0 && strpos($destination_url, 'https://') !== 0 && strpos($destination_url, '/') !== 0)
+	{
+		$destination_url = $base_url.'/'.$destination_url;
+		$destination_is_local = true;
+	}
+
+	// Several callers redirect to a URL taken straight from $_POST - keep the destination on this
+	// forum. Browsers fold a backslash to a slash in the authority, so normalise it before testing;
+	// a backslash after the '?' or '#' is payload and must survive.
+	$path_length = strcspn($destination_url, '?#');
+	$destination_url = str_replace('\\', '/', substr($destination_url, 0, $path_length)).substr($destination_url, $path_length);
+
+	// A destination built out of $base_url just above is local by construction - re-testing it would
+	// reject every relative redirect on an install whose $base_url carries no scheme.
+	if (!$destination_is_local && strpos($destination_url, '//') === 0)
+		$destination_url = $base_url.'/';
+	else if (!$destination_is_local && strpos($destination_url, '/') !== 0)
+	{
+		// Compare hosts, not prefixes: an install served on a scheme or port its $base_url does
+		// not name still has to honour its own stored prev_url.
+		$destination_host = parse_url($destination_url, PHP_URL_HOST);
+		$base_host = forum_url_host($base_url);
+
+		if ($destination_host === null || $destination_host === false || $base_host === null || strcasecmp($destination_host, $base_host) !== 0)
+			$destination_url = $base_url.'/';
+	}
 
 	if (defined('FORUM_REQUEST_AJAX'))
 	{
@@ -3469,47 +3799,6 @@ function error()
 function send_json($params)
 {
 	header('Content-type: application/json; charset=utf-8');
-	if (!function_exists('json_encode'))
-	{
-		function json_encode($data)
-		{
-			switch ($type = gettype($data))
-			{
-				case 'NULL':
-					return 'null';
-				case 'boolean':
-					return ($data ? 'true' : 'false');
-				case 'integer':
-				case 'double':
-				case 'float':
-					return $data;
-				case 'string':
-					return '"' . addslashes($data) . '"';
-				case 'object':
-					$data = get_object_vars($data);
-				case 'array':
-					$output_index_count = 0;
-					$output_indexed = array();
-					$output_assoc = array();
-					foreach ($data as $key => $value)
-					{
-						$output_indexed[] = json_encode($value);
-						$output_assoc[] = json_encode($key) . ':' . json_encode($value);
-						if ($output_index_count !== NULL && $output_index_count++ !== $key)
-						{
-							$output_index_count = NULL;
-						}
-					}
-					if ($output_index_count !== NULL) {
-						return '[' . implode(',', $output_indexed) . ']';
-					} else {
-						return '{' . implode(',', $output_assoc) . '}';
-					}
-				default:
-					return ''; // Not supported
-			}
-		}
-	}
 	echo json_encode($params);
 	die;
 }

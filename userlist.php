@@ -34,7 +34,8 @@ if (isset($_GET['username']) && is_string($_GET['username'])) {
 
 $forum_page['show_group'] = (!isset($_GET['show_group']) || intval($_GET['show_group']) < -1 && intval($_GET['show_group']) > 2) ? -1 : intval($_GET['show_group']);
 $forum_page['sort_by'] = (!isset($_GET['sort_by']) || $_GET['sort_by'] != 'username' && $_GET['sort_by'] != 'registered' && ($_GET['sort_by'] != 'num_posts' || !$forum_page['show_post_count'])) ? 'username' : $_GET['sort_by'];
-$forum_page['sort_dir'] = (!isset($_GET['sort_dir']) || strtoupper($_GET['sort_dir']) != 'ASC' && strtoupper($_GET['sort_dir']) != 'DESC') ? 'ASC' : strtoupper($_GET['sort_dir']);
+$sort_dir = (isset($_GET['sort_dir']) && is_string($_GET['sort_dir'])) ? strtoupper($_GET['sort_dir']) : '';
+$forum_page['sort_dir'] = ($sort_dir == 'DESC') ? 'DESC' : 'ASC';
 
 
 // Create any SQL for the WHERE clause
@@ -62,10 +63,10 @@ $result = $forum_db->query_build($query) or error(__FILE__, __LINE__);
 $forum_page['num_users'] = $forum_db->result($result);
 
 // Determine the user offset (based on $_GET['p'])
-$forum_page['num_pages'] = ceil($forum_page['num_users'] / 50);
-$forum_page['page'] = (!isset($_GET['p']) || !is_numeric($_GET['p']) || $_GET['p'] <= 1 || $_GET['p'] > $forum_page['num_pages']) ? 1 : intval($_GET['p']);
+$forum_page['num_pages'] = (int) ceil($forum_page['num_users'] / 50);
+$forum_page['page'] = (!isset($_GET['p']) || !is_numeric($_GET['p']) || $_GET['p'] <= 1 || $_GET['p'] > $forum_page['num_pages']) ? 1 : (int) $_GET['p'];
 $forum_page['start_from'] = 50 * ($forum_page['page'] - 1);
-$forum_page['finish_at'] = min(($forum_page['start_from'] + 50), ($forum_page['num_users']));
+$forum_page['finish_at'] = min(50, ($forum_page['num_users']));
 
 $forum_page['users_searched'] = (($forum_user['g_search_users'] == '1' && $forum_page['username'] != '') || $forum_page['show_group'] > -1);
 

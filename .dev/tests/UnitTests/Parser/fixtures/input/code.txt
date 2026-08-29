@@ -1,0 +1,3 @@
+before
+[code]$a = "[b]not bold[/b]";	indented	tabs[/code]
+after

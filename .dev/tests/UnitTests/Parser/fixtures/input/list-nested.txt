@@ -1,0 +1,1 @@
+[list][*]outer[list=1][*]inner one[*]inner two[/list][*]outer again[/list]

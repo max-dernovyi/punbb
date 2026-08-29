@@ -1,0 +1,7 @@
+<script>var PUNBB={};</script>
+<script src="http://localhost/include/js/min/punbb.common.min.js"></script>
+<script src="http://localhost/style/Oxygen/responsive-nav.min.js"></script>
+<script>PUNBB.common.quickjump();</script>
+<script src="http://localhost/include/js/min/punbb.timezone.min.js"></script>
+<script>PUNBB.timezone.detect_on_register_form();</script>
+<script async src="http://localhost/counter.js"></script>

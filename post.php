@@ -107,7 +107,9 @@ if (isset($_POST['form_sent']))
 	($hook = get_hook('po_form_submitted')) ? eval($hook) : null;
 
 	// Make sure form_user is correct
-	if (($forum_user['is_guest'] && $_POST['form_user'] != 'Guest') || (!$forum_user['is_guest'] && $_POST['form_user'] != $forum_user['username']))
+	$form_user = $_POST['form_user'] ?? '';
+
+	if (($forum_user['is_guest'] && $form_user != 'Guest') || (!$forum_user['is_guest'] && $form_user != $forum_user['username']))
 		message($lang_common['Bad request']);
 
 	// Flood protection
@@ -117,7 +119,7 @@ if (isset($_POST['form_sent']))
 	// If it's a new topic
 	if ($fid)
 	{
-		$subject = forum_trim($_POST['req_subject']);
+		$subject = forum_trim($_POST['req_subject'] ?? '');
 
 		if ($subject == '')
 			$errors[] = $lang_post['No subject'];
@@ -136,8 +138,9 @@ if (isset($_POST['form_sent']))
 	// Otherwise it should be in $_POST
 	else
 	{
-		$username = forum_trim($_POST['req_username']);
-		$email = strtolower(forum_trim(($forum_config['p_force_guest_email'] == '1') ? $_POST['req_email'] : $_POST['email']));
+		$username = forum_trim($_POST['req_username'] ?? '');
+		$email_key = ($forum_config['p_force_guest_email'] == '1') ? 'req_email' : 'email';
+		$email = strtolower(forum_trim($_POST[$email_key] ?? ''));
 
 		// Load the profile.php language file
 		require FORUM_ROOT.'lang/'.$forum_user['language'].'/profile.php';
@@ -163,7 +166,7 @@ if (isset($_POST['form_sent']))
 		$errors[] = $lang_post['CSRF token mismatch'];
 
 	// Clean up message from POST
-	$message = forum_linebreaks(forum_trim($_POST['req_message']));
+	$message = forum_linebreaks(forum_trim($_POST['req_message'] ?? ''));
 
 	if (strlen($message) > FORUM_MAX_POSTSIZE_BYTES)
 		$errors[] = sprintf($lang_post['Too long message'], forum_number_format(strlen($message)), forum_number_format(FORUM_MAX_POSTSIZE_BYTES));
@@ -342,7 +345,7 @@ ob_start();
 <?php
 
 // If preview selected and there are no errors
-if (isset($_POST['preview']) && empty($errors))
+if (isset($_POST['form_sent']) && isset($_POST['preview']) && empty($errors))
 {
 	if (!defined('FORUM_PARSER_LOADED'))
 		require FORUM_ROOT.'include/parser.php';
@@ -434,14 +437,14 @@ if ($forum_user['is_guest'])
 				<div class="sf-set set<?php echo ++$forum_page['item_count'] ?>">
 					<div class="sf-box text required">
 						<label for="fld<?php echo ++$forum_page['fld_count'] ?>"><span><?php echo $lang_post['Guest name'] ?></span></label><br />
-						<span class="fld-input"><input type="text" id="fld<?php echo $forum_page['fld_count'] ?>" name="req_username" value="<?php if (isset($_POST['req_username'])) echo forum_htmlencode($username); ?>" size="35" maxlength="25" /></span>
+						<span class="fld-input"><input type="text" id="fld<?php echo $forum_page['fld_count'] ?>" name="req_username" value="<?php if (isset($username)) echo forum_htmlencode($username); ?>" size="35" maxlength="25" /></span>
 					</div>
 				</div>
 <?php ($hook = get_hook('po_pre_guest_email')) ? eval($hook) : null; ?>
 				<div class="sf-set set<?php echo ++$forum_page['item_count'] ?>">
 					<div class="sf-box text<?php if ($forum_config['p_force_guest_email'] == '1') echo ' required' ?>">
 						<label for="fld<?php echo ++$forum_page['fld_count'] ?>"><span><?php echo $lang_post['Guest e-mail'] ?></span></label><br />
-						<span class="fld-input"><input type="email" id="fld<?php echo $forum_page['fld_count'] ?>" name="<?php echo $forum_page['email_form_name'] ?>" value="<?php if (isset($_POST[$forum_page['email_form_name']])) echo forum_htmlencode($email); ?>" size="35" maxlength="80" <?php if ($forum_config['p_force_guest_email'] == '1') echo 'required' ?> /></span>
+						<span class="fld-input"><input type="email" id="fld<?php echo $forum_page['fld_count'] ?>" name="<?php echo $forum_page['email_form_name'] ?>" value="<?php if (isset($email)) echo forum_htmlencode($email); ?>" size="35" maxlength="80" <?php if ($forum_config['p_force_guest_email'] == '1') echo 'required' ?> /></span>
 					</div>
 				</div>
 <?php ($hook = get_hook('po_pre_guest_info_fieldset_end')) ? eval($hook) : null; ?>
@@ -469,7 +472,7 @@ if ($fid)
 				<div class="sf-set set<?php echo ++$forum_page['item_count'] ?>">
 					<div class="sf-box text required longtext">
 						<label for="fld<?php echo ++$forum_page['fld_count'] ?>"><span><?php echo $lang_post['Topic subject'] ?></span></label><br />
-						<span class="fld-input"><input id="fld<?php echo $forum_page['fld_count'] ?>" type="text" name="req_subject" value="<?php if (isset($_POST['req_subject'])) echo forum_htmlencode($subject); ?>" size="<?php echo FORUM_SUBJECT_MAXIMUM_LENGTH ?>" maxlength="<?php echo FORUM_SUBJECT_MAXIMUM_LENGTH ?>" required /></span>
+						<span class="fld-input"><input id="fld<?php echo $forum_page['fld_count'] ?>" type="text" name="req_subject" value="<?php if (isset($subject)) echo forum_htmlencode($subject); ?>" size="<?php echo FORUM_SUBJECT_MAXIMUM_LENGTH ?>" maxlength="<?php echo FORUM_SUBJECT_MAXIMUM_LENGTH ?>" required /></span>
 					</div>
 				</div>
 <?php
@@ -482,7 +485,7 @@ if ($fid)
 				<div class="txt-set set<?php echo ++$forum_page['item_count'] ?>">
 					<div class="txt-box textarea required">
 						<label for="fld<?php echo ++$forum_page['fld_count'] ?>"><span><?php echo $lang_post['Write message'] ?></span></label>
-						<div class="txt-input"><span class="fld-input"><textarea id="fld<?php echo $forum_page['fld_count'] ?>" name="req_message" rows="15" cols="95" required spellcheck="true"><?php echo isset($_POST['req_message']) ? forum_htmlencode($message) : (isset($forum_page['quote']) ? forum_htmlencode($forum_page['quote']) : '') ?></textarea></span></div>
+						<div class="txt-input"><span class="fld-input"><textarea id="fld<?php echo $forum_page['fld_count'] ?>" name="req_message" rows="15" cols="95" required spellcheck="true"><?php echo isset($message) ? forum_htmlencode($message) : (isset($forum_page['quote']) ? forum_htmlencode($forum_page['quote']) : '') ?></textarea></span></div>
 					</div>
 				</div>
 <?php
@@ -542,6 +545,7 @@ if (!empty($forum_page['checkboxes']))
 	</div>
 <?php
 
+($hook = get_hook('po_main_output_end')) ? eval($hook) : null;
 
 // Check if the topic review is to be displayed
 if ($tid && $forum_config['o_topic_review'] != '0')

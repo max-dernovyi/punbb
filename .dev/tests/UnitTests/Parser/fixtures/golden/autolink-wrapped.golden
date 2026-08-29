@@ -1,0 +1,18 @@
+===== message =====
+<p>wrapped (<a href="http://example.com/page">http://example.com/page</a>) here<br />bracketed [<a href="http://example.com/page">http://example.com/page</a>] here<br />angled &lt;<a href="http://example.com/page">http://example.com/page</a>&gt; here<br />quoted &quot;<a href="http://example.com/page">http://example.com/page</a>&quot; here</p>
+===== message-errors =====
+
+===== signature =====
+wrapped (<a href="http://example.com/page">http://example.com/page</a>) here<br />bracketed [<a href="http://example.com/page">http://example.com/page</a>] here<br />angled &lt;<a href="http://example.com/page">http://example.com/page</a>&gt; here<br />quoted &quot;<a href="http://example.com/page">http://example.com/page</a>&quot; here
+===== signature-errors =====
+
+===== clickable-unicode =====
+wrapped ([url]http://example.com/page[/url]) here
+bracketed [[url]http://example.com/page[/url]] here
+angled <[url]http://example.com/page[/url]> here
+quoted "[url]http://example.com/page[/url]" here
+===== clickable-ascii =====
+wrapped ([url]http://example.com/page[/url]) here
+bracketed [[url]http://example.com/page[/url]] here
+angled <[url]http://example.com/page[/url]> here
+quoted "[url]http://example.com/page[/url]" here

@@ -85,7 +85,7 @@ if (isset($_POST['form_sent']))
 	// If it is a topic it must contain a subject
 	if ($can_edit_subject)
 	{
-		$subject = forum_trim($_POST['req_subject']);
+		$subject = forum_trim($_POST['req_subject'] ?? '');
 
 		if ($subject == '')
 			$errors[] = $lang_post['No subject'];
@@ -96,7 +96,7 @@ if (isset($_POST['form_sent']))
 	}
 
 	// Clean up message from POST
-	$message = forum_linebreaks(forum_trim($_POST['req_message']));
+	$message = forum_linebreaks(forum_trim($_POST['req_message'] ?? ''));
 
 	if (strlen($message) > FORUM_MAX_POSTSIZE_BYTES)
 		$errors[] = sprintf($lang_post['Too long message'], forum_number_format(strlen($message)), forum_number_format(FORUM_MAX_POSTSIZE_BYTES));
@@ -218,7 +218,7 @@ ob_start();
 <?php
 
 // If preview selected and there are no errors
-if (isset($_POST['preview']) && empty($forum_page['errors']))
+if (isset($_POST['form_sent']) && isset($_POST['preview']) && empty($forum_page['errors']))
 {
 	if (!defined('FORUM_PARSER_LOADED'))
 		require FORUM_ROOT.'include/parser.php';
@@ -303,7 +303,7 @@ if (isset($forum_page['errors']))
 <?php endif; ($hook = get_hook('ed_pre_message_box')) ? eval($hook) : null; ?>				<div class="txt-set set<?php echo ++$forum_page['item_count'] ?>">
 					<div class="txt-box textarea required">
 						<label for="fld<?php echo ++ $forum_page['fld_count'] ?>"><span><?php echo $lang_post['Write message'] ?></span></label>
-						<div class="txt-input"><span class="fld-input"><textarea id="fld<?php echo $forum_page['fld_count'] ?>" name="req_message" rows="15" cols="95" required spellcheck="true"><?php echo forum_htmlencode(isset($_POST['req_message']) ? $message : $cur_post['message']) ?></textarea></span></div>
+						<div class="txt-input"><span class="fld-input"><textarea id="fld<?php echo $forum_page['fld_count'] ?>" name="req_message" rows="15" cols="95" required spellcheck="true"><?php echo forum_htmlencode(isset($message) ? $message : $cur_post['message']) ?></textarea></span></div>
 					</div>
 				</div>
 <?php

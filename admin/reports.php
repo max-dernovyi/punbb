@@ -28,7 +28,7 @@ require FORUM_ROOT.'lang/'.$forum_user['language'].'/admin_reports.php';
 // Mark reports as read
 if (isset($_POST['mark_as_read']))
 {
-	if (empty($_POST['reports']))
+	if (empty($_POST['reports']) || !is_array($_POST['reports']))
 		message($lang_admin_reports['No reports selected']);
 
 	($hook = get_hook('arp_mark_as_read_form_submitted')) ? eval($hook) : null;

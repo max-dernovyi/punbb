@@ -1,0 +1,1 @@
+[color=red]named[/color] [color=#ff0000]hex six[/color] [color=#f00]hex three[/color] [colour=blue]british[/colour]

@@ -10,8 +10,8 @@
  */
 
 
-define('UPDATE_TO', '1.4.6');
-define('UPDATE_TO_DB_REVISION', 5);
+define('UPDATE_TO', '1.5.0');
+define('UPDATE_TO_DB_REVISION', 6);
 
 // The number of items to process per pageview (lower this if the update script times out during UTF-8 conversion)
 define('PER_PAGE', 300);
@@ -19,13 +19,14 @@ define('PER_PAGE', 300);
 define('MIN_MYSQL_VERSION', '4.1.2');
 
 
-// Make sure we are running at least PHP 5.0.0
-if (!function_exists('version_compare') || version_compare(PHP_VERSION, '5.0.0', '<'))
-	exit('You are running PHP version '.PHP_VERSION.'. '.UPDATE_TO.' requires at least PHP 5.0.0 to run properly. You must upgrade your PHP installation before you can continue.');
+// Make sure we are running at least PHP 8.4.0
+if (version_compare(PHP_VERSION, '8.4.0', '<'))
+	exit('You are running PHP version '.PHP_VERSION.'. '.UPDATE_TO.' requires at least PHP 8.4.0 to run properly. You must upgrade your PHP installation before you can continue.');
 
 
 define('FORUM_ROOT', '../');
 
+require FORUM_ROOT.'include/autoload.php';
 require FORUM_ROOT.'include/constants.php';
 
 // Attempt to load the configuration file config.php
@@ -47,10 +48,6 @@ if (!defined('FORUM_DEBUG'))
 // Turn on full PHP error reporting
 error_reporting(E_ALL);
 
-// Turn off magic_quotes_runtime
-if (get_magic_quotes_runtime())
-	@ini_set('magic_quotes_runtime', false);
-
 // Turn off PHP time limit
 @set_time_limit(0);
 
@@ -65,10 +62,14 @@ if (!defined('FORUM_CACHE_DIR'))
 // Load the functions script
 require FORUM_ROOT.'include/functions.php';
 
+// Everything this release needs: extensions and a database driver. Runs before
+// include/utf8.php, which calls mb_internal_encoding() and would fatal without mbstring.
+$php_requirement_errors = check_php_requirements();
+if (!empty($php_requirement_errors))
+	exit('PunBB cannot be updated on this PHP installation:'."\n".'<ul><li>'.implode('</li><li>', $php_requirement_errors).'</li></ul>');
+
 // Load UTF-8 functions
-require FORUM_ROOT.'include/utf8/utf8.php';
-require FORUM_ROOT.'include/utf8/ucwords.php';
-require FORUM_ROOT.'include/utf8/trim.php';
+require FORUM_ROOT.'include/utf8.php';
 
 // Strip out "bad" UTF-8 characters
 forum_remove_bad_characters();
@@ -76,6 +77,12 @@ forum_remove_bad_characters();
 // If the request_uri is invalid try fix it
 if (!defined('FORUM_IGNORE_REQUEST_URI'))
 	forum_fix_request_uri();
+
+// Drivers removed with their PHP extension: config.php has to be fixed by hand
+// before an upgrade, otherwise the dblayer would just fail to load below.
+$db_replacement = forum_removed_db_type_replacement($db_type);
+if ($db_replacement !== null)
+	exit('Your config.php uses the \''.$db_type.'\' database driver, which was removed along with the PHP extension it needs. Set $db_type to \''.$db_replacement.'\' in config.php and run this script again.');
 
 // Instruct DB abstraction layer that we don't want it to "SET NAMES". If we need to, we'll do it ourselves below.
 define('FORUM_NO_SET_NAMES', 1);
@@ -85,6 +92,12 @@ require FORUM_ROOT.'include/dblayer/common_db.php';
 
 // Start a transaction
 $forum_db->start_transaction();
+
+// A missing or misprefixed config table is what this script has to report by
+// name: query() renders the generic error page and exits, so probe first with a
+// call that succeeds on an absent table.
+if (!$forum_db->table_exists('config'))
+	error('Version mismatch. The database \''.$db_name.'\' doesn\'t seem to be running a PunBB database schema supported by this update script.', __FILE__, __LINE__);
 
 // Check current version
 $query = array(
@@ -103,11 +116,11 @@ if (version_compare($cur_version, '1.2', '<'))
 $forum_db->set_names(version_compare($cur_version, '1.3', '>=') ? 'utf8' : 'latin1');
 
 // If MySQL, make sure it's at least 4.1.2
-if (in_array($db_type, array('mysql', 'mysqli', 'mysql_innodb', 'mysqli_innodb')))
+if (in_array($db_type, array('mysqli', 'mysqli_innodb')))
 {
 	$mysql_info = $forum_db->get_version();
 	if (version_compare($mysql_info['version'], MIN_MYSQL_VERSION, '<'))
-		error('You are running MySQL version '.$mysql_version.'. PunBB '.UPDATE_TO.' requires at least MySQL '.MIN_MYSQL_VERSION.' to run properly. You must upgrade your MySQL installation before you can continue.');
+		error('You are running MySQL version '.$mysql_info['version'].'. PunBB '.UPDATE_TO.' requires at least MySQL '.MIN_MYSQL_VERSION.' to run properly. You must upgrade your MySQL installation before you can continue.');
 }
 
 // Get the forum config
@@ -244,22 +257,30 @@ function convert_to_utf8(&$str, $old_charset)
 	$save = $str;
 
 	// Replace literal entities (for non-UTF-8 compliant html_entity_encode)
-	if (version_compare(PHP_VERSION, '5.0.0', '<') && $old_charset == 'ISO-8859-1' || $old_charset == 'ISO-8859-15')
+	if ($old_charset == 'ISO-8859-15')
 		$str = html_entity_decode($str, ENT_QUOTES, $old_charset);
 
 	if (!seems_utf8($str))
 	{
-		if ($old_charset == 'ISO-8859-1')
-			$str = utf8_encode($str);
-		else if (function_exists('iconv'))
-			$str = iconv($old_charset, 'UTF-8', $str);
-		else if (function_exists('mb_convert_encoding'))
-			$str = mb_convert_encoding($str, 'UTF-8', $old_charset);
+		// mbstring is a hard requirement, iconv is not, so prefer mb_convert_encoding()
+		// and fall back to iconv() only for names mbstring does not know.
+		static $mb_encodings = null;
+		if ($mb_encodings === null)
+			$mb_encodings = array_map('strtoupper', mb_list_encodings());
+
+		$converted = in_array($old_charset, $mb_encodings, true)
+			? mb_convert_encoding($str, 'UTF-8', $old_charset)
+			: (function_exists('iconv') ? @iconv($old_charset, 'UTF-8', $str) : false);
+
+		// A failed conversion returns false, which would blank the row on write
+		if ($converted === false)
+			exit('Failed to convert a value to UTF-8 from the requested character set. Conversion aborted.');
+
+		$str = $converted;
 	}
 
 	// Replace literal entities (for UTF-8 compliant html_entity_encode)
-	if (version_compare(PHP_VERSION, '5.0.0', '>='))
-		$str = html_entity_decode($str, ENT_QUOTES, 'UTF-8');
+	$str = html_entity_decode($str, ENT_QUOTES, 'UTF-8');
 
 	// Replace numeric entities
 	$str = preg_replace_callback('/&#([0-9]+);/', 'utf8_callback_1', $str);
@@ -366,8 +387,9 @@ function convert_table_utf8($table)
 		{
 			$allow_null = ($cur_column['Null'] == 'YES');
 
-			$forum_db->alter_field($table, $cur_column['Field'], preg_replace('/'.$type.'/i', $types[$type], $cur_column['Type']), $allow_null, $cur_column['Default']);
-			$forum_db->alter_field($table, $cur_column['Field'], $cur_column['Type'].' CHARACTER SET utf8', $allow_null, $cur_column['Default']);
+			// $table is already prefixed - alter_field() must not prefix it again.
+			$forum_db->alter_field($table, $cur_column['Field'], preg_replace('/'.$type.'/i', $types[$type], $cur_column['Type']), $allow_null, $cur_column['Default'], null, true);
+			$forum_db->alter_field($table, $cur_column['Field'], $cur_column['Type'].' CHARACTER SET utf8', $allow_null, $cur_column['Default'], null, true);
 		}
 	}
 }
@@ -424,17 +446,20 @@ function convert_avatars()
 				}
 
 				// Now check the width/height
-				list($width, $height, $type,) = @/**/getimagesize($avatar_file);
-				if (empty($width) || empty($height) || $width > $forum_config['o_avatars_width'] || $height > $forum_config['o_avatars_height'])
+				$avatar_size = forum_avatar_size($avatar_file);
+				if ($avatar_size === false || $avatar_size[0] > $forum_config['o_avatars_width'] || $avatar_size[1] > $forum_config['o_avatars_height'])
 				{
-					@/**/unlink($avatar_file);
+					// Not an image, or larger than the board allows — drop it.
+					// Best effort: a file we cannot remove must not stop the upgrade.
+					if (is_writable(dirname($avatar_file)))
+						unlink($avatar_file);
 				}
 				else
 				{
 					// Save to DB
 					$query = array(
 						'UPDATE'	=> 'users',
-						'SET'		=> 'avatar=\''.$avatar_type.'\', avatar_height=\''.$height.'\', avatar_width=\''.$width.'\'',
+						'SET'		=> 'avatar=\''.$avatar_type.'\', avatar_height=\''.$avatar_size[1].'\', avatar_width=\''.$avatar_size[0].'\'',
 						'WHERE'		=> 'id='.$user_id
 					);
 					$forum_db->query_build($query) or error(__FILE__, __LINE__);
@@ -453,7 +478,14 @@ while (@ob_end_clean());
 
 
 $stage = isset($_GET['stage']) ? $_GET['stage'] : '';
-$old_charset = isset($_GET['req_old_charset']) ? str_replace('ISO8859', 'ISO-8859', strtoupper($_GET['req_old_charset'])) : 'ISO-8859-1';
+$old_charset = (isset($_GET['req_old_charset']) && is_string($_GET['req_old_charset'])) ? str_replace('ISO8859', 'ISO-8859', strtoupper($_GET['req_old_charset'])) : 'ISO-8859-1';
+
+// The name reaches convert_to_utf8() and is echoed back into the redirect below.
+// iconv() is optional here: when absent, mbstring is the only converter left.
+// When present it warns and returns false rather than throwing, so probe by return value.
+if (!in_array($old_charset, array_map('strtoupper', mb_list_encodings()), true) && (!function_exists('iconv') || @iconv($old_charset, 'UTF-8', 'a') === false))
+	exit('Unknown character set. Set req_old_charset to an encoding this PHP installation supports.');
+
 $start_at = isset($_GET['start_at']) ? intval($_GET['start_at']) : 0;
 $query_str = '';
 
@@ -472,8 +504,8 @@ switch ($stage)
 <head>
 	<meta charset="utf-8" />
 	<title>PunBB Database Update</title>
-	<link rel="stylesheet" type="text/css" href="<?php echo $base_url ?>/style/Oxygen/Oxygen.min.css" />
-	<script type="text/javascript" src="<?php echo $base_url ?>/include/js/min/punbb.common.min.js"></script>
+	<link rel="stylesheet" type="text/css" href="<?php echo $base_url ?>/style/Oxygen/Oxygen.css" />
+	<script type="text/javascript" src="<?php echo $base_url ?>/include/js/punbb.common.js"></script>
 </head>
 <body>
 <div id="brd-update" class="brd-page">
@@ -515,7 +547,7 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 {
 
 ?>
-				<li class="important"><span><strong>IMPORTANT!</strong> Based on a random selection of 100 posts, topic subjects, usernames and forum names from the database, it appears as if text in the database is currently UTF-8 encoded. This is a good thing. Based on this, the update process will not attempt to do charset conversion. If you have reason to believe that the charset conversion is required nonetheless, you can <a href="<?php echo $current_url.((substr_count($current_url, '?') == 1) ? '&amp;' : '?').'force=1' ?>">force the conversion to run</a>.</span></li>
+				<li class="important"><span><strong>IMPORTANT!</strong> Based on a random selection of 100 posts, topic subjects, usernames and forum names from the database, it appears as if text in the database is currently UTF-8 encoded. This is a good thing. Based on this, the update process will not attempt to do charset conversion. If you have reason to believe that the charset conversion is required nonetheless, you can <a href="<?php echo forum_htmlencode($current_url.((substr_count($current_url, '?') == 1) ? '&' : '?').'force=1') ?>">force the conversion to run</a>.</span></li>
 <?php
 
 }
@@ -523,7 +555,7 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 ?>
 			</ul>
 		</div>
-		<form class="frm-form" method="get" accept-charset="utf-8" action="<?php echo $current_url ?>">
+		<form class="frm-form" method="get" accept-charset="utf-8" action="<?php echo forum_htmlencode($current_url) ?>">
 			<div class="hidden">
 				<input type="hidden" name="stage" value="start" />
 			</div>
@@ -581,7 +613,7 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 	// Start by updating the database structure
 	case 'start':
 		// Put back dropped search tables
-		if (!$forum_db->table_exists('search_cache') && in_array($db_type, array('mysql', 'mysqli', 'mysql_innodb', 'mysqli_innodb')))
+		if (!$forum_db->table_exists('search_cache') && in_array($db_type, array('mysqli', 'mysqli_innodb')))
 		{
 			$schema = array(
 				'FIELDS'		=> array(
@@ -713,7 +745,7 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 		}
 
 		// Make sure the collation on "word" in the search_words table is utf8_bin
-		if (in_array($db_type, array('mysql', 'mysqli', 'mysql_innodb', 'mysqli_innodb')))
+		if (in_array($db_type, array('mysqli', 'mysqli_innodb')))
 		{
 			$result = $forum_db->query('SHOW FULL COLUMNS FROM '.$forum_db->prefix.'search_words') or error(__FILE__, __LINE__);
 			while ($cur_column = $forum_db->fetch_assoc($result))
@@ -827,13 +859,17 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 		// Add avatars to DB
 		convert_avatars();
 
+		// password_hash() output is 60 bytes today and may grow with the default
+		// algorithm; the column held exactly the 40 of a SHA-1.
+		$forum_db->alter_field('users', 'password', 'VARCHAR(255)', false, '');
+
 		// Remove NOT NULL from TEXT fields for consistency. See http://dev.punbb.org/changeset/596
 		$forum_db->alter_field('posts', 'message', 'TEXT', true);
 		$forum_db->alter_field('reports', 'message', 'TEXT', true);
 
 
 		// Drop fulltext indexes (should only apply to SVN installs)
-		if (in_array($db_type, array('mysql', 'mysqli', 'mysql_innodb', 'mysqli_innodb')))
+		if (in_array($db_type, array('mysqli', 'mysqli_innodb')))
 		{
 			$forum_db->drop_index('topics', 'subject_idx');
 			$forum_db->drop_index('posts', 'message_idx');
@@ -1202,8 +1238,6 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 
 			switch ($db_type)
 			{
-				case 'mysql':
-				case 'mysql_innodb':
 				case 'mysqli':
 				case 'mysqli_innodb':
 					$forum_db->add_index('online', 'user_id_ident_idx', array('user_id', 'ident(25)'), true);
@@ -1221,8 +1255,6 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 		// Add an index to ident on the online table
 		switch ($db_type)
 		{
-			case 'mysql':
-			case 'mysql_innodb':
 			case 'mysqli':
 			case 'mysqli_innodb':
 				$forum_db->add_index('online', 'ident_idx', array('ident(25)'));
@@ -1499,7 +1531,7 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 		// Convert ranks
 		echo 'Converting ranks…'."<br />\n";
 		$query = array(
-			'SELECT'	=> 'id, rank',
+			'SELECT'	=> 'id, '.$forum_db->quote_identifier('rank'),
 			'FROM'		=> 'ranks',
 			'ORDER BY'	=> 'id'
 		);
@@ -1511,7 +1543,7 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 			{
 				$query = array(
 					'UPDATE'	=> 'ranks',
-					'SET'		=> 'rank = \''.$forum_db->escape($cur_item['rank']).'\'',
+					'SET'		=> $forum_db->quote_identifier('rank').' = \''.$forum_db->escape($cur_item['rank']).'\'',
 					'WHERE'		=> 'id = '.$cur_item['id']
 				);
 
@@ -1810,7 +1842,7 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 			{
 				$query = array(
 					'UPDATE'	=> 'topics',
-					'SET'		=> 'poster = \''.$forum_db->escape($cur_item['poster']).'\', subject = \''.$forum_db->escape($cur_item['subject']).'\', last_poster = \''.$forum_db->escape($cur_item['last_poster']).'\'',
+					'SET'		=> 'poster = \''.$forum_db->escape($cur_item['poster']).'\', subject = \''.$forum_db->escape($cur_item['subject']).'\', last_poster = \''.$forum_db->escape($cur_item['last_poster'] ?? '').'\'',
 					'WHERE'		=> 'id = '.$cur_item['id']
 				);
 
@@ -1887,7 +1919,7 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 
 				$query = array(
 					'UPDATE'	=> 'posts',
-					'SET'		=> 'poster = \''.$forum_db->escape($cur_item['poster']).'\', message = \''.$forum_db->escape($cur_item['message']).'\', edited_by = '.$cur_item['edited_by'],
+					'SET'		=> 'poster = \''.$forum_db->escape($cur_item['poster']).'\', message = \''.$forum_db->escape($cur_item['message'] ?? '').'\', edited_by = '.$cur_item['edited_by'],
 					'WHERE'		=> 'id = '.$cur_item['id']
 				);
 
@@ -1919,7 +1951,7 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 	// Convert table columns to utf8 (MySQL only)
 	case 'conv_tables':
 		// Do the cumbersome charset conversion of MySQL tables/columns
-		if (in_array($db_type, array('mysql', 'mysqli', 'mysql_innodb', 'mysqli_innodb')))
+		if (in_array($db_type, array('mysqli', 'mysqli_innodb')))
 		{
 			echo 'Converting table '.$forum_db->prefix.'bans…<br />'."\n"; flush();
 			convert_table_utf8($forum_db->prefix.'bans');
@@ -2006,7 +2038,7 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 
 			$query = array(
 				'UPDATE'	=> 'posts',
-				'SET'		=> 'message = \''.$forum_db->escape(preparse_bbcode($cur_item['message'], $preparse_errors)).'\'',
+				'SET'		=> 'message = \''.$forum_db->escape(preparse_bbcode($cur_item['message'] ?? '', $preparse_errors)).'\'',
 				'WHERE'		=> 'id = '.$cur_item['id']
 			);
 
@@ -2063,7 +2095,7 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 
 			$query = array(
 				'UPDATE'	=> 'users',
-				'SET'		=> 'signature = \''.$forum_db->escape(preparse_bbcode($cur_item['signature'], $preparse_errors, true)).'\'',
+				'SET'		=> 'signature = \''.$forum_db->escape(preparse_bbcode($cur_item['signature'] ?? '', $preparse_errors, true)).'\'',
 				'WHERE'		=> 'id = '.$cur_item['id']
 			);
 
@@ -2144,7 +2176,7 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 		if (array_key_exists('o_base_url', $forum_config))
 		{
 			// Generate new config file
-			$new_config = "<?php\n\n\$db_type = '$db_type';\n\$db_host = '$db_host';\n\$db_name = '".addslashes($db_name)."';\n\$db_username = '".addslashes($db_username)."';\n\$db_password = '".addslashes($db_password)."';\n\$db_prefix = '".addslashes($db_prefix)."';\n\$p_connect = ".($p_connect ? 'true' : 'false').";\n\n\$base_url = '$base_url';\n\n\$cookie_name = '$cookie_name';\n\$cookie_domain = '$cookie_domain';\n\$cookie_path = '$cookie_path';\n\$cookie_secure = $cookie_secure;\n\ndefine('FORUM', 1);";
+			$new_config = "<?php\n\n\$db_type = '".addslashes($db_type)."';\n\$db_host = '".addslashes($db_host)."';\n\$db_name = '".addslashes($db_name)."';\n\$db_username = '".addslashes($db_username)."';\n\$db_password = '".addslashes($db_password)."';\n\$db_prefix = '".addslashes($db_prefix)."';\n\$p_connect = ".($p_connect ? 'true' : 'false').";\n\n\$base_url = '".addslashes($base_url)."';\n\n\$cookie_name = '".addslashes($cookie_name)."';\n\$cookie_domain = '".addslashes($cookie_domain)."';\n\$cookie_path = '".addslashes($cookie_path)."';\n\$cookie_secure = $cookie_secure;\n\ndefine('FORUM', 1);";
 
 			// Attempt to write config.php and display it if writing fails
 			$written = false;
@@ -2181,8 +2213,8 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 <head>
 	<meta charset="utf-8" />
 	<title>PunBB Database Update</title>
-	<link rel="stylesheet" type="text/css" href="<?php echo $base_url ?>/style/Oxygen/Oxygen.min.css" />
-	<script type="text/javascript" src="<?php echo $base_url ?>/include/js/min/punbb.common.min.js"></script>
+	<link rel="stylesheet" type="text/css" href="<?php echo $base_url ?>/style/Oxygen/Oxygen.css" />
+	<script type="text/javascript" src="<?php echo $base_url ?>/include/js/punbb.common.js"></script>
 </head>
 <body>
 <div id="brd-update" class="brd-page">

@@ -29,8 +29,13 @@ if (isset($_GET['action']) || isset($_POST['prune']) || isset($_POST['prune_comp
 {
 	if (isset($_POST['prune_comply']))
 	{
+		// No default here: 'all' would prune every forum on a truncated POST.
+		if (!isset($_POST['prune_from']) || !is_string($_POST['prune_from']))
+			message($lang_common['Bad request']);
+
 		$prune_from = $_POST['prune_from'];
-		$prune_days = intval($_POST['prune_days']);
+		$prune_days = intval($_POST['prune_days'] ?? 0);
+		$prune_sticky = $_POST['prune_sticky'] ?? 0;
 		$prune_date = ($prune_days) ? time() - ($prune_days*86400) : -1;
 
 		($hook = get_hook('apr_prune_comply_form_submitted')) ? eval($hook) : null;
@@ -48,14 +53,14 @@ if (isset($_GET['action']) || isset($_POST['prune']) || isset($_POST['prune_comp
 			$result = $forum_db->query_build($query) or error(__FILE__, __LINE__);
 
 			while ($cur_forum = $forum_db->fetch_assoc($result)) {
-				prune($cur_forum['id'], $_POST['prune_sticky'], $prune_date);
+				prune($cur_forum['id'], $prune_sticky, $prune_date);
 				sync_forum($cur_forum['id']);
 			}
 		}
 		else
 		{
 			$prune_from = intval($prune_from);
-			prune($prune_from, $_POST['prune_sticky'], $prune_date);
+			prune($prune_from, $prune_sticky, $prune_date);
 			sync_forum($prune_from);
 		}
 
@@ -68,6 +73,9 @@ if (isset($_GET['action']) || isset($_POST['prune']) || isset($_POST['prune_comp
 		redirect(forum_link($forum_url['admin_prune']), $lang_admin_prune['Prune done']);
 	}
 
+
+	if (!isset($_POST['req_prune_days']) || !isset($_POST['prune_from']))
+		message($lang_common['Bad request']);
 
 	$prune_days = intval($_POST['req_prune_days']);
 	if ($prune_days < 0)
@@ -143,7 +151,7 @@ if (isset($_GET['action']) || isset($_POST['prune']) || isset($_POST['prune_comp
 			<div class="hidden">
 				<input type="hidden" name="csrf_token" value="<?php echo generate_form_token(forum_link($forum_url['admin_prune']).'?action=foo') ?>" />
 				<input type="hidden" name="prune_days" value="<?php echo $prune_days ?>" />
-				<input type="hidden" name="prune_sticky" value="<?php echo intval($_POST['prune_sticky']) ?>" />
+				<input type="hidden" name="prune_sticky" value="<?php echo intval($_POST['prune_sticky'] ?? 0) ?>" />
 				<input type="hidden" name="prune_from" value="<?php echo $prune_from ?>" />
 			</div>
 			<div class="ct-box">

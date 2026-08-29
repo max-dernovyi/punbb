@@ -1,0 +1,14 @@
+===== message =====
+<p><span class="postimg"><img src="http://example.com/pic.png" alt="http://example.com/pic.png" /></span><br /><span class="postimg"><img src="https://example.com/pic2.png" alt="an &amp;quot;alt&amp;quot; text" /></span></p>
+===== message-errors =====
+
+===== signature =====
+[img]http://example.com/pic.png[/img]<br />[img=an &quot;alt&quot; text]https://example.com/pic2.png[/img]
+===== signature-errors =====
+
+===== clickable-unicode =====
+[img]http://example.com/pic.png[/img]
+[img=an "alt" text]https://example.com/pic2.png[/img]
+===== clickable-ascii =====
+[img]http://example.com/pic.png[/img]
+[img=an "alt" text]https://example.com/pic2.png[/img]

@@ -1,0 +1,16 @@
+===== message =====
+<p><a href="http://example.com/page">http://example.com/page</a><br /><a href="http://example.com/page">labelled</a><br /><a href="http://example.com/a-very-long-path-that-goes-on-and-on-and-on-and-on/deeper/still">long</a></p>
+===== message-errors =====
+
+===== signature =====
+<a href="http://example.com/page">http://example.com/page</a><br /><a href="http://example.com/page">labelled</a><br /><a href="http://example.com/a-very-long-path-that-goes-on-and-on-and-on-and-on/deeper/still">long</a>
+===== signature-errors =====
+
+===== clickable-unicode =====
+[url]http://example.com/page[/url]
+[url=http://example.com/page]labelled[/url]
+[url=http://example.com/a-very-long-path-that-goes-on-and-on-and-on-and-on/deeper/still]long[/url]
+===== clickable-ascii =====
+[url]http://example.com/page[/url]
+[url=http://example.com/page]labelled[/url]
+[url=http://example.com/a-very-long-path-that-goes-on-and-on-and-on-and-on/deeper/still]long[/url]

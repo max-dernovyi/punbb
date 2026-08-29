@@ -10,7 +10,7 @@
  */
 
 
-define('MIN_PHP_VERSION', '5.4.0');
+define('MIN_PHP_VERSION', '8.4.0');
 define('MIN_MYSQL_VERSION', '4.1.2');
 
 define('FORUM_ROOT', '../');
@@ -22,7 +22,7 @@ if (file_exists(FORUM_ROOT.'config.php'))
 
 
 // Make sure we are running at least MIN_PHP_VERSION
-if (!function_exists('version_compare') || version_compare(PHP_VERSION, MIN_PHP_VERSION, '<'))
+if (version_compare(PHP_VERSION, MIN_PHP_VERSION, '<'))
 	exit('You are running PHP version '.PHP_VERSION.'. PunBB requires at least PHP '.MIN_PHP_VERSION.' to run properly. You must upgrade your PHP installation before you can continue.');
 
 // Disable error reporting for uninitialized variables
@@ -31,14 +31,19 @@ error_reporting(E_ALL);
 // Turn off PHP time limit
 @set_time_limit(0);
 
+require FORUM_ROOT.'include/autoload.php';
 require FORUM_ROOT.'include/constants.php';
 // We need some stuff from functions.php
 require FORUM_ROOT.'include/functions.php';
 
+// Everything this release needs: extensions and a database driver. Runs before
+// include/utf8.php, which calls mb_internal_encoding() and would fatal without mbstring.
+$php_requirement_errors = check_php_requirements();
+if (!empty($php_requirement_errors))
+	exit('PunBB cannot be installed on this PHP installation:'."\n".'<ul><li>'.implode('</li><li>', $php_requirement_errors).'</li></ul>');
+
 // Load UTF-8 functions
-require FORUM_ROOT.'include/utf8/utf8.php';
-require FORUM_ROOT.'include/utf8/ucwords.php';
-require FORUM_ROOT.'include/utf8/trim.php';
+require FORUM_ROOT.'include/utf8.php';
 
 // Strip out "bad" UTF-8 characters
 forum_remove_bad_characters();
@@ -50,7 +55,7 @@ function generate_config_file()
 {
 	global $db_type, $db_host, $db_name, $db_username, $db_password, $db_prefix, $base_url, $cookie_name;
 
-	$config_body = '<?php'."\n\n".'$db_type = \''.$db_type."';\n".'$db_host = \''.$db_host."';\n".'$db_name = \''.addslashes($db_name)."';\n".'$db_username = \''.addslashes($db_username)."';\n".'$db_password = \''.addslashes($db_password)."';\n".'$db_prefix = \''.addslashes($db_prefix)."';\n".'$p_connect = false;'."\n\n".'$base_url = \''.$base_url.'\';'."\n\n".'$cookie_name = '."'".$cookie_name."';\n".'$cookie_domain = '."'';\n".'$cookie_path = '."'/';\n".'$cookie_secure = 0;'."\n\ndefine('FORUM', 1);";
+	$config_body = '<?php'."\n\n".'$db_type = \''.addslashes($db_type)."';\n".'$db_host = \''.addslashes($db_host)."';\n".'$db_name = \''.addslashes($db_name)."';\n".'$db_username = \''.addslashes($db_username)."';\n".'$db_password = \''.addslashes($db_password)."';\n".'$db_prefix = \''.addslashes($db_prefix)."';\n".'$p_connect = false;'."\n\n".'$base_url = \''.addslashes($base_url).'\';'."\n\n".'$cookie_name = '."'".addslashes($cookie_name)."';\n".'$cookie_domain = '."'';\n".'$cookie_path = '."'/';\n".'$cookie_secure = 0;'."\n\ndefine('FORUM', 1);";
 
 	// Add forum options
 	$config_body .= "\n\n// Enable DEBUG mode by removing // from the following line\n//define('FORUM_DEBUG', 1);";
@@ -59,13 +64,12 @@ function generate_config_file()
 	$config_body .= "\n\n// Disable forum CSRF checking by removing // from the following line\n//define('FORUM_DISABLE_CSRF_CONFIRM', 1);";
 	$config_body .= "\n\n// Disable forum hooks (extensions) by removing // from the following line\n//define('FORUM_DISABLE_HOOKS', 1);";
 	$config_body .= "\n\n// Disable forum output buffering by removing // from the following line\n//define('FORUM_DISABLE_BUFFERING', 1);";
-	$config_body .= "\n\n// Disable forum async JS loader by removing // from the following line\n//define('FORUM_DISABLE_ASYNC_JS_LOADER', 1);";
 	$config_body .= "\n\n// Disable forum extensions version check by removing // from the following line\n//define('FORUM_DISABLE_EXTENSIONS_VERSION_CHECK', 1);";
 
 	return $config_body;
 }
 
-$language = isset($_GET['lang']) ? $_GET['lang'] : (isset($_POST['req_language']) ? forum_trim($_POST['req_language']) : 'English');
+$language = isset($_GET['lang']) && is_string($_GET['lang']) ? $_GET['lang'] : (isset($_POST['req_language']) && is_string($_POST['req_language']) ? forum_trim($_POST['req_language']) : 'English');
 $language = preg_replace('#[\.\\\/]#', '', $language);
 if (!file_exists(FORUM_ROOT.'lang/'.$language.'/install.php'))
 	exit('The language pack you have chosen doesn\'t seem to exist or is corrupt. Please recheck and try again.');
@@ -76,17 +80,27 @@ require FORUM_ROOT.'lang/'.$language.'/admin_settings.php';
 
 if (isset($_POST['generate_config']))
 {
+	// A field posted as name[]=x is an array; every one of them feeds a string context below
+	$config_fields = array();
+	foreach (array('db_type', 'db_host', 'db_name', 'db_username', 'db_password', 'db_prefix', 'base_url', 'cookie_name') as $field)
+	{
+		if (isset($_POST[$field]) && !is_string($_POST[$field]))
+			exit('Bad request. Every configuration field must be a single value.');
+
+		$config_fields[$field] = $_POST[$field] ?? '';
+	}
+
 	header('Content-Type: text/x-delimtext; name="config.php"');
 	header('Content-disposition: attachment; filename=config.php');
 
-	$db_type = $_POST['db_type'];
-	$db_host = $_POST['db_host'];
-	$db_name = $_POST['db_name'];
-	$db_username = $_POST['db_username'];
-	$db_password = $_POST['db_password'];
-	$db_prefix = $_POST['db_prefix'];
-	$base_url = $_POST['base_url'];
-	$cookie_name = $_POST['cookie_name'];
+	$db_type = $config_fields['db_type'];
+	$db_host = $config_fields['db_host'];
+	$db_name = $config_fields['db_name'];
+	$db_username = $config_fields['db_username'];
+	$db_password = $config_fields['db_password'];
+	$db_prefix = $config_fields['db_prefix'];
+	$base_url = $config_fields['base_url'];
+	$cookie_name = $config_fields['cookie_name'];
 
 	echo generate_config_file();
 	exit;
@@ -97,35 +111,24 @@ header('Cache-Control: cache-control: no-store', false);
 
 if (!isset($_POST['form_sent']))
 {
-	// Determine available database extensions
+	// Determine available database extensions — one source of truth with the dispatcher
+	$db_labels = array(
+		'mysqli'		=> 'MySQL Improved',
+		'mysqli_innodb'	=> 'MySQL Improved (InnoDB)',
+		'pgsql'			=> 'PostgreSQL',
+		'sqlite3'		=> 'SQLite3',
+	);
+
 	$db_extensions = array();
 
-	if (function_exists('mysqli_connect'))
-	{
-		$db_extensions[] = array('mysqli', 'MySQL Improved');
-		$db_extensions[] = array('mysqli_innodb', 'MySQL Improved (InnoDB)');
-	}
-
-	if (function_exists('mysql_connect'))
-	{
-		$db_extensions[] = array('mysql', 'MySQL Standard');
-		$db_extensions[] = array('mysql_innodb', 'MySQL Standard (InnoDB)');
-	}
-
-	if (function_exists('sqlite_open'))
-		$db_extensions[] = array('sqlite', 'SQLite');
-
-	if (class_exists('SQLite3'))
-		$db_extensions[] = array('sqlite3', 'SQLite3');
-
-	if (function_exists('pg_connect'))
-		$db_extensions[] = array('pgsql', 'PostgreSQL');
+	foreach (forum_available_db_types() as $db_type)
+		$db_extensions[] = array($db_type, $db_labels[$db_type]);
 
 	if (empty($db_extensions))
 		error($lang_install['No database support']);
 
 	// Make an educated guess regarding base_url
-	$base_url_guess = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') ? 'https://' : 'http://').preg_replace('/:80$/', '', $_SERVER['HTTP_HOST']).substr(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), 0, -6);
+	$base_url_guess = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') ? 'https://' : 'http://').preg_replace('/:80$/', '', $_SERVER['HTTP_HOST'] ?? '').substr(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), 0, -6);
 	if (substr($base_url_guess, -1) == '/')
 		$base_url_guess = substr($base_url_guess, 0, -1);
 
@@ -141,7 +144,7 @@ if (!isset($_POST['form_sent']))
 <head>
 	<meta charset="utf-8" />
 	<title>PunBB Installation</title>
-	<link rel="stylesheet" type="text/css" href="<?php echo FORUM_ROOT ?>style/Oxygen/Oxygen.min.css" />
+	<link rel="stylesheet" type="text/css" href="<?php echo FORUM_ROOT ?>style/Oxygen/Oxygen.css" />
 </head>
 <body>
 <div id="brd-install" class="brd-page">
@@ -203,7 +206,7 @@ if (!isset($_POST['form_sent']))
 		<div class="ct-box info-box">
 			<p><?php echo $lang_install['Part1 intro'] ?></p>
 			<ul class="spaced list-clean">
-				<li><span><strong><?php echo $lang_install['Database type'] ?></strong> <?php echo $lang_install['Database type info']; if (count($db_extensions) > 1) echo ' '.$lang_install['Mysql type info'] ?></span></li>
+				<li><span><strong><?php echo $lang_install['Database type'] ?></strong> <?php echo $lang_install['Database type info']; if (count(array_intersect(array('mysqli', 'mysqli_innodb'), array_column($db_extensions, 0))) == 2) echo ' '.$lang_install['Mysql type info'] ?></span></li>
 				<li><span><strong><?php echo $lang_install['Database server'] ?></strong> <?php echo $lang_install['Database server info'] ?></span></li>
 				<li><span><strong><?php echo $lang_install['Database name'] ?></strong> <?php echo $lang_install['Database name info'] ?></span></li>
 				<li><span><strong><?php echo $lang_install['Database user pass'] ?></strong> <?php echo $lang_install['Database username info'] ?></span></li>
@@ -360,8 +363,8 @@ if (!isset($_POST['form_sent']))
 
 </div>
 </div>
-	<script src="<?php echo FORUM_ROOT ?>include/js/min/punbb.common.min.js"></script>
-	<script src="<?php echo FORUM_ROOT ?>include/js/min/punbb.install.min.js"></script>
+	<script src="<?php echo FORUM_ROOT ?>include/js/punbb.common.js"></script>
+	<script src="<?php echo FORUM_ROOT ?>include/js/punbb.install.js"></script>
 </body>
 </html>
 <?php
@@ -369,32 +372,22 @@ if (!isset($_POST['form_sent']))
 }
 else
 {
-	//
-	// Strip slashes only if magic_quotes_gpc is on.
-	//
-	function unescape($str)
-	{
-		return (get_magic_quotes_gpc() == 1) ? stripslashes($str) : $str;
-	}
-
-
-	$db_type = $_POST['req_db_type'];
-	$db_host = forum_trim($_POST['req_db_host']);
-	$db_name = forum_trim($_POST['req_db_name']);
-	$db_username = unescape(forum_trim($_POST['db_username']));
-	$db_password = unescape(forum_trim($_POST['db_password']));
-	$db_prefix = forum_trim($_POST['db_prefix']);
-	$username = unescape(forum_trim($_POST['req_username']));
-	$email = unescape(strtolower(forum_trim($_POST['req_email'])));
-	$password1 = unescape(forum_trim($_POST['req_password1']));
-	$default_lang = preg_replace('#[\.\\\/]#', '', unescape(forum_trim($_POST['req_language'])));
+	$db_type = $_POST['req_db_type'] ?? '';
+	$db_host = forum_trim($_POST['req_db_host'] ?? '');
+	$db_name = forum_trim($_POST['req_db_name'] ?? '');
+	$db_username = forum_trim($_POST['db_username'] ?? '');
+	$db_password = forum_trim($_POST['db_password'] ?? '');
+	$db_prefix = forum_trim($_POST['db_prefix'] ?? '');
+	$username = forum_trim($_POST['req_username'] ?? '');
+	$email = strtolower(forum_trim($_POST['req_email'] ?? ''));
+	$password1 = forum_trim($_POST['req_password1'] ?? '');
+	$default_lang = preg_replace('#[\.\\\/]#', '', forum_trim($_POST['req_language'] ?? ''));
 	$install_pun_repository = !empty($_POST['install_pun_repository']);
 
 	// Make sure base_url doesn't end with a slash
-	if (substr($_POST['req_base_url'], -1) == '/')
-		$base_url = substr($_POST['req_base_url'], 0, -1);
-	else
-		$base_url = $_POST['req_base_url'];
+	$base_url = forum_trim($_POST['req_base_url'] ?? '');
+	if (substr($base_url, -1) == '/')
+		$base_url = substr($base_url, 0, -1);
 
 	// Validate form
 	if (utf8_strlen($db_name) == 0)
@@ -434,14 +427,6 @@ else
 	// Load the appropriate DB layer class
 	switch ($db_type)
 	{
-		case 'mysql':
-			require FORUM_ROOT.'include/dblayer/mysql.php';
-			break;
-
-		case 'mysql_innodb':
-			require FORUM_ROOT.'include/dblayer/mysql_innodb.php';
-			break;
-
 		case 'mysqli':
 			require FORUM_ROOT.'include/dblayer/mysqli.php';
 			break;
@@ -452,10 +437,6 @@ else
 
 		case 'pgsql':
 			require FORUM_ROOT.'include/dblayer/pgsql.php';
-			break;
-
-		case 'sqlite':
-			require FORUM_ROOT.'include/dblayer/sqlite.php';
 			break;
 
 		case 'sqlite3':
@@ -471,21 +452,31 @@ else
 
 
 	// If MySQL, make sure it's at least 4.1.2
-	if (in_array($db_type, array('mysql', 'mysqli', 'mysql_innodb', 'mysqli_innodb')))
+	if (in_array($db_type, array('mysqli', 'mysqli_innodb')))
 	{
 		$mysql_info = $forum_db->get_version();
 		if (version_compare($mysql_info['version'], MIN_MYSQL_VERSION, '<'))
 			error(sprintf($lang_install['Invalid MySQL version'], forum_htmlencode($mysql_info['version']), MIN_MYSQL_VERSION));
 
 		// Check InnoDB support in DB
-		if (in_array($db_type, array('mysql_innodb', 'mysqli_innodb')))
+		if ($db_type == 'mysqli_innodb')
 		{
 			$result = $forum_db->query('SHOW VARIABLES LIKE \'have_innodb\'');
 			$row = $forum_db->fetch_assoc($result);
 
 			if (!$row || !isset($row['Value']) || strtolower($row['Value']) != 'yes')
 			{
-				error($lang_install['MySQL InnoDB Not Supported']);
+				// check InnoDB support for new mysql versions
+				$result = $forum_db->query("SHOW ENGINES");
+				$found_innodb = false;
+				while ($row = $forum_db->fetch_assoc($result)) {
+					if ($row["Engine"] == "InnoDB") {
+						$found_innodb = true;
+					}
+				}
+				if (!$found_innodb) {
+					error($lang_install['MySQL InnoDB Not Supported']);
+				}
 			}
 		}
 	}
@@ -495,7 +486,7 @@ else
 		error(sprintf($lang_install['Invalid table prefix'], $db_prefix));
 
 	// Check SQLite prefix collision
-	if (in_array($db_type, array('sqlite', 'sqlite3')) && strtolower($db_prefix) == 'sqlite_')
+	if ($db_type == 'sqlite3' && strtolower($db_prefix) == 'sqlite_')
 		error($lang_install['SQLite prefix collision']);
 
 
@@ -972,10 +963,10 @@ else
 		'ENGINE'		=> 'HEAP'
 	);
 
-	if (in_array($db_type, array('mysql', 'mysqli', 'mysql_innodb', 'mysqli_innodb')))
+	if (in_array($db_type, array('mysqli', 'mysqli_innodb')))
 	{
-		$schema['UNIQUE KEYS']['user_id_ident_idx'] = array('user_id', 'ident(25)');
-		$schema['INDEXES']['ident_idx'] = array('ident(25)');
+		$schema['UNIQUE KEYS']['user_id_ident_idx'] = array('user_id', 'ident(40)');
+		$schema['INDEXES']['ident_idx'] = array('ident(40)');
 	}
 
 	$forum_db->create_table('online', $schema);
@@ -1143,7 +1134,7 @@ else
 		)
 	);
 
-	if (in_array($db_type, array('mysql', 'mysqli', 'mysql_innodb', 'mysqli_innodb')))
+	if (in_array($db_type, array('mysqli', 'mysqli_innodb')))
 		$schema['INDEXES']['ident_idx'] = array('ident(8)');
 
 	$forum_db->create_table('search_cache', $schema);
@@ -1195,7 +1186,7 @@ else
 		)
 	);
 
-	if ($db_type == 'sqlite' || $db_type == 'sqlite3')
+	if ($db_type == 'sqlite3')
 	{
 		$schema['PRIMARY KEY'] = array('id');
 		$schema['UNIQUE KEYS'] = array('word_idx'	=> array('word'));
@@ -1341,7 +1332,9 @@ else
 				'default'		=> '\'\''
 			),
 			'password'			=> array(
-				'datatype'		=> 'VARCHAR(40)',
+				// Wide enough for password_hash() output and its successors;
+				// the salted SHA-1 of older rows keeps fitting.
+				'datatype'		=> 'VARCHAR(255)',
 				'allow_null'	=> false,
 				'default'		=> '\'\''
 			),
@@ -1560,7 +1553,7 @@ else
 		)
 	);
 
-	if (in_array($db_type, array('mysql', 'mysqli', 'mysql_innodb', 'mysqli_innodb')))
+	if (in_array($db_type, array('mysqli', 'mysqli_innodb')))
 		$schema['INDEXES']['username_idx'] = array('username(8)');
 
 	$forum_db->create_table('users', $schema);
@@ -1796,7 +1789,7 @@ else
 
 	// Insert the default ranks
 	$query = array(
-		'INSERT'	=> 'rank, min_posts',
+		'INSERT'	=> $forum_db->quote_identifier('rank').', min_posts',
 		'INTO'		=> 'ranks',
 		'VALUES'	=> '\''.$lang_install['Default rank 1'].'\', 0'
 	);
@@ -1804,7 +1797,7 @@ else
 	$forum_db->query_build($query) or error(__FILE__, __LINE__);
 
 	$query = array(
-		'INSERT'	=> 'rank, min_posts',
+		'INSERT'	=> $forum_db->quote_identifier('rank').', min_posts',
 		'INTO'		=> 'ranks',
 		'VALUES'	=> '\''.$lang_install['Default rank 2'].'\', 10'
 	);
@@ -1911,7 +1904,7 @@ else
 <head>
 	<meta charset="utf-8" />
 	<title>PunBB Installation</title>
-	<link rel="stylesheet" type="text/css" href="<?php echo FORUM_ROOT ?>style/Oxygen/Oxygen.min.css" />
+	<link rel="stylesheet" type="text/css" href="<?php echo FORUM_ROOT ?>style/Oxygen/Oxygen.css" />
 </head>
 <body>
 <div id="brd-install" class="brd-page">

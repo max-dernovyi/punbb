@@ -14,19 +14,6 @@ if (!defined('FORUM_ROOT'))
 if (!defined('FORUM_ESSENTIALS_LOADED'))
 	require FORUM_ROOT.'include/essentials.php';
 
-// Strip slashes from GET/POST/COOKIE (if magic_quotes_gpc is enabled), since 5.4.0 always false
-if (function_exists('get_magic_quotes_gpc') && get_magic_quotes_gpc())
-{
-	function stripslashes_array($array)
-	{
-		return is_array($array) ? array_map('stripslashes_array', $array) : stripslashes($array);
-	}
-
-	$_GET = stripslashes_array($_GET);
-	$_POST = stripslashes_array($_POST);
-	$_COOKIE = stripslashes_array($_COOKIE);
-}
-
 // Strip out "bad" UTF-8 characters
 forum_remove_bad_characters();
 

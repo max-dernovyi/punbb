@@ -1,0 +1,2 @@
+[email]user@example.com[/email]
+[email=user@example.com]mail me[/email]

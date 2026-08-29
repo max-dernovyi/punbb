@@ -1,0 +1,16 @@
+===== message =====
+<div class="quotebox"><blockquote><p>plain quote</p></blockquote></div><div class="quotebox"><cite>Someone wrote:</cite><blockquote><p>attributed quote</p></blockquote></div><div class="quotebox"><cite>Some One wrote:</cite><blockquote><p>quoted attribution with [brackets]</p></blockquote></div>
+===== message-errors =====
+
+===== signature =====
+</p><div class="quotebox"><blockquote><p>plain quote</p></blockquote></div><p><br /></p><div class="quotebox"><cite>Someone wrote:</cite><blockquote><p>attributed quote</p></blockquote></div><p><br /></p><div class="quotebox"><cite>Some One wrote:</cite><blockquote><p>quoted attribution with [brackets]</p></blockquote></div><p>
+===== signature-errors =====
+Signature may not contain of the text formatting tags (BBCode) [quote], [code] or [list]. Please choose another tags or delete it.
+===== clickable-unicode =====
+[quote]plain quote[/quote]
+[quote=Someone]attributed quote[/quote]
+[quote="Some One"]quoted attribution with [brackets][/quote]
+===== clickable-ascii =====
+[quote]plain quote[/quote]
+[quote=Someone]attributed quote[/quote]
+[quote="Some One"]quoted attribution with [brackets][/quote]

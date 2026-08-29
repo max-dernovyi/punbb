@@ -24,12 +24,17 @@ if ($forum_user['g_id'] != FORUM_ADMIN)
 require FORUM_ROOT.'lang/'.$forum_user['language'].'/admin_common.php';
 require FORUM_ROOT.'lang/'.$forum_user['language'].'/admin_settings.php';
 
-$section = isset($_GET['section']) ? $_GET['section'] : null;
+// An array-valued section is a malformed request, not a section name.
+$section = (isset($_GET['section']) && is_string($_GET['section'])) ? $_GET['section'] : '';
 
 
 if (isset($_POST['form_sent']))
 {
-	$form = array_map('trim', $_POST['form']);
+	if (!isset($_POST['form']) || !is_array($_POST['form']))
+		message($lang_common['Bad request']);
+
+	// A nested array in the form data is a malformed request, not a value to trim.
+	$form = array_map(function ($value) { return is_string($value) ? trim($value) : ''; }, $_POST['form']);
 
 	($hook = get_hook('aop_form_submitted')) ? eval($hook) : null;
 
@@ -40,13 +45,13 @@ if (isset($_POST['form_sent']))
 		{
 			($hook = get_hook('aop_setup_validation')) ? eval($hook) : null;
 
-			if ($form['board_title'] == '')
+			if (($form['board_title'] ?? '') == '')
 				message($lang_admin_settings['Error no board title']);
 
 			// Clean default_lang, default_style, and sef
-			$form['default_style'] = preg_replace('#[\.\\\/]#', '', $form['default_style']);
-			$form['default_lang'] = preg_replace('#[\.\\\/]#', '', $form['default_lang']);
-			$form['sef'] = preg_replace('#[\.\\\/]#', '', $form['sef']);
+			$form['default_style'] = preg_replace('#[\.\\\/]#', '', $form['default_style'] ?? '');
+			$form['default_lang'] = preg_replace('#[\.\\\/]#', '', $form['default_lang'] ?? '');
+			$form['sef'] = preg_replace('#[\.\\\/]#', '', $form['sef'] ?? '');
 
 			// Make sure default_lang, default_style, and sef exist
 			if (!file_exists(FORUM_ROOT.'style/'.$form['default_style'].'/'.$form['default_style'].'.php'))
@@ -58,17 +63,17 @@ if (isset($_POST['form_sent']))
 			if (!isset($form['default_dst']) || $form['default_dst'] != '1')
 				$form['default_dst'] = '0';
 
-			$form['timeout_visit'] = intval($form['timeout_visit']);
-			$form['timeout_online'] = intval($form['timeout_online']);
-			$form['redirect_delay'] = intval($form['redirect_delay']);
+			$form['timeout_visit'] = intval($form['timeout_visit'] ?? 0);
+			$form['timeout_online'] = intval($form['timeout_online'] ?? 0);
+			$form['redirect_delay'] = intval($form['redirect_delay'] ?? 0);
 
 			if ($form['timeout_online'] >= $form['timeout_visit'])
 				message($lang_admin_settings['Error timeout value']);
 
-			$form['disp_topics_default'] = (intval($form['disp_topics_default']) > 0) ? intval($form['disp_topics_default']) : 1;
-			$form['disp_posts_default'] = (intval($form['disp_posts_default']) > 0) ? intval($form['disp_posts_default']) : 1;
+			$form['disp_topics_default'] = (intval($form['disp_topics_default'] ?? 0) > 0) ? intval($form['disp_topics_default']) : 1;
+			$form['disp_posts_default'] = (intval($form['disp_posts_default'] ?? 0) > 0) ? intval($form['disp_posts_default']) : 1;
 
-			if ($form['additional_navlinks'] != '')
+			if (($form['additional_navlinks'] ?? '') != '')
 				$form['additional_navlinks'] = forum_trim(forum_linebreaks($form['additional_navlinks']));
 
 			break;
@@ -101,8 +106,8 @@ if (isset($_POST['form_sent']))
 			if (!isset($form['message_all_caps']) || $form['message_all_caps'] != '1') $form['message_all_caps'] = '0';
 			if (!isset($form['subject_all_caps']) || $form['subject_all_caps'] != '1') $form['subject_all_caps'] = '0';
 
-			$form['indent_num_spaces'] = intval($form['indent_num_spaces']);
-			$form['quote_depth'] = intval($form['quote_depth']);
+			$form['indent_num_spaces'] = intval($form['indent_num_spaces'] ?? 0);
+			$form['quote_depth'] = intval($form['quote_depth'] ?? 0);
 
 			if (!isset($form['signatures']) || $form['signatures'] != '1') $form['signatures'] = '0';
 			if (!isset($form['sig_bbcode']) || $form['sig_bbcode'] != '1') $form['sig_bbcode'] = '0';
@@ -110,18 +115,18 @@ if (isset($_POST['form_sent']))
 			if (!isset($form['smilies_sig']) || $form['smilies_sig'] != '1') $form['smilies_sig'] = '0';
 			if (!isset($form['sig_all_caps']) || $form['sig_all_caps'] != '1') $form['sig_all_caps'] = '0';
 
-			$form['sig_length'] = intval($form['sig_length']);
-			$form['sig_lines'] = intval($form['sig_lines']);
+			$form['sig_length'] = intval($form['sig_length'] ?? 0);
+			$form['sig_lines'] = intval($form['sig_lines'] ?? 0);
 
 			if (!isset($form['avatars']) || $form['avatars'] != '1') $form['avatars'] = '0';
 
 			// Make sure avatars_dir doesn't end with a slash
-			if (substr($form['avatars_dir'], -1) == '/')
+			if (substr($form['avatars_dir'] ?? '', -1) == '/')
 				$form['avatars_dir'] = substr($form['avatars_dir'], 0, -1);
 
-			$form['avatars_width'] = intval($form['avatars_width']);
-			$form['avatars_height'] = intval($form['avatars_height']);
-			$form['avatars_size'] = intval($form['avatars_size']);
+			$form['avatars_width'] = intval($form['avatars_width'] ?? 0);
+			$form['avatars_height'] = intval($form['avatars_height'] ?? 0);
+			$form['avatars_size'] = intval($form['avatars_size'] ?? 0);
 
 			if (!isset($form['check_for_updates']) || $form['check_for_updates'] != '1') $form['check_for_updates'] = '0';
 			if (!isset($form['check_for_versions']) || $form['check_for_versions'] != '1') $form['check_for_versions'] = '0';
@@ -139,11 +144,11 @@ if (isset($_POST['form_sent']))
 			if (!defined('FORUM_EMAIL_FUNCTIONS_LOADED'))
 				require FORUM_ROOT.'include/email.php';
 
-			$form['admin_email'] = strtolower($form['admin_email']);
+			$form['admin_email'] = strtolower($form['admin_email'] ?? '');
 			if (!is_valid_email($form['admin_email']))
 				message($lang_admin_settings['Error invalid admin e-mail']);
 
-			$form['webmaster_email'] = strtolower($form['webmaster_email']);
+			$form['webmaster_email'] = strtolower($form['webmaster_email'] ?? '');
 			if (!is_valid_email($form['webmaster_email']))
 				message($lang_admin_settings['Error invalid web e-mail']);
 
@@ -158,7 +163,7 @@ if (isset($_POST['form_sent']))
 
 			if (!isset($form['announcement']) || $form['announcement'] != '1') $form['announcement'] = '0';
 
-			if ($form['announcement_message'] != '')
+			if (($form['announcement_message'] ?? '') != '')
 				$form['announcement_message'] = forum_linebreaks($form['announcement_message']);
 			else
 				$form['announcement_message'] = $lang_admin_settings['Announcement message default'];
@@ -178,7 +183,7 @@ if (isset($_POST['form_sent']))
 
 			if (!isset($form['rules']) || $form['rules'] != '1') $form['rules'] = '0';
 
-			if ($form['rules_message'] != '')
+			if (($form['rules_message'] ?? '') != '')
 				$form['rules_message'] = forum_linebreaks($form['rules_message']);
 			else
 				$form['rules_message'] = $lang_admin_settings['Rules default'];
@@ -192,7 +197,7 @@ if (isset($_POST['form_sent']))
 
 			if (!isset($form['maintenance']) || $form['maintenance'] != '1') $form['maintenance'] = '0';
 
-			if ($form['maintenance_message'] != '')
+			if (($form['maintenance_message'] ?? '') != '')
 				$form['maintenance_message'] = forum_linebreaks($form['maintenance_message']);
 			else
 				$form['maintenance_message'] = $lang_admin_settings['Maintenance message default'];
@@ -264,7 +269,10 @@ if (isset($_POST['form_sent']))
 
 	($hook = get_hook('aop_pre_redirect')) ? eval($hook) : null;
 
-	redirect(forum_link($forum_url['admin_settings_'.$section]), $lang_admin_settings['Settings updated']);
+	// Extensions may add sections without a matching URL key — fall back to setup.
+	$redirect_section = isset($forum_url['admin_settings_'.$section]) ? $section : 'setup';
+
+	redirect(forum_link($forum_url['admin_settings_'.$redirect_section]), $lang_admin_settings['Settings updated']);
 }
 
 

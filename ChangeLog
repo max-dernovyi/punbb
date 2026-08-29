@@ -1,3 +1,38 @@
+PunBB 1.5.0
+2026-08-29
+====================
+
+ * PHP 8.4 is now the minimum supported version; PHP 5 and 7 support is dropped.
+ * Passwords are hashed with password_hash() from now on. Nothing stored before is rewritten in place: forum_password_verify() still reads the salted SHA-1 of 1.4, the unsalted SHA-1 of 1.3 and the MD5 of 1.2, and a row is upgraded only when its owner next signs in with the right password. The users.password column grew to VARCHAR(255) for it, which is database revision 6 - run admin/db_update.php.
+ * Includes the upstream 1.4.5 and 1.4.6 releases: the PHP-compatibility groundwork of 1.4.5 and the 1.4.6 hardening of the email BBCode tag, where no tag may nest inside [email] and the email patterns run before the formatting ones.
+ * Restored the fixes this fork had made on top of 1.4.4 that the upstream archives, built from plain 1.4.4, had reverted: pagination in userlist/admin, InnoDB detection on current MySQL, f.forum_desc in viewforum, the po_main_output_end hook, ident(40) for IPv6 addresses, the InnoDB transaction commit on close, the redeclaration guard in forum_remove_bad_characters() and the extension manifest's PHP version and extension checks.
+ * Dependencies are managed by Composer 2: 'composer install --no-dev' must be run in the forum directory before the first request, because include/autoload.php requires vendor/autoload.php and stops the forum without it. The forum itself has no runtime packages - the autoloader is the only thing generated. .htaccess.dist denies access to vendor/ and the tooling manifests; merge it into your .htaccess.
+ * Removed the 'mysql', 'mysql_innodb' and 'sqlite' (SQLite2) database drivers along with the PHP extensions they needed. Supported drivers are 'mysqli', 'mysqli_innodb', 'pgsql' and 'sqlite3'; a forum on a removed driver must change $db_type in config.php before db_update.php will run.
+ * Replaced create_function() with closures in the BBCode parser and the admin index. Extensions hooking ps_do_bbcode_replace may push either callables or the old code strings into $replace/$replace_callback; the strings are compiled with the original semantics.
+ * install.php and db_update.php now refuse to run unless PHP 8.4+, the mbstring, intl, json and xml extensions and at least one supported database extension are present.
+ * Removed magic quotes handling.
+ * Fixed the pgsql driver for the PgSql\Connection and PgSql\Result objects ext/pgsql returns since PHP 8.1.
+ * Database drivers now own their failures: each sets its own error mode, catches the driver exception and renders the forum error page. $forum_db->query() no longer returns false on a failed query, and extensions relying on that return value must handle the error page instead.
+ * Fixed the values passed to internal functions where a missing request key or a nullable column produced null. Absent inputs are normalised at the source; a request that cannot be honoured is now rejected instead of rendered off a missing row.
+ * Declared all class properties explicitly and dropped the PHP 4 var declarations, so no class relies on dynamic properties.
+ * Removed the @/**/ error-suppression idiom and handled the errors it hid, notably in the avatar upload path (getimagesize() failures now report a bad type instead of unpacking false).
+ * Replaced utf8_decode()/utf8_encode(), xml_parser_free() and $http_response_header, all deprecated. Transliteration for URL and search slugs now goes through mbstring.
+ * result() returns false for an empty result set on every driver.
+ * MySQL 8 made GROUPS and RANK reserved words. The mysqli drivers now quote every generated identifier and table reference; $forum_db->quote_identifier() is available on all four drivers for extensions writing raw SQL.
+ * The PHP session cookie now follows $cookie_path, $cookie_domain and $cookie_secure from config.php and is HttpOnly. Existing sessions are dropped on upgrade.
+ * Removed forum_unregister_globals(); register_globals has not existed since PHP 5.4.
+ * preparse_list_tag() no longer defaults $type: an optional parameter before a by-reference one is illegal in PHP 8.
+ * Replaced the bundled phputf8 library with include/utf8.php, a shim over mbstring and PCRE. The 28 utf8_* names the forum and its extension API use keep their signatures and return values, but 16 phputf8 helpers no caller used are gone: utf8_str_split, utf8_str_pad, utf8_strcasecmp, utf8_strcspn, utf8_accents_to_ascii, utf8_is_ascii_ctrl, utf8_strip_ascii_ctrl, utf8_is_word_chars, utf8_is_valid, utf8_compliant, utf8_byte_position, utf8_bad_find, utf8_bad_findall, utf8_bad_replace, utf8_bad_strip and utf8_bad_explain. An extension calling one of them must switch to mbstring. mbstring is now required and mb_internal_encoding() is set to UTF-8 at bootstrap; an extension shipping its own copy of phputf8 must drop it.
+ * Replaced the bundled idna_convert library with ext-intl, which is now required. IDN conversion follows UTS-46 instead of IDNA2003 and touches the host only: 'ss' is no longer substituted for 'ß', final sigma and ZWNJ/ZWJ survive, the host is case-folded, and a label with a leading/trailing hyphen or over 63 octets is passed through unconverted instead of being encoded. Paths, query strings, user info and email local parts are left alone.
+ * get_current_url() now builds the scheme, host and port from $base_url in config.php instead of the request headers, so a proxy rewriting Host can no longer forge self-referential URLs or break the CSRF tokens keyed on them. $base_url must name the forum's public address; a $base_url with no host makes self-referential URLs root-relative.
+ * Removed the bundled LABjs script loader. The Loader now emits plain <script> tags for every group, which is what LABjs emulated; ordering comes from the tag order and the native async/defer attributes. The ld_fn_render_js_labjs_start and ld_fn_render_js_labjs_end hooks are gone — an extension bound to them must move to ld_fn_render_js_simple_start / ld_fn_render_js_simple_end — and FORUM_DISABLE_ASYNC_JS_LOADER in config.php no longer does anything.
+ * Dropped the asset build: the Ant script, YUI Compressor and the four bundled JARs are gone and nothing replaced them. The forum now serves include/js/*.js and style/Oxygen/Oxygen.css directly, so no Java and no Node are needed to install or develop it. Oxygen.min.css had never been minified — it was the hand-maintained stylesheet and is now named Oxygen.css.
+ * update_search_index() no longer passes a null subject to the UTF-8 helpers: a reply has no subject, so every reply and every edit emitted a deprecation.
+ * strip_search_index() returns early for an empty post list instead of building an invalid 'IN ()' query. Deleting a forum holding only topic redirects ended on the error page.
+ * admin/reindex.php used the 'case X;' form, deprecated in PHP 8.5 and a candidate for removal in 9.0. The compile-time notice reached the browser and turned the rest of the page into 'headers already sent' warnings.
+ * Removed stylesheets nothing loads: Oxygen.css, Oxygen_cs.css and Oxygen_ie6/7/8.css stopped being build inputs or served files in 2011-2015 and no longer describe the shipped Oxygen.min.css, and style/print.css was never referenced at all.
+
+
 PunBB 1.4.4
 2015-10-14 13:00:00
 ====================

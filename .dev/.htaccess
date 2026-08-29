@@ -1,0 +1,10 @@
+# Development tree: tests, tooling and fixtures. Never served.
+# Duplicates the root .htaccess rule so the denial survives an install where
+# the root file was not deployed.
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>

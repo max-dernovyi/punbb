@@ -141,7 +141,10 @@ function smtp_mail($to, $subject, $message, $headers = '')
 
 	// Are we using port 25 or a custom port?
 	if (strpos($forum_config['o_smtp_host'], ':') !== false)
+	{
 		list($smtp_host, $smtp_port) = explode(':', $forum_config['o_smtp_host']);
+		$smtp_port = (int) $smtp_port;
+	}
 	else
 	{
 		$smtp_host = $forum_config['o_smtp_host'];
