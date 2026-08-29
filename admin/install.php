@@ -1332,7 +1332,9 @@ else
 				'default'		=> '\'\''
 			),
 			'password'			=> array(
-				'datatype'		=> 'VARCHAR(40)',
+				// Wide enough for password_hash() output and its successors;
+				// the salted SHA-1 of older rows keeps fitting.
+				'datatype'		=> 'VARCHAR(255)',
 				'allow_null'	=> false,
 				'default'		=> '\'\''
 			),

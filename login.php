@@ -51,28 +51,31 @@ if (isset($_POST['form_sent']) && empty($action))
 	$authorized = false;
 	if (!empty($db_password_hash))
 	{
-		$sha1_in_db = (strlen($db_password_hash) == 40) ? true : false;
-		$form_password_hash = forum_hash($form_password, $salt);
+		$form_password_hash = $db_password_hash;
 
-		if ($sha1_in_db && $db_password_hash == $form_password_hash)
-			$authorized = true;
-		else if ((!$sha1_in_db && $db_password_hash == md5($form_password)) || ($sha1_in_db && $db_password_hash == sha1($form_password)))
+		if (forum_password_verify($form_password, $db_password_hash, $salt))
 		{
 			$authorized = true;
 
-			$salt = random_key(12);
-			$form_password_hash = forum_hash($form_password, $salt);
+			// The password is right, so the plaintext is available exactly once:
+			// the only moment an older hash can be rewritten in the current
+			// format. The salt is left alone - the login cookie is built from it.
+			if (forum_password_needs_rehash($db_password_hash))
+			{
+				$form_password_hash = forum_password_hash($form_password);
 
-			// There's an old MD5 hash or an unsalted SHA1 hash in the database, so we replace it
-			// with a randomly generated salt and a new, salted SHA1 hash
-			$query = array(
-				'UPDATE'	=> 'users',
-				'SET'		=> 'password=\''.$form_password_hash.'\', salt=\''.$forum_db->escape($salt).'\'',
-				'WHERE'		=> 'id='.$user_id
-			);
+				if ($salt == '')
+					$salt = random_key(12);
 
-			($hook = get_hook('li_login_qr_update_user_hash')) ? eval($hook) : null;
-			$forum_db->query_build($query) or error(__FILE__, __LINE__);
+				$query = array(
+					'UPDATE'	=> 'users',
+					'SET'		=> 'password=\''.$forum_db->escape($form_password_hash).'\', salt=\''.$forum_db->escape($salt).'\'',
+					'WHERE'		=> 'id='.$user_id
+				);
+
+				($hook = get_hook('li_login_qr_update_user_hash')) ? eval($hook) : null;
+				$forum_db->query_build($query) or error(__FILE__, __LINE__);
+			}
 		}
 	}
 

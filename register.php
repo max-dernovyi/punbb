@@ -212,7 +212,7 @@ else if (isset($_POST['form_sent']))
 
 			$initial_group_id = ($forum_config['o_regs_verify'] == '0') ? $forum_config['o_default_user_group'] : FORUM_UNVERIFIED;
 			$salt = random_key(12);
-			$password_hash = forum_hash($password1, $salt);
+			$password_hash = forum_password_hash($password1);
 
 			// Validate timezone and DST
 			$timezone = (isset($_POST['timezone'])) ? floatval($_POST['timezone']) : $forum_config['o_default_timezone'];

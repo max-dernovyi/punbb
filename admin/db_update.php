@@ -11,7 +11,7 @@
 
 
 define('UPDATE_TO', '1.5.0');
-define('UPDATE_TO_DB_REVISION', 5);
+define('UPDATE_TO_DB_REVISION', 6);
 
 // The number of items to process per pageview (lower this if the update script times out during UTF-8 conversion)
 define('PER_PAGE', 300);
@@ -858,6 +858,10 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 
 		// Add avatars to DB
 		convert_avatars();
+
+		// password_hash() output is 60 bytes today and may grow with the default
+		// algorithm; the column held exactly the 40 of a SHA-1.
+		$forum_db->alter_field('users', 'password', 'VARCHAR(255)', false, '');
 
 		// Remove NOT NULL from TEXT fields for consistency. See http://dev.punbb.org/changeset/596
 		$forum_db->alter_field('posts', 'message', 'TEXT', true);

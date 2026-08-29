@@ -1403,6 +1403,81 @@ function forum_hash($str, $salt)
 }
 
 
+//
+// Hash a password for storage
+//
+// New and changed passwords are hashed with password_hash(). Nothing stored
+// before is touched: forum_password_verify() still reads every older format,
+// and a row is only rewritten when its owner logs in.
+//
+function forum_password_hash($password)
+{
+	$return = ($hook = get_hook('fn_forum_password_hash_start')) ? eval($hook) : null;
+	if ($return !== null)
+		return $return;
+
+	return password_hash($password, PASSWORD_DEFAULT);
+}
+
+
+//
+// Whether a stored hash was produced by password_hash()
+//
+function forum_password_is_modern($stored_hash)
+{
+	$return = ($hook = get_hook('fn_forum_password_is_modern_start')) ? eval($hook) : null;
+	if ($return !== null)
+		return $return;
+
+	$info = password_get_info((string) $stored_hash);
+
+	return !empty($info['algo']);
+}
+
+
+//
+// Verify a password against any format the forum has ever stored
+//
+// password_hash() output, the salted SHA-1 of forum_hash(), the unsalted SHA-1
+// of 1.3 and the MD5 of 1.2. Comparisons are timing-safe.
+//
+function forum_password_verify($password, $stored_hash, $salt)
+{
+	$return = ($hook = get_hook('fn_forum_password_verify_start')) ? eval($hook) : null;
+	if ($return !== null)
+		return $return;
+
+	$stored_hash = (string) $stored_hash;
+
+	if ($stored_hash === '')
+		return false;
+
+	if (forum_password_is_modern($stored_hash))
+		return password_verify($password, $stored_hash);
+
+	if (strlen($stored_hash) == 40)
+		return hash_equals($stored_hash, forum_hash($password, $salt)) || hash_equals($stored_hash, sha1($password));
+
+	return hash_equals($stored_hash, md5($password));
+}
+
+
+//
+// Whether a verified password should be re-stored in the current format
+//
+function forum_password_needs_rehash($stored_hash)
+{
+	$return = ($hook = get_hook('fn_forum_password_needs_rehash_start')) ? eval($hook) : null;
+	if ($return !== null)
+		return $return;
+
+	if (!forum_password_is_modern($stored_hash))
+		return true;
+
+	return password_needs_rehash($stored_hash, PASSWORD_DEFAULT);
+}
+
+
 // Delete every .php file in the forum's cache directory
 function forum_clear_cache()
 {
