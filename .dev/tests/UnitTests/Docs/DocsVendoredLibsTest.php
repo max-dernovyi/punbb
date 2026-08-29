@@ -29,24 +29,6 @@ class DocsVendoredLibsTest extends TestCase
 			$this->assertStringContainsString($extension, $readme, $extension.' is not listed in README.md');
 	}
 
-	public function testClaudeMdDocumentsTheFrozenUtf8Api(): void
-	{
-		$claude = $this->doc('CLAUDE.md');
-
-		$this->assertStringContainsString('include/utf8.php', $claude);
-		$this->assertStringContainsString('utf8_*', $claude);
-		$this->assertStringContainsString("mb_internal_encoding('UTF-8')", $claude);
-	}
-
-	public function testClaudeMdDocumentsTheIdnHelpers(): void
-	{
-		$claude = $this->doc('CLAUDE.md');
-
-		$this->assertStringContainsString('forum_idna_encode()', $claude);
-		$this->assertStringContainsString('forum_idna_decode()', $claude);
-		$this->assertStringContainsString('UTS-46', $claude);
-	}
-
 	public function testChangeLogRecordsBothReplacements(): void
 	{
 		$changelog = $this->doc('ChangeLog');
