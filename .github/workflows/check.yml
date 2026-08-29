@@ -1,0 +1,125 @@
+name: check
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Lint, static analysis and the unit suite. This is the gate: a red run here
+  # means the branch is not mergeable.
+  static:
+    name: PHP 8.4
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, intl, xml, json, mysqli, pgsql, sqlite3
+          coverage: none
+          ini-values: error_reporting=E_ALL, display_errors=On
+
+      - uses: ramsey/composer-install@v3
+
+      - run: composer lint
+      - run: composer stan
+      - run: composer test
+
+  # The same tree on the next PHP. Advisory on purpose: the PHPStan baseline is
+  # generated against 8.4, and an 8.5-only finding must not block a merge.
+  next-php:
+    name: PHP 8.5 (advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: mbstring, intl, xml, json, mysqli, pgsql, sqlite3
+          coverage: none
+          ini-values: error_reporting=E_ALL, display_errors=On
+
+      - uses: ramsey/composer-install@v3
+
+      - run: composer lint
+      - run: composer test
+
+  # Installs the forum on every supported driver, upgrades a real 1.4.4 dump and
+  # walks the user and admin flows, against PHP's built-in server. The harnesses
+  # assert that no PHP diagnostic reached the error log during any of it.
+  integration:
+    name: install, upgrade and flows
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: punbb
+          MYSQL_USER: punbb
+          MYSQL_PASSWORD: punbb
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: punbb
+          POSTGRES_USER: punbb
+          POSTGRES_PASSWORD: punbb
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd="pg_isready -U punbb"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      PUNBB_TEST_BASE_URL: http://127.0.0.1:8080
+      PUNBB_TEST_MYSQL_HOST: 127.0.0.1
+      PUNBB_TEST_MYSQL_USER: punbb
+      PUNBB_TEST_MYSQL_PASSWORD: punbb
+      PUNBB_TEST_MYSQL_DBNAME: punbb
+      PUNBB_TEST_PGSQL_HOST: 127.0.0.1
+      PUNBB_TEST_PGSQL_USER: punbb
+      PUNBB_TEST_PGSQL_PASSWORD: punbb
+      PUNBB_TEST_PGSQL_DBNAME: punbb
+      PUNBB_TEST_ERROR_LOG: ${{ github.workspace }}/.dev/tmp/php-errors.log
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, intl, xml, json, mysqli, pgsql, sqlite3
+          coverage: none
+          ini-values: error_reporting=E_ALL, display_errors=On, log_errors=On, error_log=${{ github.workspace }}/.dev/tmp/php-errors.log
+
+      - uses: ramsey/composer-install@v3
+
+      - name: Serve the forum
+        run: |
+          mkdir -p .dev/tmp
+          : > .dev/tmp/php-errors.log
+          php -S 127.0.0.1:8080 -t . > .dev/tmp/server.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -fsS -o /dev/null "$PUNBB_TEST_BASE_URL/admin/install.php" && break
+            sleep 1
+          done
+
+      - run: php .dev/tests/Integration/install_matrix.php
+      - run: php .dev/tests/Integration/upgrade_path.php
+      - run: php .dev/tests/Integration/user_flows.php
+
+      - name: Server log
+        if: failure()
+        run: tail -100 .dev/tmp/server.log .dev/tmp/php-errors.log
