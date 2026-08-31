@@ -7,7 +7,7 @@ $forum_loader->add_css($base_url.'/style/Oxygen/Oxygen.css', array('type' => 'ur
 // stylesheet registration above — they render their own template, not $tpl_main.
 if (isset($tpl_main))
 {
-	$tpl_main = str_replace('<!-- forum_board_title -->', forum_htmlencode($forum_config['o_board_title']), $tpl_main);
+	$tpl_main = str_replace('<!-- forum_board_title -->', forum_js_escape($forum_config['o_board_title']), $tpl_main);
 	$tpl_main = str_replace('<!-- forum_lang_menu_admin -->', $lang_common['Menu admin'], $tpl_main);
 	$tpl_main = str_replace('<!-- forum_lang_menu_profile -->', $lang_common['Menu profile'], $tpl_main);
 }

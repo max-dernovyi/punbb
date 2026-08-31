@@ -946,7 +946,7 @@ if (strpos($cur_version, '1.2') === 0 && $db_seems_utf8 && !isset($_GET['force']
 		// Insert new config option o_check_for_updates
 		if (!array_key_exists('o_check_for_updates', $forum_config))
 		{
-			$check_for_updates = (function_exists('curl_init') || function_exists('fsockopen') || in_array(strtolower(@ini_get('allow_url_fopen')), array('on', 'true', '1'))) ? 1 : 0;
+			$check_for_updates = (function_exists('curl_init') || function_exists('stream_socket_client') || in_array(strtolower(@ini_get('allow_url_fopen')), array('on', 'true', '1'))) ? 1 : 0;
 			$new_config[] = '\'o_check_for_updates\', \''.$check_for_updates.'\'';
 		}
 

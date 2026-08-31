@@ -1,4 +1,18 @@
-Deny from all
-<FilesMatch "\.(gif|jpg|png)$">
-	Allow from all
-</FilesMatch>
+# Only the three image types the upload validator produces are served from here.
+# Apache 2.4 authorisation, with the 2.2 form for hosts that still run it.
+
+<IfModule mod_authz_core.c>
+    Require all denied
+
+    <FilesMatch "\.(gif|jpg|png)$">
+        Require all granted
+    </FilesMatch>
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+    Deny from all
+
+    <FilesMatch "\.(gif|jpg|png)$">
+        Allow from all
+    </FilesMatch>
+</IfModule>

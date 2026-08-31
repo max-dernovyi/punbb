@@ -56,7 +56,7 @@ if (isset($_GET['get_host']))
 
 	($hook = get_hook('mr_view_ip_pre_output')) ? eval($hook) : null;
 
-	message(sprintf($lang_misc['Hostname lookup'], $ip, @gethostbyaddr($ip), '<a href="'.forum_link($forum_url['admin_users']).'?show_users='.$ip.'">'.$lang_misc['Show more users'].'</a>'));
+	message(sprintf($lang_misc['Hostname lookup'], $ip, forum_htmlencode(@gethostbyaddr($ip)), '<a href="'.forum_link($forum_url['admin_users']).'?show_users='.$ip.'">'.$lang_misc['Show more users'].'</a>'));
 }
 
 
@@ -1313,7 +1313,7 @@ else if (isset($_REQUEST['open']) || isset($_REQUEST['close']))
 
 		// We validate the CSRF token. If it's set in POST and we're at this point, the token is valid.
 		// If it's in GET, we need to make sure it's valid.
-		if (!isset($_POST['csrf_token']) && (!isset($_GET['csrf_token']) || $_GET['csrf_token'] !== generate_form_token(($action ? 'close' : 'open').$topic_id)))
+		if (!isset($_POST['csrf_token']) && !csrf_token_matches($_GET['csrf_token'] ?? null, ($action ? 'close' : 'open').$topic_id.$forum_user['id']))
 			csrf_confirm_form();
 
 		// Get the topic subject
@@ -1362,7 +1362,7 @@ else if (isset($_GET['stick']))
 
 	// We validate the CSRF token. If it's set in POST and we're at this point, the token is valid.
 	// If it's in GET, we need to make sure it's valid.
-	if (!isset($_POST['csrf_token']) && (!isset($_GET['csrf_token']) || $_GET['csrf_token'] !== generate_form_token('stick'.$stick)))
+	if (!isset($_POST['csrf_token']) && !csrf_token_matches($_GET['csrf_token'] ?? null, 'stick'.$stick.$forum_user['id']))
 		csrf_confirm_form();
 
 	($hook = get_hook('mr_stick_topic_selected')) ? eval($hook) : null;
@@ -1409,7 +1409,7 @@ else if (isset($_GET['unstick']))
 
 	// We validate the CSRF token. If it's set in POST and we're at this point, the token is valid.
 	// If it's in GET, we need to make sure it's valid.
-	if (!isset($_POST['csrf_token']) && (!isset($_GET['csrf_token']) || $_GET['csrf_token'] !== generate_form_token('unstick'.$unstick)))
+	if (!isset($_POST['csrf_token']) && !csrf_token_matches($_GET['csrf_token'] ?? null, 'unstick'.$unstick.$forum_user['id']))
 		csrf_confirm_form();
 
 	($hook = get_hook('mr_unstick_topic_selected')) ? eval($hook) : null;

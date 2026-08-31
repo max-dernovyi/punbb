@@ -21,6 +21,16 @@ define('FORUM_AVATAR_PNG', 3);
 define('FORUM_SUBJECT_MAXIMUM_LENGTH', 70);
 define('FORUM_DATABASE_QUERY_MAXIMUM_LENGTH', 140000);
 
+// How long a mailed password-reset key stays usable. It matches the interval
+// login.php refuses to send a second mail for, so a key that has expired can
+// always be replaced immediately.
+define('FORUM_PASSWORD_RESET_TTL', 3600);
+
+// A password_hash() output for a password nobody holds. login.php verifies
+// against it when the username matches no row, so the form costs the same
+// whether or not the account exists.
+define('FORUM_DUMMY_PASSWORD_HASH', '$2y$12$HbVpSQbNoPIL7Jr1pApgwOvr0PRrggX2YiAmD7TL68pTj8/3gpiNu');
+
 define('FORUM_SEARCH_MIN_WORD', 3);
 define('FORUM_SEARCH_MAX_WORD', 20);
 

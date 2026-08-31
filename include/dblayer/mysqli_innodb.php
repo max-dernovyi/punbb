@@ -401,9 +401,27 @@ class DBLayer
 			return false;
 	}
 
+	/**
+	 * Set the connection charset. This has to go through mysqli_set_charset():
+	 * a bare `SET NAMES` query changes the charset the server decodes by while
+	 * the client keeps escaping by the one it connected with, and every one of
+	 * escape()'s callers depends on the two agreeing.
+	 */
 	public function set_names($names)
 	{
-		return $this->query('SET NAMES \''.$this->escape($names).'\'');
+		try
+		{
+			return mysqli_set_charset($this->link_id, $names);
+		}
+		catch (Throwable $e)
+		{
+			$this->error_no = $e->getCode();
+			$this->error_msg = $e->getMessage();
+
+			$this->report_error();
+
+			return false;
+		}
 	}
 
 	public function get_version()

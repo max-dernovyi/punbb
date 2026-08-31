@@ -291,7 +291,7 @@ else if (isset($_POST['form_sent']))
 
 			$expire = time() + $forum_config['o_timeout_visit'];
 
-			forum_setcookie($cookie_name, base64_encode($new_uid.'|'.$password_hash.'|'.$expire.'|'.sha1($salt.$password_hash.forum_hash($expire, $salt))), $expire);
+			forum_setcookie($cookie_name, base64_encode($new_uid.'|'.$password_hash.'|'.$expire.'|'.forum_cookie_hash($new_uid, $password_hash, $expire, $salt)), $expire);
 
 			redirect(forum_link($forum_url['index']), $lang_profile['Reg complete']);
 		}

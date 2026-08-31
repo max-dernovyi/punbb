@@ -44,10 +44,14 @@ class DocsDriverListTest extends TestCase {
 		$this->assertStringContainsString('db_update.php', $readme);
 	}
 
+	public function testChangeLogOpensWithAVersionSection(): void {
+		$this->assertMatchesRegularExpression('/\APunBB \d+\.\d+\.\d+\n/', $this->doc('ChangeLog'));
+	}
+
 	public function testChangeLogHasAnEntryForThisRelease(): void {
 		$changelog = $this->doc('ChangeLog');
 
-		$this->assertStringStartsWith('PunBB 1.5.0', $changelog);
+		$this->assertStringContainsString("\nPunBB 1.5.0\n", "\n".$changelog);
 		$this->assertStringContainsString('PHP '.$this->release(), $changelog);
 
 		foreach (self::REMOVED as $db_type)

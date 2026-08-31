@@ -38,7 +38,7 @@ if (isset($_GET['i_per_page']) && isset($_GET['i_start_at']))
 
 	// We validate the CSRF token. If it's set in POST and we're at this point, the token is valid.
 	// If it's in GET, we need to make sure it's valid.
-	if (!isset($_POST['csrf_token']) && (!isset($_GET['csrf_token']) || $_GET['csrf_token'] !== generate_form_token('reindex'.$forum_user['id'])))
+	if (!isset($_POST['csrf_token']) && !csrf_token_matches($_GET['csrf_token'] ?? null, 'reindex'.$forum_user['id']))
 		csrf_confirm_form();
 
 	($hook = get_hook('ari_cycle_start')) ? eval($hook) : null;

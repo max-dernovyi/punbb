@@ -74,9 +74,14 @@ class RuntimeApiGuardTest extends TestCase {
 
 		$this->assertTrue(function_exists('http_get_last_response_headers'), 'added in PHP 8.4, the floor of this fork');
 		$this->assertStringContainsString(
-			"\$result['headers'] = http_get_last_response_headers() ?? array();",
+			'$headers = http_get_last_response_headers() ?? array();',
 			$source,
 			'the accessor returns null until a stream wrapper request has run'
+		);
+		$this->assertStringContainsString(
+			"\$result['headers'] = \$headers;",
+			$source,
+			'the branch has to report the header list it just read'
 		);
 	}
 

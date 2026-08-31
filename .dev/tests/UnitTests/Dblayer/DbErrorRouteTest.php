@@ -32,6 +32,15 @@ class DbErrorRouteTest extends TestCase {
 		);
 	}
 
+	/** The drivers whose set_names() talks to a server that can refuse it. */
+	public static function charsetDrivers(): array {
+		return array(
+			'mysqli'		=> array('mysqli'),
+			'mysqli_innodb'	=> array('mysqli_innodb'),
+			'pgsql'			=> array('pgsql')
+		);
+	}
+
 	/** Runs one driver in one failure mode in a fresh process. */
 	private function harness(string $driver, string $mode): string {
 		$key = $driver.'/'.$mode;
@@ -102,6 +111,22 @@ class DbErrorRouteTest extends TestCase {
 	public function testASchemaErrorRendersTheForumErrorPage(string $driver): void {
 		$output = $this->harness($driver, 'bad_ddl');
 
+		$this->assertStringContainsString('Sorry! The page could not be loaded.', $output, $output);
+		$this->assertStringContainsString('Database reported:', $output, $output);
+		$this->assertNoRawDiagnostic($output);
+	}
+
+	/**
+	 * The charset is bound to the connection after it opens, and
+	 * mysqli_set_charset() throws instead of returning false. An escaping
+	 * charset the server refuses must reach the error page, not a stack trace
+	 * carrying the connection arguments.
+	 */
+	#[\PHPUnit\Framework\Attributes\DataProvider('charsetDrivers')]
+	public function testARefusedCharsetRendersTheForumErrorPage(string $driver): void {
+		$output = $this->harness($driver, 'bad_charset');
+
+		$this->assertStringContainsString('CONNECTED', $output, $output);
 		$this->assertStringContainsString('Sorry! The page could not be loaded.', $output, $output);
 		$this->assertStringContainsString('Database reported:', $output, $output);
 		$this->assertNoRawDiagnostic($output);

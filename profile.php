@@ -65,7 +65,7 @@ if ($action == 'change_pass')
 
 	if (isset($_GET['key']))
 	{
-		$key = $_GET['key'];
+		$key = is_string($_GET['key']) ? $_GET['key'] : '';
 
 		// If the user is already logged in we shouldn't be here :)
 		if (!$forum_user['is_guest'])
@@ -73,7 +73,11 @@ if ($action == 'change_pass')
 
 		($hook = get_hook('pf_change_pass_key_supplied')) ? eval($hook) : null;
 
-		if ($key == '' || $key != $user['activate_key'])
+		// login.php writes activate_key and last_email_sent in one statement, so
+		// the mail's timestamp is what the key expires from.
+		$key_expired = forum_reset_key_expired($user['last_email_sent'] ?? '');
+
+		if ($key == '' || $user['activate_key'] == '' || !hash_equals((string) $user['activate_key'], $key) || $key_expired)
 			message(sprintf($lang_profile['Pass key bad'], '<a href="mailto:'.forum_htmlencode($forum_config['o_admin_email']).'">'.forum_htmlencode($forum_config['o_admin_email']).'</a>'));
 		else
 		{
@@ -264,7 +268,7 @@ if ($action == 'change_pass')
 				$cookie_expire = isset($cookie_data[2]) ? intval($cookie_data[2]) : 0;
 
 				$expire = ($cookie_expire > time() + $forum_config['o_timeout_visit']) ? time() + 1209600 : time() + $forum_config['o_timeout_visit'];
-				forum_setcookie($cookie_name, base64_encode($forum_user['id'].'|'.$new_password_hash.'|'.$expire.'|'.sha1($user['salt'].$new_password_hash.forum_hash($expire, $user['salt']))), $expire);
+				forum_setcookie($cookie_name, base64_encode($forum_user['id'].'|'.$new_password_hash.'|'.$expire.'|'.forum_cookie_hash($forum_user['id'], $new_password_hash, $expire, $user['salt'])), $expire);
 			}
 
 			// Add flash message
@@ -405,11 +409,11 @@ else if ($action == 'change_email')
 
 	if (isset($_GET['key']))
 	{
-		$key = $_GET['key'];
+		$key = is_string($_GET['key']) ? $_GET['key'] : '';
 
 		($hook = get_hook('pf_change_email_key_supplied')) ? eval($hook) : null;
 
-		if ($key == '' || $key != $user['activate_key'])
+		if ($key == '' || $user['activate_key'] == '' || !hash_equals((string) $user['activate_key'], $key))
 			message(sprintf($lang_profile['E-mail key bad'], '<a href="mailto:'.forum_htmlencode($forum_config['o_admin_email']).'">'.forum_htmlencode($forum_config['o_admin_email']).'</a>'));
 		else
 		{
@@ -768,7 +772,7 @@ else if ($action == 'delete_avatar')
 
 	// We validate the CSRF token. If it's set in POST and we're at this point, the token is valid.
 	// If it's in GET, we need to make sure it's valid.
-	if (!isset($_POST['csrf_token']) && (!isset($_GET['csrf_token']) || $_GET['csrf_token'] !== generate_form_token('delete_avatar'.$id.$forum_user['id'])))
+	if (!isset($_POST['csrf_token']) && !csrf_token_matches($_GET['csrf_token'] ?? null, 'delete_avatar'.$id.$forum_user['id']))
 		csrf_confirm_form();
 
 	($hook = get_hook('pf_delete_avatar_selected')) ? eval($hook) : null;
@@ -2930,7 +2934,7 @@ if ($forum_page['has_required']): ?>
 					if ($cur_category)
 						 echo "\n\t\t\t\t\t\t".'</fieldset>'."\n";
 
-					echo "\t\t\t\t\t\t".'<fieldset>'."\n\t\t\t\t\t\t\t".'<legend><span>'.$cur_forum['cat_name'].':</span></legend>'."\n";
+					echo "\t\t\t\t\t\t".'<fieldset>'."\n\t\t\t\t\t\t\t".'<legend><span>'.forum_htmlencode($cur_forum['cat_name']).':</span></legend>'."\n";
 					$cur_category = $cur_forum['cid'];
 				}
 

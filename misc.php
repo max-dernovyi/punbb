@@ -77,7 +77,7 @@ else if ($action == 'markread')
 
 	// We validate the CSRF token. If it's set in POST and we're at this point, the token is valid.
 	// If it's in GET, we need to make sure it's valid.
-	if (!isset($_POST['csrf_token']) && (!isset($_GET['csrf_token']) || $_GET['csrf_token'] !== generate_form_token('markread'.$forum_user['id'])))
+	if (!isset($_POST['csrf_token']) && !csrf_token_matches($_GET['csrf_token'] ?? null, 'markread'.$forum_user['id']))
 		csrf_confirm_form();
 
 	($hook = get_hook('mi_markread_selected')) ? eval($hook) : null;
@@ -114,7 +114,7 @@ else if ($action == 'markforumread')
 
 	// We validate the CSRF token. If it's set in POST and we're at this point, the token is valid.
 	// If it's in GET, we need to make sure it's valid.
-	if (!isset($_POST['csrf_token']) && (!isset($_GET['csrf_token']) || $_GET['csrf_token'] !== generate_form_token('markforumread'.$fid.$forum_user['id'])))
+	if (!isset($_POST['csrf_token']) && !csrf_token_matches($_GET['csrf_token'] ?? null, 'markforumread'.$fid.$forum_user['id']))
 		csrf_confirm_form();
 
 	($hook = get_hook('mi_markforumread_selected')) ? eval($hook) : null;
@@ -611,7 +611,7 @@ else if (isset($_GET['subscribe']))
 
 	// We validate the CSRF token. If it's set in POST and we're at this point, the token is valid.
 	// If it's in GET, we need to make sure it's valid.
-	if (!isset($_POST['csrf_token']) && (!isset($_GET['csrf_token']) || $_GET['csrf_token'] !== generate_form_token('subscribe'.$topic_id.$forum_user['id'])))
+	if (!isset($_POST['csrf_token']) && !csrf_token_matches($_GET['csrf_token'] ?? null, 'subscribe'.$topic_id.$forum_user['id']))
 		csrf_confirm_form();
 
 	($hook = get_hook('mi_subscribe_selected')) ? eval($hook) : null;
@@ -680,7 +680,7 @@ else if (isset($_GET['unsubscribe']))
 
 	// We validate the CSRF token. If it's set in POST and we're at this point, the token is valid.
 	// If it's in GET, we need to make sure it's valid.
-	if (!isset($_POST['csrf_token']) && (!isset($_GET['csrf_token']) || $_GET['csrf_token'] !== generate_form_token('unsubscribe'.$topic_id.$forum_user['id'])))
+	if (!isset($_POST['csrf_token']) && !csrf_token_matches($_GET['csrf_token'] ?? null, 'unsubscribe'.$topic_id.$forum_user['id']))
 		csrf_confirm_form();
 
 	($hook = get_hook('mi_unsubscribe_selected')) ? eval($hook) : null;
@@ -734,7 +734,7 @@ else if (isset($_GET['forum_subscribe']))
 
 	// We validate the CSRF token. If it's set in POST and we're at this point, the token is valid.
 	// If it's in GET, we need to make sure it's valid.
-	if (!isset($_POST['csrf_token']) && (!isset($_GET['csrf_token']) || $_GET['csrf_token'] !== generate_form_token('forum_subscribe'.$forum_id.$forum_user['id'])))
+	if (!isset($_POST['csrf_token']) && !csrf_token_matches($_GET['csrf_token'] ?? null, 'forum_subscribe'.$forum_id.$forum_user['id']))
 		csrf_confirm_form();
 
 	($hook = get_hook('mi_forum_subscribe_selected')) ? eval($hook) : null;
@@ -803,7 +803,7 @@ else if (isset($_GET['forum_unsubscribe']))
 
 	// We validate the CSRF token. If it's set in POST and we're at this point, the token is valid.
 	// If it's in GET, we need to make sure it's valid.
-	if (!isset($_POST['csrf_token']) && (!isset($_GET['csrf_token']) || $_GET['csrf_token'] !== generate_form_token('forum_unsubscribe'.$forum_id.$forum_user['id'])))
+	if (!isset($_POST['csrf_token']) && !csrf_token_matches($_GET['csrf_token'] ?? null, 'forum_unsubscribe'.$forum_id.$forum_user['id']))
 		csrf_confirm_form();
 
 	($hook = get_hook('mi_forum_unsubscribe_selected')) ? eval($hook) : null;

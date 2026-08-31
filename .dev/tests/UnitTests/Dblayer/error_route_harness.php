@@ -99,6 +99,12 @@ else if ($mode == 'bad_ddl')
 		'PRIMARY KEY'	=> array('no_such_column')
 	));
 }
+else if ($mode == 'bad_charset')
+{
+	// The connection charset is bound after connecting, and mysqli_set_charset()
+	// throws under MYSQLI_REPORT_STRICT rather than returning false.
+	$forum_db->set_names('not-a-charset');
+}
 else
 {
 	$result = $forum_db->query('SELECT 1');

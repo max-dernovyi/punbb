@@ -22,6 +22,23 @@ function forum_htmlencode($str)
 }
 
 
+// Encodes the contents of $str so that they are safe inside a JavaScript string
+// literal in an inline <script>. forum_htmlencode() is the wrong escaper there:
+// a <script> element is raw text, so the entities it produces stay literal
+// while a backslash walks through untouched and escapes the closing quote. The
+// caller supplies the quotes; this returns the body between them.
+function forum_js_escape($str)
+{
+	$json = json_encode(is_scalar($str) ? (string) $str : '',
+		JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE);
+
+	if ($json === false)
+		return '';
+
+	return substr($json, 1, -1);
+}
+
+
 // Trim whitespace including non-breaking space
 function forum_trim($str, $charlist = " \t\n\r\0\x0B\xC2\xA0")
 {
@@ -106,6 +123,24 @@ function forum_session_start() {
 	}
 
 	$forum_session_started = TRUE;
+}
+
+
+// Roll the session id at a privilege change (logging in, logging out)
+//
+// It does nothing when no session is running: the forum's own credential is the
+// login cookie, and a request that never touched $_SESSION has no id an
+// attacker could have fixed beforehand.
+function forum_session_regenerate()
+{
+	$return = ($hook = get_hook('fn_forum_session_regenerate_start')) ? eval($hook) : null;
+	if ($return !== null)
+		return;
+
+	if (session_status() !== PHP_SESSION_ACTIVE || headers_sent())
+		return;
+
+	session_regenerate_id(true);
 }
 
 
@@ -227,11 +262,165 @@ function forum_setcookie($name, $value, $expire)
 }
 
 
+// Splits a URL the forum is allowed to fetch into its transport parts.
+// Only http and https are fetchable: every caller asks for one of them, and a
+// redirect re-enters get_remote_file(), so a Location: naming file://, gopher://
+// or any other wrapper is refused here instead of being handed to a transport.
+function forum_remote_url_parts($url)
+{
+	if (!is_string($url))
+		return false;
+
+	$url = trim($url);
+
+	// parse_url() keeps CR, LF and spaces inside the host and the path, and the
+	// socket branch writes both into the request line and the Host: header - a
+	// redirect naming "example.com\r\nX-Injected: 1" would append a header of
+	// the remote server's choosing. Nothing the forum fetches carries them.
+	if (preg_match('/[\x00-\x20\x7F]/', $url))
+		return false;
+
+	$parsed_url = parse_url($url);
+	if (!is_array($parsed_url) || empty($parsed_url['host']))
+		return false;
+
+	$scheme = isset($parsed_url['scheme']) ? strtolower($parsed_url['scheme']) : '';
+	if ($scheme !== 'http' && $scheme !== 'https')
+		return false;
+
+	$port = isset($parsed_url['port']) ? intval($parsed_url['port']) : ($scheme === 'https' ? 443 : 80);
+	if ($port < 1 || $port > 65535)
+		return false;
+
+	return array(
+		'scheme'	=> $scheme,
+		// The trimmed form, because trim() strips a leading or trailing NUL
+		// before the control-byte check sees it: cURL must be handed the value
+		// that was validated, not the caller's, or the NUL raises a ValueError.
+		'url'		=> $url,
+		'transport'	=> $scheme === 'https' ? 'ssl' : 'tcp',
+		'host'		=> $parsed_url['host'],
+		'port'		=> $port,
+		'path'		=> (!empty($parsed_url['path']) ? $parsed_url['path'] : '/').(!empty($parsed_url['query']) ? '?'.$parsed_url['query'] : '')
+	);
+}
+
+
+// Resolves the value of a Location: header against the URL it was answered
+// for. A redirect hop re-enters get_remote_file(), which only accepts an
+// absolute http(s) URL, but a server is free to answer with a path or with a
+// scheme-relative target, and the update check does.
+function forum_remote_redirect_url($location, $parsed_url)
+{
+	if (!is_string($location) || !is_array($parsed_url))
+		return false;
+
+	$location = trim($location);
+	if ($location === '')
+		return false;
+
+	// Already absolute: let the validator have it as it stands.
+	if (preg_match('#\A[A-Za-z][A-Za-z0-9+.-]*://#', $location))
+		return $location;
+
+	$default_port = ($parsed_url['scheme'] === 'https') ? 443 : 80;
+	$origin = $parsed_url['scheme'].'://'.$parsed_url['host'].($parsed_url['port'] !== $default_port ? ':'.$parsed_url['port'] : '');
+
+	if (substr($location, 0, 2) === '//')
+		return $parsed_url['scheme'].':'.$location;
+
+	if (substr($location, 0, 1) === '/')
+		return $origin.$location;
+
+	$path = explode('?', $parsed_url['path'], 2)[0];
+
+	// A reference that is nothing but a query keeps the current path (RFC 3986
+	// 5.3), so "?v=2" answered for /update/foo.xml is /update/foo.xml?v=2.
+	if (substr($location, 0, 1) === '?')
+		return $origin.$path.$location;
+
+	// A fragment is a same-document reference: everything left of it stays.
+	if (substr($location, 0, 1) === '#')
+		return $origin.$parsed_url['path'].$location;
+
+	// Relative to the directory the current path names.
+	$base = substr($path, 0, strrpos($path, '/') + 1);
+
+	return $origin.$base.$location;
+}
+
+
+// The header lines of the response that answered the request. $content must be
+// the header region alone -- CURLINFO_HEADER_SIZE bytes for cURL, the first
+// block for a socket -- because a body is free to open with "HTTP/" itself and
+// would otherwise be read as another header block. A CONNECT proxy replies
+// first ("200 Connection established") and cURL keeps both blocks, so within
+// that region the Location: belongs to the last one opening with a status line.
+function forum_remote_response_headers($content)
+{
+	$headers = array();
+
+	foreach (explode("\r\n\r\n", (string) $content) as $block)
+	{
+		if (strncmp($block, 'HTTP/', 5) !== 0)
+			break;
+
+		$headers = explode("\r\n", trim($block));
+	}
+
+	return $headers;
+}
+
+
+// Whether a status line names a new location. Every 3xx that carries one, not
+// only the two the fetcher used to recognise.
+function forum_remote_is_redirect($status_line)
+{
+	return (bool) preg_match('#\AHTTP/1\.[01] 30[12378]#', (string) $status_line);
+}
+
+
+// The value of the Location: header, or null. A field name is case-insensitive
+// and the space after the colon is optional, so neither may be matched exactly.
+function forum_remote_location_header($headers)
+{
+	foreach ($headers as $cur_header)
+		if (preg_match('#\Alocation:[ \t]*(.*)\z#i', $cur_header, $matches))
+			return $matches[1];
+
+	return null;
+}
+
+
+// Returns the entry point a rewrite rule routes to, or false.
+// rewrite.php require()s this value, so it may only ever be one plain script
+// name in the forum root: no directory separator, no traversal, no NUL. The
+// shipped rules all replace into a fixed name, but a rule is data an extension
+// can add through the re_rewrite_rules hook, and this is the sink.
+function forum_rewrite_target($rewritten_url)
+{
+	if (!is_string($rewritten_url))
+		return false;
+
+	// The stem may carry the request's casing: the shipped rules are /i and
+	// substitute a captured group into it, so /Login produces Login.php.
+	// rewrite.php checks the file exists before it is required.
+	$target = explode('?', $rewritten_url, 2)[0];
+	if (!preg_match('/\A[A-Za-z0-9_]+\.php\z/', $target))
+		return false;
+
+	return $target;
+}
+
+
 // Attempts to fetch the provided URL using any available means
 function get_remote_file($url, $timeout, $head_only = false, $max_redirects = 10)
 {
 	$result = null;
-	$parsed_url = parse_url($url);
+	$parsed_url = forum_remote_url_parts($url);
+	if ($parsed_url === false)
+		return null;
+
 	$allow_url_fopen = strtolower(@ini_get('allow_url_fopen'));
 
 	// Quite unlikely that this will be allowed on a shared host, but it can't hurt
@@ -246,7 +435,7 @@ function get_remote_file($url, $timeout, $head_only = false, $max_redirects = 10
 		if ($ch === false)
 			return null;
 
-		curl_setopt($ch, CURLOPT_URL, $url);
+		curl_setopt($ch, CURLOPT_URL, $parsed_url['url']);
 		curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_0);
 		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 		curl_setopt($ch, CURLOPT_HEADER, true);
@@ -257,19 +446,25 @@ function get_remote_file($url, $timeout, $head_only = false, $max_redirects = 10
 		// Grab the page
 		$content = @curl_exec($ch);
 		$responce_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+		$header_size = (int) curl_getinfo($ch, CURLINFO_HEADER_SIZE);
 
-		// Process 301/302 redirect
-		if ($content !== false && ($responce_code == '301' || $responce_code == '302') && $max_redirects > 0)
+		// Process a redirect
+		if ($content !== false && in_array((string) $responce_code, array('301', '302', '303', '307', '308')) && $max_redirects > 0)
 		{
-			$headers = explode("\r\n", trim($content));
-			foreach ($headers as $header)
-				if (substr($header, 0, 10) == 'Location: ')
-				{
-					$responce = get_remote_file(substr($header, 10), $timeout, $head_only, $max_redirects - 1);
-					if ($responce !== null)
-						$responce['headers'] = array_merge($headers, $responce['headers']);
-					return $responce;
-				}
+			$headers = forum_remote_response_headers($header_size > 0 ? substr($content, 0, $header_size) : $content);
+			$location = forum_remote_location_header($headers);
+
+			if ($location !== null)
+			{
+				$location = forum_remote_redirect_url($location, $parsed_url);
+				if ($location === false)
+					return null;
+
+				$responce = get_remote_file($location, $timeout, $head_only, $max_redirects - 1);
+				if ($responce !== null)
+					$responce['headers'] = array_merge($headers, $responce['headers']);
+				return $responce;
+			}
 		}
 
 		// Ignore everything except a 200 response code
@@ -292,15 +487,31 @@ function get_remote_file($url, $timeout, $head_only = false, $max_redirects = 10
 			}
 		}
 	}
-	// fsockopen() is the second best thing
-	else if (function_exists('fsockopen'))
+	// A raw socket is the second best thing
+	else if (function_exists('stream_socket_client'))
 	{
-		$remote = @fsockopen($parsed_url['host'], !empty($parsed_url['port']) ? intval($parsed_url['port']) : 80, $errno, $errstr, $timeout);
+		// The transport follows the scheme: an https:// URL is never fetched in
+		// cleartext on port 80, and the peer certificate is verified.
+		$stream_context = stream_context_create(array(
+			'ssl' => array(
+				'verify_peer'		=> true,
+				'verify_peer_name'	=> true,
+				'peer_name'			=> $parsed_url['host'],
+				'SNI_enabled'		=> true,
+				'allow_self_signed'	=> false
+			)
+		));
+
+		$remote = @stream_socket_client(
+			$parsed_url['transport'].'://'.$parsed_url['host'].':'.$parsed_url['port'],
+			$errno, $errstr, $timeout, STREAM_CLIENT_CONNECT, $stream_context
+		);
 		if ($remote)
 		{
 			// Send a standard HTTP 1.0 request for the page
-			fwrite($remote, ($head_only ? 'HEAD' : 'GET').' '.(!empty($parsed_url['path']) ? $parsed_url['path'] : '/').(!empty($parsed_url['query']) ? '?'.$parsed_url['query'] : '').' HTTP/1.0'."\r\n");
-			fwrite($remote, 'Host: '.$parsed_url['host']."\r\n");
+			fwrite($remote, ($head_only ? 'HEAD' : 'GET').' '.$parsed_url['path'].' HTTP/1.0'."\r\n");
+			$default_port = ($parsed_url['scheme'] === 'https') ? 443 : 80;
+			fwrite($remote, 'Host: '.$parsed_url['host'].($parsed_url['port'] !== $default_port ? ':'.$parsed_url['port'] : '')."\r\n");
 			fwrite($remote, 'User-Agent: PunBB'."\r\n");
 			fwrite($remote, 'Connection: Close'."\r\n\r\n");
 
@@ -317,18 +528,24 @@ function get_remote_file($url, $timeout, $head_only = false, $max_redirects = 10
 
 			fclose($remote);
 
-			// Process 301/302 redirect
-			if ($content !== false && $max_redirects > 0 && preg_match('#^HTTP/1.[01] 30[12]#', $content))
+			// Process a redirect
+			if ($content !== false && $max_redirects > 0 && forum_remote_is_redirect($content))
 			{
-				$headers = explode("\r\n", trim($content));
-				foreach ($headers as $header)
-					if (substr($header, 0, 10) == 'Location: ')
-					{
-						$responce = get_remote_file(substr($header, 10), $timeout, $head_only, $max_redirects - 1);
-						if ($responce !== null)
-							$responce['headers'] = array_merge($headers, $responce['headers']);
-						return $responce;
-					}
+				$header_end = strpos($content, "\r\n\r\n");
+				$headers = forum_remote_response_headers($header_end !== false ? substr($content, 0, $header_end) : $content);
+				$location = forum_remote_location_header($headers);
+
+				if ($location !== null)
+				{
+					$location = forum_remote_redirect_url($location, $parsed_url);
+					if ($location === false)
+						return null;
+
+					$responce = get_remote_file($location, $timeout, $head_only, $max_redirects - 1);
+					if ($responce !== null)
+						$responce['headers'] = array_merge($headers, $responce['headers']);
+					return $responce;
+				}
 			}
 
 			// Ignore everything except a 200 response code
@@ -357,22 +574,51 @@ function get_remote_file($url, $timeout, $head_only = false, $max_redirects = 10
 				'http' => array(
 					'method'		=> $head_only ? 'HEAD' : 'GET',
 					'user_agent'	=> 'PunBB',
-					'max_redirects'	=> $max_redirects + 1,
+					// The wrapper would follow a redirect itself, to a scheme
+					// forum_remote_url_parts() never saw; a hop re-enters this
+					// function instead, and ignore_errors keeps the response
+					// readable so its status line can be told from a 200.
+					'follow_location'	=> 0,
+					'ignore_errors'		=> true,
 					'timeout'		=> $timeout
 				)
 			)
 		);
 
-		$content = @file_get_contents($url, false, $stream_context);
+		$content = @file_get_contents($parsed_url['url'], false, $stream_context);
 
 		// Did we get anything?
 		if ($content !== false)
 		{
 			// The local the stream wrapper used to conjure up is deprecated in
 			// 8.5; this accessor has replaced it since 8.4.
-			$result['headers'] = http_get_last_response_headers() ?? array();
-			if (!$head_only)
-				$result['content'] = $content;
+			$headers = http_get_last_response_headers() ?? array();
+			$status = isset($headers[0]) ? $headers[0] : '';
+
+			// Process a redirect
+			if ($max_redirects > 0 && forum_remote_is_redirect($status))
+			{
+				$location = forum_remote_location_header($headers);
+
+				if ($location !== null)
+				{
+					$location = forum_remote_redirect_url($location, $parsed_url);
+					if ($location === false)
+						return null;
+
+					$responce = get_remote_file($location, $timeout, $head_only, $max_redirects - 1);
+					if ($responce !== null)
+						$responce['headers'] = array_merge($headers, $responce['headers']);
+					return $responce;
+				}
+			}
+			// Ignore everything except a 200 response code
+			else if (preg_match('#^HTTP/1.[01] 200#', $status))
+			{
+				$result['headers'] = $headers;
+				if (!$head_only)
+					$result['content'] = $content;
+			}
 		}
 	}
 
@@ -1373,22 +1619,85 @@ function random_key($len, $readable = false, $hash = false)
 	if ($return !== null)
 		return $return;
 
+	// Every mode keeps the alphabet and the length it had, only the source of
+	// the randomness changes: this function makes the session id, the CSRF
+	// token, the password salt and every activation key, and a clock plus a
+	// Mersenne Twister is a predictable sequence, not a secret.
 	if ($hash)
-		$key = substr(sha1(uniqid(rand(), true)), 0, $len);
+		$key = substr(bin2hex(random_bytes(20)), 0, $len);
 	else if ($readable)
 	{
 		$chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
 		for ($i = 0; $i < $len; ++$i)
-			$key .= substr($chars, (mt_rand() % strlen($chars)), 1);
+			$key .= $chars[random_int(0, strlen($chars) - 1)];
 	}
 	else
 		for ($i = 0; $i < $len; ++$i)
-			$key .= chr(mt_rand(33, 126));
+			$key .= chr(random_int(33, 126));
 
 	($hook = get_hook('fn_random_key_end')) ? eval($hook) : null;
 
 	return $key;
+}
+
+
+// Decides whether a mailed activation key has outlived FORUM_PASSWORD_RESET_TTL
+//
+// The only timestamp the schema has for it is users.last_email_sent, which
+// login.php writes in the same statement as the key. misc.php writes it too, so
+// a member who sends forum mail while a key is pending pushes the expiry out;
+// the column cannot say which flow wrote it. A key with no timestamp behind it
+// came from the registration mail, which register.php expires by deleting the
+// unverified account after three days.
+function forum_reset_key_expired($last_email_sent)
+{
+	$key_issued = ($last_email_sent != '') ? intval($last_email_sent) : 0;
+
+	return $key_issued > 0 && (time() - $key_issued) >= FORUM_PASSWORD_RESET_TTL;
+}
+
+
+// Mints the per-visit CSRF secret and stores it in the online row, creating the
+// row when the visit has none. Only a request that issues or validates a token
+// gets here, so a quiet visit still stays out of the online list until it needs
+// a secret that has to survive one round-trip.
+function forum_store_csrf_token()
+{
+	global $forum_db, $forum_user;
+
+	$forum_user['csrf_token'] = random_key(40, false, true);
+
+	if (!isset($forum_user['id']) || !isset($forum_db))
+		return;
+
+	$is_guest = ($forum_user['id'] == '1');
+	$ident = $is_guest ? get_remote_address() : (string) $forum_user['username'];
+	$unique = $is_guest ? 'user_id=1 AND ident=\''.$forum_db->escape($ident).'\'' : 'user_id='.intval($forum_user['id']);
+
+	// REPLACE and its PostgreSQL equivalent only agree on a row that does not
+	// exist yet, so an existing row is updated in place and nothing else on it
+	// is touched.
+	if (!empty($forum_user['logged']))
+	{
+		$query = array(
+			'UPDATE'	=> 'online',
+			'SET'		=> 'csrf_token=\''.$forum_user['csrf_token'].'\'',
+			'WHERE'		=> $unique
+		);
+	}
+	else
+	{
+		$query = array(
+			'REPLACE'	=> 'user_id, ident, logged, csrf_token',
+			'INTO'		=> 'online',
+			'VALUES'	=> intval($forum_user['id']).', \''.$forum_db->escape($ident).'\', '.time().', \''.$forum_user['csrf_token'].'\'',
+			'UNIQUE'	=> $unique
+		);
+	}
+
+	($hook = get_hook('fn_forum_store_csrf_token_qr_store_token')) ? eval($hook) : null;
+	$forum_db->query_build($query) or error(__FILE__, __LINE__);
 }
 
 
@@ -1404,7 +1713,27 @@ function generate_form_token($target_url)
 	if ($return !== null)
 		return $return;
 
+	// An online row written before the csrf_token column existed carries an empty
+	// secret, and sha1($target_url) alone is computable by anyone. Mint one instead,
+	// and store it: a quiet visit (login.php, misc.php, extern.php) never writes the
+	// online row, so a secret kept only in memory would differ on the next request
+	// and the confirmation form could never match the token it just issued.
+	if (!isset($forum_user['csrf_token']) || $forum_user['csrf_token'] === '')
+		forum_store_csrf_token();
+
 	return sha1(str_replace('&amp;', '&', $target_url).$forum_user['csrf_token']);
+}
+
+
+// Checks a submitted CSRF token against the one $target should carry
+// $token is whatever arrived in the request, so it may be absent or an array.
+function csrf_token_matches($token, $target)
+{
+	$return = ($hook = get_hook('fn_csrf_token_matches_start')) ? eval($hook) : null;
+	if ($return !== null)
+		return $return;
+
+	return is_string($token) && hash_equals(generate_form_token($target), $token);
 }
 
 
@@ -1416,6 +1745,25 @@ function forum_hash($str, $salt)
 		return $return;
 
 	return sha1($salt.sha1($str));
+}
+
+
+//
+// The authenticator carried by the login cookie
+//
+// The user id is inside the hash, not only beside it. Without it the four
+// fields only prove "some account has this password hash at this expiry": two
+// accounts that still carry an unsalted pre-1.5 hash of the same password
+// (sha1() or md5(), salt '') produce byte-identical authenticators, so editing
+// the id in one's own cookie logs in as the other account.
+//
+function forum_cookie_hash($user_id, $password_hash, $expire, $salt)
+{
+	$return = ($hook = get_hook('fn_forum_cookie_hash_start')) ? eval($hook) : null;
+	if ($return !== null)
+		return $return;
+
+	return sha1(intval($user_id).'|'.$salt.$password_hash.forum_hash(intval($expire), $salt));
 }
 
 
@@ -1470,6 +1818,12 @@ function forum_password_verify($password, $stored_hash, $salt)
 
 	if (forum_password_is_modern($stored_hash))
 		return password_verify($password, $stored_hash);
+
+	// A legacy hash verifies in microseconds while a row that does not exist
+	// pays for the dummy bcrypt, so without this the login form's timing runs
+	// backwards and names the accounts that have not been rehashed yet.
+	if (defined('FORUM_DUMMY_PASSWORD_HASH'))
+		password_verify($password, FORUM_DUMMY_PASSWORD_HASH);
 
 	if (strlen($stored_hash) == 40)
 		return hash_equals($stored_hash, forum_hash($password, $salt)) || hash_equals($stored_hash, sha1($password));
@@ -1595,7 +1949,7 @@ function cookie_login(&$forum_user)
 		authenticate_user(intval($cookie['user_id']), $cookie['password_hash'], true);
 
 		// We now validate the cookie hash
-		if ($cookie['expire_hash'] !== sha1($forum_user['salt'].$forum_user['password'].forum_hash(intval($cookie['expiration_time']), $forum_user['salt'])))
+		if (!hash_equals(forum_cookie_hash($forum_user['id'], $forum_user['password'], intval($cookie['expiration_time']), $forum_user['salt']), (string) $cookie['expire_hash']))
 			set_default_user();
 
 		// If we got back the default user, the login failed
@@ -1607,7 +1961,7 @@ function cookie_login(&$forum_user)
 
 		// Send a new, updated cookie with a new expiration timestamp
 		$expire = (intval($cookie['expiration_time']) > $now + $forum_config['o_timeout_visit']) ? $now + 1209600 : $now + $forum_config['o_timeout_visit'];
-		forum_setcookie($cookie_name, base64_encode($forum_user['id'].'|'.$forum_user['password'].'|'.$expire.'|'.sha1($forum_user['salt'].$forum_user['password'].forum_hash($expire, $forum_user['salt']))), $expire);
+		forum_setcookie($cookie_name, base64_encode($forum_user['id'].'|'.$forum_user['password'].'|'.$expire.'|'.forum_cookie_hash($forum_user['id'], $forum_user['password'], $expire, $forum_user['salt'])), $expire);
 
 		// Set a default language if the user selected language no longer exists
 		if (!file_exists(FORUM_ROOT.'lang/'.$forum_user['language'].'/common.php'))
@@ -1681,6 +2035,15 @@ function cookie_login(&$forum_user)
 					'SET'		=> 'logged='.$now,
 					'WHERE'		=> 'user_id='.$forum_user['id']
 				);
+
+				// The row is only ever written when it is created, so a secret left empty
+				// by the upgrade that added the column would stay empty for as long as the
+				// visit lasts - and every CSRF token issued from it would be guessable.
+				if (!isset($forum_user['csrf_token']) || $forum_user['csrf_token'] === '')
+				{
+					$forum_user['csrf_token'] = random_key(40, false, true);
+					$query['SET'] .= ', csrf_token=\''.$forum_user['csrf_token'].'\'';
+				}
 
 				$current_url = get_current_url(255);
 				if ($current_url != null && !defined('FORUM_REQUEST_AJAX'))
@@ -1776,6 +2139,12 @@ function set_default_user()
 				'SET'		=> 'logged='.time(),
 				'WHERE'		=> 'ident=\''.$forum_db->escape($remote_addr).'\''
 			);
+
+			if (!isset($forum_user['csrf_token']) || $forum_user['csrf_token'] === '')
+			{
+				$forum_user['csrf_token'] = random_key(40, false, true);
+				$query['SET'] .= ', csrf_token=\''.$forum_user['csrf_token'].'\'';
+			}
 
 			$current_url = get_current_url(255);
 			if ($current_url != null)

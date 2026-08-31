@@ -90,7 +90,7 @@ class FlashMessenger
 		$message = NULL;
 
 		if (isset($_SESSION['punbb_forum_flash'])) {
-			$tmp_message = unserialize($_SESSION['punbb_forum_flash']);
+			$tmp_message = unserialize($_SESSION['punbb_forum_flash'], array('allowed_classes' => false));
 
 			if (!is_null($tmp_message) && !empty($tmp_message))
 			{

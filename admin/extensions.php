@@ -81,10 +81,18 @@ if (isset($_GET['install']) || isset($_GET['install_hotfix']))
 	// Make sure we have an array of dependencies
 	if (!isset($ext_data['extension']['dependencies']['dependency']))
 		$ext_data['extension']['dependencies'] = array();
-	else if (!is_array(current($ext_data['extension']['dependencies'])))
-		$ext_data['extension']['dependencies'] = array($ext_data['extension']['dependencies']['dependency']);
 	else
-		$ext_data['extension']['dependencies'] = $ext_data['extension']['dependencies']['dependency'];
+	{
+		$dependency_list = $ext_data['extension']['dependencies']['dependency'];
+
+		// A lone dependency parses to a scalar, or to an element array when it
+		// carries attributes; both have to be wrapped so the loops below see a
+		// list and not the members of one dependency.
+		if (!is_array($dependency_list) || array_key_exists('content', $dependency_list))
+			$dependency_list = array($dependency_list);
+
+		$ext_data['extension']['dependencies'] = $dependency_list;
+	}
 
 	$query = array(
 		'SELECT'	=> 'e.id, e.version',
@@ -102,7 +110,7 @@ if (isset($_GET['install']) || isset($_GET['install_hotfix']))
 	foreach ($ext_data['extension']['dependencies'] as $dependency)
 	{
 
-		$ext_dependancy_id = is_array($dependency) ? $dependency['content'] : $dependency;
+		$ext_dependancy_id = is_array($dependency) ? ($dependency['content'] ?? '') : (string) $dependency;
 		
 	    if (!array_key_exists($ext_dependancy_id, $installed_ext))
 	    {
@@ -110,7 +118,7 @@ if (isset($_GET['install']) || isset($_GET['install_hotfix']))
 	    }
 	    else if (is_array($dependency) AND isset($dependency['attributes']['minversion']) AND version_compare($dependency['attributes']['minversion'], $installed_ext[$ext_dependancy_id]['version']) > 0)
 	    {
-	    	$errors[] = sprintf($lang_admin_ext['Version dependency error'], $dependency['content'], $dependency['attributes']['minversion']);
+	    	$errors[] = sprintf($lang_admin_ext['Version dependency error'], $ext_dependancy_id, $dependency['attributes']['minversion']);
 	    }
 	}
 
@@ -137,12 +145,22 @@ if (isset($_GET['install']) || isset($_GET['install_hotfix']))
 
 		foreach ($ext_data['extension']['dependencies'] as $dependency)
 		{
-			$ext_info['dependencies'][$dependency] = array(
-				'id'	=> $dependency,
-				'path'	=> FORUM_ROOT.'extensions/'.$dependency,
-				'url'	=> $base_url.'/extensions/'.$dependency,
+			// A dependency carrying attributes arrives as an array, and using it
+			// as an array key is a TypeError since PHP 8.0
+			$dependency_id = is_array($dependency) ? ($dependency['content'] ?? '') : (string) $dependency;
+
+			$ext_info['dependencies'][$dependency_id] = array(
+				'id'	=> $dependency_id,
+				'path'	=> FORUM_ROOT.'extensions/'.$dependency_id,
+				'url'	=> $base_url.'/extensions/'.$dependency_id,
 			);
 		}
+
+		// The manifest's dependency list goes into a column as one delimited
+		// string, so it is escaped here rather than left to the query builder.
+		$dependencies = array();
+		foreach ($ext_data['extension']['dependencies'] as $dependency)
+			$dependencies[] = $forum_db->escape(is_array($dependency) ? ($dependency['content'] ?? '') : (string) $dependency);
 
 		// Is there some uninstall code to store in the db?
 		$uninstall_code = (isset($ext_data['extension']['uninstall']) && forum_trim($ext_data['extension']['uninstall']) != '') ? '\''.$forum_db->escape(forum_trim($ext_data['extension']['uninstall'])).'\'' : 'NULL';
@@ -180,7 +198,7 @@ if (isset($_GET['install']) || isset($_GET['install_hotfix']))
 			// Update the existing extension
 			$query = array(
 				'UPDATE'	=> 'extensions',
-				'SET'		=> 'title=\''.$forum_db->escape($ext_data['extension']['title']).'\', version=\''.$forum_db->escape($ext_data['extension']['version']).'\', description=\''.$forum_db->escape($ext_data['extension']['description']).'\', author=\''.$forum_db->escape($ext_data['extension']['author']).'\', uninstall='.$uninstall_code.', uninstall_note='.$uninstall_note.', dependencies=\'|'.implode('|', $ext_data['extension']['dependencies']).'|\'',
+				'SET'		=> 'title=\''.$forum_db->escape($ext_data['extension']['title']).'\', version=\''.$forum_db->escape($ext_data['extension']['version']).'\', description=\''.$forum_db->escape($ext_data['extension']['description']).'\', author=\''.$forum_db->escape($ext_data['extension']['author']).'\', uninstall='.$uninstall_code.', uninstall_note='.$uninstall_note.', dependencies=\'|'.implode('|', $dependencies).'|\'',
 				'WHERE'		=> 'id=\''.$forum_db->escape($id).'\''
 			);
 
@@ -206,7 +224,7 @@ if (isset($_GET['install']) || isset($_GET['install_hotfix']))
 			$query = array(
 				'INSERT'	=> 'id, title, version, description, author, uninstall, uninstall_note, dependencies',
 				'INTO'		=> 'extensions',
-				'VALUES'	=> '\''.$forum_db->escape($ext_data['extension']['id']).'\', \''.$forum_db->escape($ext_data['extension']['title']).'\', \''.$forum_db->escape($ext_data['extension']['version']).'\', \''.$forum_db->escape($ext_data['extension']['description']).'\', \''.$forum_db->escape($ext_data['extension']['author']).'\', '.$uninstall_code.', '.$uninstall_note.', \'|'.implode('|', $ext_data['extension']['dependencies']).'|\'',
+				'VALUES'	=> '\''.$forum_db->escape($ext_data['extension']['id']).'\', \''.$forum_db->escape($ext_data['extension']['title']).'\', \''.$forum_db->escape($ext_data['extension']['version']).'\', \''.$forum_db->escape($ext_data['extension']['description']).'\', \''.$forum_db->escape($ext_data['extension']['author']).'\', '.$uninstall_code.', '.$uninstall_note.', \'|'.implode('|', $dependencies).'|\'',
 			);
 
 			($hook = get_hook('aex_install_comply_qr_add_ext')) ? eval($hook) : null;
@@ -640,7 +658,7 @@ else if (isset($_GET['flip']))
 
 	// We validate the CSRF token. If it's set in POST and we're at this point, the token is valid.
 	// If it's in GET, we need to make sure it's valid.
-	if (!isset($_POST['csrf_token']) && (!isset($_GET['csrf_token']) || $_GET['csrf_token'] !== generate_form_token('flip'.$id)))
+	if (!isset($_POST['csrf_token']) && !csrf_token_matches($_GET['csrf_token'] ?? null, 'flip'.$id.$forum_user['id']))
 		csrf_confirm_form();
 
 	($hook = get_hook('aex_flip_selected')) ? eval($hook) : null;
@@ -850,7 +868,7 @@ if ($section == 'hotfixes')
 				continue;
 
 		$forum_page['ext_actions'] = array(
-			'flip'		=> '<span class="first-item"><a href="'.$base_url.'/admin/extensions.php?section=hotfixes&amp;flip='.$id.'&amp;csrf_token='.generate_form_token('flip'.$id).'">'.($ext['disabled'] != '1' ? $lang_admin_ext['Disable'] : $lang_admin_ext['Enable']).'</a></span>',
+			'flip'		=> '<span class="first-item"><a href="'.$base_url.'/admin/extensions.php?section=hotfixes&amp;flip='.$id.'&amp;csrf_token='.generate_form_token('flip'.$id.$forum_user['id']).'">'.($ext['disabled'] != '1' ? $lang_admin_ext['Disable'] : $lang_admin_ext['Enable']).'</a></span>',
 			'uninstall'	=> '<span><a href="'.$base_url.'/admin/extensions.php?section=hotfixese&amp;uninstall='.$id.'">'.$lang_admin_ext['Uninstall'].'</a></span>'
 		);
 
@@ -1064,7 +1082,7 @@ else
 			continue;
 
 		$forum_page['ext_actions'] = array(
-			'flip'		=> '<span class="first-item"><a href="'.$base_url.'/admin/extensions.php?section=manage&amp;flip='.$id.'&amp;csrf_token='.generate_form_token('flip'.$id).'">'.($ext['disabled'] != '1' ? $lang_admin_ext['Disable'] : $lang_admin_ext['Enable']).'</a></span>',
+			'flip'		=> '<span class="first-item"><a href="'.$base_url.'/admin/extensions.php?section=manage&amp;flip='.$id.'&amp;csrf_token='.generate_form_token('flip'.$id.$forum_user['id']).'">'.($ext['disabled'] != '1' ? $lang_admin_ext['Disable'] : $lang_admin_ext['Enable']).'</a></span>',
 			'uninstall'	=> '<span><a href="'.$base_url.'/admin/extensions.php?section=manage&amp;uninstall='.$id.'">'.$lang_admin_ext['Uninstall'].'</a></span>'
 		);
 

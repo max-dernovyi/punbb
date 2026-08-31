@@ -61,8 +61,9 @@ foreach ($forum_rewrite_rules as $rule => $rewrite_to)
 			{
 				$param_data = explode('=', $cur_param);
 
-				// Sometimes, parameters don't set a value (eg: script.php?foo), so we set them to null
-				$param_data[1] = isset($param_data[1]) ? $param_data[1] : null;
+				// Sometimes, parameters don't set a value (eg: script.php?foo); null
+				// reaching urldecode() is deprecated since 8.1, so it is the empty string
+				$param_data[1] = isset($param_data[1]) ? $param_data[1] : '';
 
 				// We don't want to be overwriting values in $_REQUEST that were set in POST or COOKIE
 				if (!isset($_POST[$param_data[0]]) && !isset($_COOKIE[$param_data[0]]))
@@ -87,7 +88,21 @@ if (empty($rewritten_url))
 	error('Page Not found (Error 404):<br />The requested page <em>'.forum_htmlencode($request_uri).'</em> could not be found.');
 }
 
-// We change $_SERVER['PHP_SELF'] so that it reflects the file we're actually loading
-$_SERVER['PHP_SELF'] = str_replace('rewrite.php', $url_parts[0], $_SERVER['PHP_SELF']);
+// The rule decided what to load, and that value is require()d: accept only a
+// plain entry point in the forum root
+$rewrite_target = forum_rewrite_target($url_parts[0]);
+if ($rewrite_target === false || !file_exists(FORUM_ROOT.$rewrite_target))
+{
+	define('FORUM_HTTP_RESPONSE_CODE_SET', 1);
+	header('HTTP/1.1 404 Not Found');
 
-require FORUM_ROOT.$url_parts[0];
+	// Allow an extension to override the "Bad request" message with a custom 404 page
+	($hook = get_hook('re_page_not_found')) ? eval($hook) : null;
+
+	error('Page Not found (Error 404):<br />The requested page <em>'.forum_htmlencode($request_uri).'</em> could not be found.');
+}
+
+// We change $_SERVER['PHP_SELF'] so that it reflects the file we're actually loading
+$_SERVER['PHP_SELF'] = str_replace('rewrite.php', $rewrite_target, $_SERVER['PHP_SELF']);
+
+require FORUM_ROOT.$rewrite_target;

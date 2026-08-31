@@ -55,7 +55,11 @@ function generate_config_file()
 {
 	global $db_type, $db_host, $db_name, $db_username, $db_password, $db_prefix, $base_url, $cookie_name;
 
-	$config_body = '<?php'."\n\n".'$db_type = \''.addslashes($db_type)."';\n".'$db_host = \''.addslashes($db_host)."';\n".'$db_name = \''.addslashes($db_name)."';\n".'$db_username = \''.addslashes($db_username)."';\n".'$db_password = \''.addslashes($db_password)."';\n".'$db_prefix = \''.addslashes($db_prefix)."';\n".'$p_connect = false;'."\n\n".'$base_url = \''.addslashes($base_url).'\';'."\n\n".'$cookie_name = '."'".addslashes($cookie_name)."';\n".'$cookie_domain = '."'';\n".'$cookie_path = '."'/';\n".'$cookie_secure = 0;'."\n\ndefine('FORUM', 1);";
+	// The login cookie carries the account's password hash, so it must not be
+	// sent in the clear on a forum that is reachable over HTTPS.
+	$cookie_secure = (stripos($base_url, 'https://') === 0) ? 1 : 0;
+
+	$config_body = '<?php'."\n\n".'$db_type = \''.addslashes($db_type)."';\n".'$db_host = \''.addslashes($db_host)."';\n".'$db_name = \''.addslashes($db_name)."';\n".'$db_username = \''.addslashes($db_username)."';\n".'$db_password = \''.addslashes($db_password)."';\n".'$db_prefix = \''.addslashes($db_prefix)."';\n".'$p_connect = false;'."\n\n".'$base_url = \''.addslashes($base_url).'\';'."\n\n".'$cookie_name = '."'".addslashes($cookie_name)."';\n".'$cookie_domain = '."'';\n".'$cookie_path = '."'/';\n".'$cookie_secure = '.$cookie_secure.';'."\n\ndefine('FORUM', 1);";
 
 	// Add forum options
 	$config_body .= "\n\n// Enable DEBUG mode by removing // from the following line\n//define('FORUM_DEBUG', 1);";
@@ -1648,8 +1652,8 @@ else
 	// Enable/disable avatars depending on file_uploads setting in PHP configuration
 	$avatars = in_array(strtolower(@ini_get('file_uploads')), array('on', 'true', '1')) ? 1 : 0;
 
-	// Enable/disable automatic check for updates depending on PHP environment (require cURL, fsockopen or allow_url_fopen)
-	$check_for_updates = (function_exists('curl_init') || function_exists('fsockopen') || in_array(strtolower(@ini_get('allow_url_fopen')), array('on', 'true', '1'))) ? 1 : 0;
+	// Enable/disable automatic check for updates depending on PHP environment (require cURL, stream_socket_client or allow_url_fopen)
+	$check_for_updates = (function_exists('curl_init') || function_exists('stream_socket_client') || in_array(strtolower(@ini_get('allow_url_fopen')), array('on', 'true', '1'))) ? 1 : 0;
 
 	// Insert config data
 	$config = array(

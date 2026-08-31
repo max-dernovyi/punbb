@@ -49,7 +49,15 @@ if (isset($_POST['form_sent']) && empty($action))
 	list($user_id, $group_id, $db_password_hash, $salt) = $forum_db->fetch_row($result);
 
 	$authorized = false;
-	if (!empty($db_password_hash))
+	if (empty($db_password_hash))
+	{
+		// The answer below is the same for an unknown username and a wrong
+		// password. Without this it is not the same length of time: the
+		// verification is the whole cost of a login, and skipping it turns the
+		// form into an account oracle a stopwatch can read.
+		forum_password_verify($form_password, FORUM_DUMMY_PASSWORD_HASH, '');
+	}
+	else
 	{
 		$form_password_hash = $db_password_hash;
 
@@ -117,8 +125,12 @@ if (isset($_POST['form_sent']) && empty($action))
 		($hook = get_hook('li_login_qr_delete_online_user')) ? eval($hook) : null;
 		$forum_db->query_build($query) or error(__FILE__, __LINE__);
 
+		// The privilege of the request changes here, so the session id must not
+		// survive it: anything an attacker planted under the old id is dropped.
+		forum_session_regenerate();
+
 		$expire = ($save_pass) ? time() + 1209600 : time() + $forum_config['o_timeout_visit'];
-		forum_setcookie($cookie_name, base64_encode($user_id.'|'.$form_password_hash.'|'.$expire.'|'.sha1($salt.$form_password_hash.forum_hash($expire, $salt))), $expire);
+		forum_setcookie($cookie_name, base64_encode($user_id.'|'.$form_password_hash.'|'.$expire.'|'.forum_cookie_hash($user_id, $form_password_hash, $expire, $salt)), $expire);
 
 		($hook = get_hook('li_login_pre_redirect')) ? eval($hook) : null;
 
@@ -139,7 +151,7 @@ else if ($action == 'out')
 
 	// We validate the CSRF token. If it's set in POST and we're at this point, the token is valid.
 	// If it's in GET, we need to make sure it's valid.
-	if (!isset($_POST['csrf_token']) && (!isset($_GET['csrf_token']) || $_GET['csrf_token'] !== generate_form_token('logout'.$forum_user['id'])))
+	if (!isset($_POST['csrf_token']) && !csrf_token_matches($_GET['csrf_token'] ?? null, 'logout'.$forum_user['id']))
 		csrf_confirm_form();
 
 	($hook = get_hook('li_logout_selected')) ? eval($hook) : null;
@@ -165,6 +177,8 @@ else if ($action == 'out')
 		($hook = get_hook('li_logout_qr_update_last_visit')) ? eval($hook) : null;
 		$forum_db->query_build($query) or error(__FILE__, __LINE__);
 	}
+
+	forum_session_regenerate();
 
 	$expire = time() + 1209600;
 	forum_setcookie($cookie_name, base64_encode('1|'.random_key(8, false, true).'|'.$expire.'|'.random_key(8, false, true)), $expire);
@@ -243,15 +257,19 @@ else if ($action == 'forget' || $action == 'forget_2')
 				// Loop through users we found
 				foreach ($users_with_email as $cur_hit)
 				{
-					$forgot_pass_timeout = 3600;
+					$forgot_pass_timeout = FORUM_PASSWORD_RESET_TTL;
 
 					($hook = get_hook('li_forgot_pass_pre_flood_check')) ? eval($hook) : null;
 
+					// An administrator's password is not resettable by mail, and
+					// a second request inside the window is not resent. Both
+					// skip the mail without saying so: the page answers the
+					// same whatever the address turns out to be.
 					if ($cur_hit['group_id'] == FORUM_ADMIN)
-						message(sprintf($lang_login['Email important'], '<a href="mailto:'.forum_htmlencode($forum_config['o_admin_email']).'">'.forum_htmlencode($forum_config['o_admin_email']).'</a>'));
+						continue;
 
 					if ($cur_hit['last_email_sent'] != '' && (time() - $cur_hit['last_email_sent']) < $forgot_pass_timeout && (time() - $cur_hit['last_email_sent']) >= 0)
-						message(sprintf($lang_login['Email flood'], $forgot_pass_timeout));
+						continue;
 
 					// Generate a new password activation key
 					$new_password_key = random_key(8, true);
@@ -271,13 +289,17 @@ else if ($action == 'forget' || $action == 'forget_2')
 
 					($hook = get_hook('li_forgot_pass_new_user_replace_data')) ? eval($hook) : null;
 
-					forum_mail($email, $mail_subject, $cur_mail_message);
+					// Quiet: a relay that refuses the mail must not answer this
+					// form with an error page, which would name the address as
+					// one that has an account.
+					forum_mail($email, $mail_subject, $cur_mail_message, '', '', true);
 				}
-
-				message(sprintf($lang_login['Forget mail'], '<a href="mailto:'.forum_htmlencode($forum_config['o_admin_email']).'">'.forum_htmlencode($forum_config['o_admin_email']).'</a>'));
 			}
-			else
-				$errors[] = sprintf($lang_login['No e-mail match'], forum_htmlencode($email));
+
+			// Outside the branch on purpose. Whether the address is registered,
+			// belongs to an administrator or was asked for a minute ago, an
+			// unauthenticated visitor gets one and the same answer.
+			message(sprintf($lang_login['Forget mail'], '<a href="mailto:'.forum_htmlencode($forum_config['o_admin_email']).'">'.forum_htmlencode($forum_config['o_admin_email']).'</a>'));
 		}
 	}
 
