@@ -1,3 +1,11 @@
+PunBB 1.5.1
+2026-09-01
+====================
+
+ * Security: post.php accepted a post with no CSRF token from anyone who was not a moderator. The script turns the global POST gate off for itself, and the replacement check ran only for administrators and moderators, so any page a logged-in member visited could post in their name. The token is now required from every poster.
+ * Security: get_remote_file() fell back to a socket that ignored the URL's scheme and always connected on port 80, so an https:// request was answered in cleartext. One caller fetches the extension hotfix manifest, whose hook code the forum eval()s on every page load, which made a network position enough to run code on the forum. Only http and https are fetchable now, https goes over TLS on 443, and the scheme decides the transport.
+ * Security: the password reset form answered four different ways and named which addresses have accounts, which one belongs to an administrator, and which had asked for a reset recently. It now answers the same whatever the address turns out to be.
+
 PunBB 1.5.0
 2026-08-29
 ====================

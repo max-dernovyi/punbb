@@ -44,10 +44,11 @@ class DocsDriverListTest extends TestCase {
 		$this->assertStringContainsString('db_update.php', $readme);
 	}
 
+	/** The ChangeLog opens with the version the code reports, whatever it is. */
 	public function testChangeLogHasAnEntryForThisRelease(): void {
 		$changelog = $this->doc('ChangeLog');
 
-		$this->assertStringStartsWith('PunBB 1.5.0', $changelog);
+		$this->assertStringStartsWith('PunBB '.FORUM_VERSION, $changelog);
 		$this->assertStringContainsString('PHP '.$this->release(), $changelog);
 
 		foreach (self::REMOVED as $db_type)
