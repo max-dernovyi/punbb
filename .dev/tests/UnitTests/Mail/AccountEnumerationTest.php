@@ -63,14 +63,14 @@ class AccountEnumerationTest extends TestCase
 	}
 
 	/**
-	 * The one answer is emitted after the branch that found the users closes,
-	 * so an address with no account reaches it too.
+	 * The one answer is emitted after the queue call closes, so an address with
+	 * no account reaches it too.
 	 */
-	public function testTheOneAnswerIsOutsideTheMatchBranch(): void
+	public function testTheOneAnswerIsOutsideTheWorkThatFoundTheUsers(): void
 	{
 		$source = self::login();
 
-		$found = strpos($source, 'if (!empty($users_with_email))');
+		$found = strpos($source, 'forum_defer(function ()');
 		$answer = strpos($source, "message(sprintf(\$lang_login['Forget mail']");
 
 		$this->assertIsInt($found);
@@ -95,6 +95,38 @@ class AccountEnumerationTest extends TestCase
 
 		$this->assertIsInt($close);
 		$this->assertGreaterThan($close, $answer);
+	}
+
+	/**
+	 * Reading the template, writing the reset key and reaching the relay are
+	 * costs only a resettable address pays. Inside the response they are a
+	 * timing oracle - and, because the first request moves the address into the
+	 * flood window, one the visitor can calibrate against the same address.
+	 */
+	public function testTheWorkThatDiffersRunsAfterTheResponse(): void
+	{
+		$source = self::login();
+
+		$deferred = strpos($source, 'forum_defer(function ()');
+		$this->assertIsInt($deferred, 'the reset work must be queued, not run inline');
+
+		foreach (array('activate_password.tpl', "activate_key=\\'", 'forum_mail(') as $cur_work)
+		{
+			$this->assertGreaterThan(
+				$deferred,
+				strpos($source, $cur_work),
+				$cur_work.' must sit inside the deferred work'
+			);
+		}
+	}
+
+	/** A relay that is down must not answer the form at all. */
+	public function testTheResetMailIsSentQuietly(): void
+	{
+		$this->assertStringContainsString(
+			"forum_mail(\$email, \$mail_subject, \$cur_mail_message, '', '', true)",
+			self::login()
+		);
 	}
 
 	/** The reworded string no longer claims a mail was sent. */
