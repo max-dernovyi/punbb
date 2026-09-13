@@ -253,9 +253,9 @@ function user_flows_assert($condition, $message)
 
 
 /** One request, with its body swept for diagnostics and its status checked. */
-function user_flows_request(&$state, $session, $url, $post = null, $allowed = array(200, 302))
+function user_flows_request(&$state, $session, $url, $post = null, $allowed = array(200, 302), $headers = array())
 {
-	$response = smoke_request($url, $state['jars'][$session], $post);
+	$response = smoke_request($url, $state['jars'][$session], $post, array(), $headers);
 	$response['url'] = $url;
 
 	$state['diagnostics'] = array_merge($state['diagnostics'], smoke_diagnostics($response['body']));

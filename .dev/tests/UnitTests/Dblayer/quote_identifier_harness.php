@@ -22,4 +22,8 @@ echo 'PLAIN='.$db->quote_identifier('rank')."\n";
 echo 'RESERVED_TABLE='.$db->quote_identifier('groups')."\n";
 echo 'NORMAL='.$db->quote_identifier('username')."\n";
 echo 'ESCAPED='.$db->quote_identifier('we`ird"one')."\n";
+echo 'PREQUOTED='.$db->quote_identifier('`rank`')."\n";
+echo 'PREQUOTED_ESCAPED='.$db->quote_identifier('`we``ird`')."\n";
+echo 'PREQUOTED_OPEN='.$db->quote_identifier('`a`b`')."\n";
+echo 'PREQUOTED_NEWLINE='.json_encode($db->quote_identifier("`rank`\n"))."\n";
 echo "DONE\n";

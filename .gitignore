@@ -7,7 +7,7 @@ cache/
 img/avatars/
 db.sqlite
 test.php
-extensions/
+/extensions/
 .htaccess
 /vendor/
 /.dev/tmp/

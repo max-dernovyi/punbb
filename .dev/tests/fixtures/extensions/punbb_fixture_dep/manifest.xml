@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+	Synthetic test extension depending on punbb_fixture: attaches to the hook
+	point punbb_fixture offers, and sits behind it at a point it short-circuits.
+-->
+
+<extension engine="1.0">
+	<id>punbb_fixture_dep</id>
+	<title>PunBB compatibility fixture dependent</title>
+	<version>1.0.0</version>
+	<description>Attaches to a hook point punbb_fixture declares.</description>
+	<author>PunBB test suite</author>
+	<minversion>1.4</minversion>
+	<maxtestedon>1.5</maxtestedon>
+
+	<dependencies>
+		<dependency minversion="1.0.0">punbb_fixture</dependency>
+	</dependencies>
+
+	<hooks>
+		<!-- An extension-provided point: modifies the local punbb_fixture_banner() exposes -->
+		<hook id="punbb_fixture_banner_pre_output"><![CDATA[
+if (!defined('PUNBB_FIXTURE_FUNCTIONS_LOADED'))
+	require $ext_info['dependencies']['punbb_fixture']['path'].'/functions.php';
+
+punbb_fixture_mark($ext_info['id'], 'punbb_fixture_banner_pre_output', array(
+	'banner'		=> $banner,
+	'dependency'	=> $ext_info['dependencies']['punbb_fixture']['id']
+));
+
+$banner[] = 'punbb_fixture_dep';
+		]]></hook>
+
+		<!-- Later at the point punbb_fixture short-circuits: fires only when it did not return -->
+		<hook id="fn_get_remote_address_start" priority="6"><![CDATA[
+if (!defined('PUNBB_FIXTURE_FUNCTIONS_LOADED'))
+	require $ext_info['dependencies']['punbb_fixture']['path'].'/functions.php';
+
+punbb_fixture_mark($ext_info['id'], 'fn_get_remote_address_start', array());
+		]]></hook>
+	</hooks>
+</extension>

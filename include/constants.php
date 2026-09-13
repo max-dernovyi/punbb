@@ -35,3 +35,7 @@ define('FORUM_SEARCH_MIN_WORD', 3);
 define('FORUM_SEARCH_MAX_WORD', 20);
 
 define('FORUM_PUN_EXTENSION_REPOSITORY_URL', 'https://punbb.informer.com/extensions/1.4');
+
+// The oldest release line whose extensions this one still runs: 1.5 keeps the
+// 1.4 hook and manifest contract, so install accepts a maxtestedon of 1.4.x.
+define('FORUM_EXTENSION_API_VERSION', '1.4');

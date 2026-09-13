@@ -66,6 +66,20 @@ class IdentifierQuotingTest extends TestCase {
 		$this->assertStringContainsString('ESCAPED=`we``ird"one`', $output, $output);
 	}
 
+	/**
+	 * 1.4 extensions hand the schema helpers names already in backticks, and
+	 * 1.4.4 used them as given. Only a whole, well-formed quoted name passes.
+	 */
+	#[\PHPUnit\Framework\Attributes\DataProvider('backtickDrivers')]
+	public function testTheMysqlDriversKeepAWholeQuotedIdentifier(string $driver): void {
+		$output = $this->run_harness('quote_identifier_harness.php', $driver);
+
+		$this->assertStringContainsString('PREQUOTED=`rank`'."\n", $output, $output);
+		$this->assertStringContainsString('PREQUOTED_ESCAPED=`we``ird`'."\n", $output, $output);
+		$this->assertStringContainsString('PREQUOTED_OPEN=```a``b```'."\n", $output, $output);
+		$this->assertStringContainsString('PREQUOTED_NEWLINE="```rank``\\n`"', $output, $output);
+	}
+
 	#[\PHPUnit\Framework\Attributes\DataProvider('standardQuoteDrivers')]
 	public function testThePortableDriversQuoteWithDoubleQuotes(string $driver): void {
 		$output = $this->run_harness('quote_identifier_harness.php', $driver);
@@ -73,6 +87,7 @@ class IdentifierQuotingTest extends TestCase {
 		$this->assertStringContainsString('PLAIN="rank"', $output, $output);
 		$this->assertStringContainsString('RESERVED_TABLE="groups"', $output, $output);
 		$this->assertStringContainsString('ESCAPED="we`ird""one"', $output, $output);
+		$this->assertStringContainsString('PREQUOTED="`rank`"', $output, $output);
 	}
 
 	#[\PHPUnit\Framework\Attributes\DataProvider('mysqlDrivers')]
@@ -170,11 +185,44 @@ class IdentifierQuotingTest extends TestCase {
 		}
 	}
 
+	private function prequoted(string $driver): string {
+		$output = $this->run_harness('mysqli_prequoted_harness.php', $driver);
+
+		if (strpos($output, 'NO_SERVER') !== false)
+			$this->markTestSkipped('no MySQL server: set PUNBB_TEST_MYSQL_HOST');
+
+		return $output;
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider('mysqlDrivers')]
+	public function testAPreQuotedSchemaBuildsThePlainColumns(string $driver): void {
+		$output = $this->prequoted($driver);
+
+		$this->assertStringContainsString('COLUMNS=id,indeteficate,position'."\n", $output, $output);
+		$this->assertMatchesRegularExpression('/DDL=CREATE TABLE `pq_\d+_sidebar` \( `id` INT\(10\) UNSIGNED AUTO_INCREMENT NOT NULL, `indeteficate` VARCHAR\(50\) NOT NULL DEFAULT \'\', PRIMARY KEY \(`id`\), KEY `pq_\d+_sidebar_indeteficate_idx`\(`indeteficate`\(20\)\) \)/', $output, $output);
+		$this->assertMatchesRegularExpression('/DDL=ALTER TABLE `pq_\d+_sidebar` ADD `position` INT\(10\) NOT NULL DEFAULT 0 AFTER `indeteficate`/', $output, $output);
+		$this->assertStringNotContainsString('``', $output, $output);
+	}
+
+	#[\PHPUnit\Framework\Attributes\DataProvider('mysqlDrivers')]
+	public function testAPreQuotedSchemaIsReachedByThePlainName(string $driver): void {
+		$output = $this->prequoted($driver);
+
+		$this->assertStringContainsString('ID_EXISTS=true', $output, $output);
+		$this->assertStringContainsString('POSITION_EXISTS=true', $output, $output);
+		$this->assertStringContainsString('INDEX_EXISTS=true', $output, $output);
+		$this->assertStringContainsString('ROW=2,2,4', $output, $output);
+		$this->assertStringContainsString('POSITION_GONE=false', $output, $output);
+		$this->assertStringContainsString('SIDEBAR_GONE=false', $output, $output);
+		$this->assertStringNotContainsString('ERROR:', $output, $output);
+		$this->assertStringContainsString('DONE', $output, $output);
+	}
+
 	#[\PHPUnit\Framework\Attributes\DataProvider('mysqlDrivers')]
 	public function testNoDiagnosticReachesTheOutput(string $driver): void {
-		$ddl = $this->ddl($driver);
+		$output = $this->ddl($driver).$this->prequoted($driver);
 
 		foreach (array('Fatal error', 'Uncaught', 'Parse error', 'Warning:', 'Deprecated:', 'Notice:', 'ERROR:') as $marker)
-			$this->assertStringNotContainsString($marker, $ddl, $ddl);
+			$this->assertStringNotContainsString($marker, $output, $output);
 	}
 }

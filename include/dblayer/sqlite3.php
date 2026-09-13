@@ -563,7 +563,7 @@ class DBLayer
 
 			$query .= $field_name.' '.$field_data['datatype'];
 
-			if (!$field_data['allow_null'])
+			if (empty($field_data['allow_null']))
 				$query .= ' NOT NULL';
 
 			if (isset($field_data['default']))

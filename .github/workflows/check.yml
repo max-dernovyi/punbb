@@ -55,9 +55,11 @@ jobs:
       - run: composer lint
       - run: composer test
 
-  # Installs the forum on every supported driver, upgrades a real 1.4.4 dump and
-  # walks the user and admin flows, against PHP's built-in server. The harnesses
-  # assert that no PHP diagnostic reached the error log during any of it.
+  # Installs the forum on every supported driver, upgrades a real 1.4.4 dump,
+  # walks the user and admin flows and installs, exercises and uninstalls the
+  # fixture extensions, against PHP's built-in server. The harnesses assert that
+  # no PHP diagnostic reached the error log during any of it. The extension
+  # corpus runner is not here: it needs a corpus the repository does not carry.
   integration:
     name: install, upgrade and flows
     runs-on: ubuntu-latest
@@ -119,6 +121,7 @@ jobs:
       - run: php .dev/tests/Integration/install_matrix.php
       - run: php .dev/tests/Integration/upgrade_path.php
       - run: php .dev/tests/Integration/user_flows.php
+      - run: php .dev/tests/Integration/extension_flows.php
 
       - name: Server log
         if: failure()

@@ -359,10 +359,14 @@ class DBLayer
 	/**
 	 * Quote an identifier. MySQL 8.0 made GROUPS and RANK reserved words and
 	 * the schema uses both, so every generated identifier is quoted rather
-	 * than checked against a keyword list.
+	 * than checked against a keyword list. A name already wholly quoted is
+	 * kept: 1.4 extensions pass '`field`' to the schema helpers.
 	 */
 	public function quote_identifier($name)
 	{
+		if (preg_match('/^`(?:[^`]|``)+`$/D', $name))
+			return $name;
+
 		return '`'.str_replace('`', '``', $name).'`';
 	}
 
@@ -454,7 +458,7 @@ class DBLayer
 			if (isset($field_data['collation']))
 				$query .= 'CHARACTER SET utf8 COLLATE utf8_'.$field_data['collation'];
 
-			if (!$field_data['allow_null'])
+			if (empty($field_data['allow_null']))
 				$query .= ' NOT NULL';
 
 			if (isset($field_data['default']))

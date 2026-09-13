@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!--
+	Synthetic test extension. One hook per contract shape the legacy mechanism
+	offers; every hook records what it saw through punbb_fixture_mark().
+-->
+
+<extension engine="1.0">
+	<id>punbb_fixture</id>
+	<title>PunBB compatibility fixture</title>
+	<version>1.0.0</version>
+	<description>Exercises the extension hook contract for the test suite.</description>
+	<author>PunBB test suite</author>
+	<minversion>1.4</minversion>
+	<maxtestedon>1.5</maxtestedon>
+
+	<install><![CDATA[
+if (!$forum_db->table_exists('punbb_fixture_markers'))
+{
+	$schema = array(
+		'FIELDS'		=> array(
+			'id'			=> array(
+				'datatype'		=> 'SERIAL',
+				'allow_null'	=> false
+			),
+			'request_id'	=> array(
+				'datatype'		=> 'VARCHAR(40)',
+				'allow_null'	=> false,
+				'default'		=> '\'\''
+			),
+			'extension_id'	=> array(
+				'datatype'		=> 'VARCHAR(150)',
+				'allow_null'	=> false,
+				'default'		=> '\'\''
+			),
+			'hook_id'		=> array(
+				'datatype'		=> 'VARCHAR(150)',
+				'allow_null'	=> false,
+				'default'		=> '\'\''
+			),
+			'seen'			=> array(
+				'datatype'		=> 'TEXT',
+				'allow_null'	=> true
+			)
+		),
+		'PRIMARY KEY'	=> array('id'),
+		'INDEXES'		=> array(
+			'request_id_idx'	=> array('request_id')
+		)
+	);
+
+	$forum_db->create_table('punbb_fixture_markers', $schema);
+}
+
+if (!$forum_db->field_exists('forums', 'punbb_fixture_hidden'))
+	$forum_db->add_field('forums', 'punbb_fixture_hidden', 'TINYINT(1)', false, 0);
+
+forum_config_add('o_punbb_fixture_banner', 'punbb_fixture');
+	]]></install>
+
+	<uninstall><![CDATA[
+if ($forum_db->table_exists('punbb_fixture_markers'))
+	$forum_db->drop_table('punbb_fixture_markers');
+
+if ($forum_db->field_exists('forums', 'punbb_fixture_hidden'))
+	$forum_db->drop_field('forums', 'punbb_fixture_hidden');
+
+forum_config_remove('o_punbb_fixture_banner');
+	]]></uninstall>
+
+	<hooks>
+		<!-- Read a caller local: the topic id and row viewtopic.php computed -->
+		<hook id="vt_modify_topic_info"><![CDATA[
+if (!defined('PUNBB_FIXTURE_FUNCTIONS_LOADED'))
+	require $ext_info['path'].'/functions.php';
+
+punbb_fixture_mark($ext_info['id'], 'vt_modify_topic_info', array(
+	'id'		=> $id,
+	'forum_id'	=> $cur_topic['forum_id'],
+	'subject'	=> $cur_topic['subject']
+));
+		]]></hook>
+
+		<!-- Write a caller local by name: index.php runs the narrowed query -->
+		<hook id="in_qr_get_cats_and_forums"><![CDATA[
+if (!defined('PUNBB_FIXTURE_FUNCTIONS_LOADED'))
+	require $ext_info['path'].'/functions.php';
+
+$query['WHERE'] = '('.$query['WHERE'].') AND f.punbb_fixture_hidden=0';
+
+punbb_fixture_mark($ext_info['id'], 'in_qr_get_cats_and_forums', array('where' => $query['WHERE']));
+		]]></hook>
+
+		<!-- Short-circuit with $return: get_remote_address() returns the harness's address -->
+		<hook id="fn_get_remote_address_start"><![CDATA[
+if (!defined('PUNBB_FIXTURE_FUNCTIONS_LOADED'))
+	require $ext_info['path'].'/functions.php';
+
+if (isset($_SERVER['HTTP_X_PUNBB_FIXTURE_ADDRESS']) && filter_var($_SERVER['HTTP_X_PUNBB_FIXTURE_ADDRESS'], FILTER_VALIDATE_IP) !== false)
+{
+	punbb_fixture_mark($ext_info['id'], 'fn_get_remote_address_start', array('returned' => $_SERVER['HTTP_X_PUNBB_FIXTURE_ADDRESS']));
+
+	return $_SERVER['HTTP_X_PUNBB_FIXTURE_ADDRESS'];
+}
+		]]></hook>
+
+		<!-- Echo into the caller's output buffer, from an inline template site inside the post loop -->
+		<hook id="vt_row_new_post_entry_data"><![CDATA[
+if (!defined('PUNBB_FIXTURE_FUNCTIONS_LOADED'))
+	require $ext_info['path'].'/functions.php';
+
+punbb_fixture_mark($ext_info['id'], 'vt_row_new_post_entry_data', array(
+	'post_id'	=> $cur_post['id'],
+	'ob_level'	=> ob_get_level()
+));
+
+echo "\t\t\t\t\t".'<p class="punbb-fixture-echo" data-post-id="'.intval($cur_post['id']).'">punbb_fixture</p>'."\n";
+		]]></hook>
+
+		<!-- Offer a hook point of its own: punbb_fixture_dep attaches to punbb_fixture_banner_pre_output -->
+		<hook id="in_main_output_start"><![CDATA[
+if (!defined('PUNBB_FIXTURE_FUNCTIONS_LOADED'))
+	require $ext_info['path'].'/functions.php';
+
+$punbb_fixture_banner = punbb_fixture_banner();
+
+punbb_fixture_mark($ext_info['id'], 'in_main_output_start', $punbb_fixture_banner + array('url' => $ext_info['url']));
+
+echo "\t".'<p id="punbb-fixture-banner">'.forum_htmlencode(implode(' ', $punbb_fixture_banner['parts'])).'</p>'."\n";
+		]]></hook>
+	</hooks>
+</extension>

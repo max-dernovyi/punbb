@@ -633,6 +633,18 @@ function clean_version($version)
 }
 
 
+// Whether an extension tested up to $maxtestedon may be installed: its release
+// line has to reach the forum's or FORUM_EXTENSION_API_VERSION
+function forum_extension_version_supported($forum_version, $maxtestedon)
+{
+	list($forum_core, $forum_major) = array_pad(explode('.', clean_version($forum_version)), 2, '0');
+	list($tested_core, $tested_major) = array_pad(explode('.', clean_version($maxtestedon)), 2, '0');
+	$tested = $tested_core.'.'.$tested_major;
+
+	return version_compare($tested, $forum_core.'.'.$forum_major, '>=') || version_compare($tested, FORUM_EXTENSION_API_VERSION, '>=');
+}
+
+
 // Database drivers this release supports
 function forum_supported_db_types()
 {

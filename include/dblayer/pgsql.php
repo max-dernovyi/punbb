@@ -462,7 +462,7 @@ class DBLayer
 			$query .= $field_name.' '.$field_data['datatype'];
 
 			// The SERIAL datatype is a special case where we don't need to say not null
-			if (!$field_data['allow_null'] && $field_data['datatype'] != 'SERIAL')
+			if (empty($field_data['allow_null']) && $field_data['datatype'] != 'SERIAL')
 				$query .= ' NOT NULL';
 
 			if (isset($field_data['default']))

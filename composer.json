@@ -30,6 +30,7 @@
         "lint": "@php .dev/bin/lint.php",
         "smoke": "@php .dev/bin/smoke.php",
         "stan": "phpstan analyse --memory-limit=1G",
-        "test": "phpunit"
+        "test": "phpunit",
+        "test-extensions": "@php .dev/tests/Integration/extension_corpus.php"
     }
 }
