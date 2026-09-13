@@ -4040,10 +4040,122 @@ function redirect($destination_url, $message)
 }
 
 
+//
+// Queue work to run after the response has been sent
+//
+// A form that must answer identically whatever it found cannot do the work
+// that differs before it answers: the cost of that work, the errors it raises
+// and the state it writes are all readable from the response. What is queued
+// here runs in footer.php once the visitor has the whole page.
+//
+function forum_defer($callback)
+{
+	if (!isset($GLOBALS['forum_deferred']))
+		$GLOBALS['forum_deferred'] = array();
+
+	$GLOBALS['forum_deferred'][] = $callback;
+}
+
+
+//
+// Send the finished page and stop the visitor's clock
+//
+// Under FPM the request is closed outright. Everywhere else Content-Length is
+// what lets the client stop reading: without it the server holds a chunked
+// body open until this script returns and the deferred work would still sit
+// inside the measured time. Compression is dropped for this response for the
+// same reason - the length has to be known before the first byte goes out.
+//
+// Residual, on a server with no fastcgi_finish_request(): a reverse proxy that
+// re-chunks the response instead of passing Content-Length through leaves the
+// connection open for as long as the work takes. The body still arrives at the
+// same moment for every visitor; only the close does not.
+//
+function forum_finish_response($body)
+{
+	// Whatever was echoed before the page itself - a PHP warning, an extension
+	// - sits in the buffers common.php opened, and belongs in front of it.
+	$buffered = '';
+	while (ob_get_level() > 0)
+	{
+		$chunk = ob_get_clean();
+		if ($chunk === false)
+			break;
+
+		$buffered = $chunk.$buffered;
+	}
+
+	$body = $buffered.$body;
+
+	if (!headers_sent())
+	{
+		@ini_set('zlib.output_compression', '0');
+		header('Content-Length: '.strlen($body));
+
+		// The socket stays busy for as long as the deferred work takes, so it
+		// must not be offered back to the client as a keep-alive connection.
+		header('Connection: close');
+	}
+
+	define('FORUM_RESPONSE_SENT', 1);
+
+	// The visitor is gone. The work still has to finish.
+	ignore_user_abort(true);
+
+	echo $body;
+
+	if (function_exists('fastcgi_finish_request'))
+		fastcgi_finish_request();
+	else
+		flush();
+}
+
+
+//
+// Run what forum_defer() queued
+//
+function forum_run_deferred()
+{
+	if (empty($GLOBALS['forum_deferred']))
+		return;
+
+	$queue = $GLOBALS['forum_deferred'];
+	$GLOBALS['forum_deferred'] = array();
+
+	foreach ($queue as $cur_callback)
+	{
+		try
+		{
+			call_user_func($cur_callback);
+		}
+		catch (Throwable $e)
+		{
+			// Nobody is reading. One failed job must not skip the next.
+			error_log('PunBB deferred work failed: '.$e->getMessage());
+		}
+	}
+}
+
+
 // Display a simple error message
 function error()
 {
 	global $forum_config, $lang_common;
+
+	// The response is already on the wire and the visitor has stopped reading.
+	// An error page appended here reaches nobody but an attacker counting
+	// bytes, and naming the failure is exactly what the deferral prevents.
+	if (defined('FORUM_RESPONSE_SENT'))
+	{
+		$parts = array();
+		foreach (func_get_args() as $cur_arg)
+		{
+			$parts[] = is_scalar($cur_arg) ? (string) $cur_arg : gettype($cur_arg);
+		}
+
+		error_log('PunBB: '.implode(' ', $parts));
+		exit;
+	}
 
 	if (!headers_sent())
 	{

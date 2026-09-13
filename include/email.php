@@ -174,6 +174,8 @@ function forum_mail($to, $subject, $message, $reply_to_email = '', $reply_to_nam
 
 		mail($to, $subject, $message, $headers);
 	}
+
+	return true;
 }
 
 

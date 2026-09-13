@@ -123,6 +123,20 @@ $tpl_main = str_replace('<!-- forum_javascript -->', $forum_loader->render_js(),
 // Last call!
 ($hook = get_hook('ft_end')) ? eval($hook) : null;
 
+// Work a page deferred runs here, with the whole response already delivered:
+// what it costs and whether it fails is no longer something the visitor can
+// read. An ordinary page defers nothing and takes the path below.
+if (!empty($GLOBALS['forum_deferred']))
+{
+	forum_finish_response($tpl_main);
+	forum_run_deferred();
+
+	$forum_db->end_transaction();
+	$forum_db->close();
+
+	exit;
+}
+
 // End the transaction
 $forum_db->end_transaction();
 
