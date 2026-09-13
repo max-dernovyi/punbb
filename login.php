@@ -222,12 +222,33 @@ else if ($action == 'forget' || $action == 'forget_2')
 				$users_with_email[] = $cur_user;
 			}
 
-			if (!empty($users_with_email))
+			// Deferred on purpose. Reading the template, writing the reset
+			// key and talking to the relay are costs only a registered,
+			// resettable address pays, and a visitor who times the response -
+			// or submits the same address twice, since the first request moves
+			// it into the flood window - reads that cost back. Queued here, it
+			// runs in footer.php once the response below is complete.
+			//
+			// Hook code at the five li_forgot_pass_* points inside now runs at
+			// function scope and must declare the globals it reads.
+			forum_defer(function () use ($users_with_email, $email)
 			{
+				global $forum_db, $forum_config, $forum_user, $forum_page, $forum_url, $forum_start;
+				global $forum_loader, $forum_flash, $lang_common, $lang_login, $base_url;
+
+				if (empty($users_with_email))
+					return;
+
 				($hook = get_hook('li_forgot_pass_pre_email')) ? eval($hook) : null;
 
 				// Load the "activate password" template
-				$mail_tpl = forum_trim(file_get_contents(FORUM_ROOT.'lang/'.$forum_user['language'].'/mail_templates/activate_password.tpl'));
+				$mail_tpl = forum_trim(@file_get_contents(FORUM_ROOT.'lang/'.$forum_user['language'].'/mail_templates/activate_password.tpl'));
+
+				if ($mail_tpl === '')
+				{
+					error_log('PunBB: the activate_password mail template for language "'.$forum_user['language'].'" is missing or empty');
+					return;
+				}
 
 				// The first row contains the subject
 				$first_crlf = strpos($mail_tpl, "\n");
@@ -247,11 +268,15 @@ else if ($action == 'forget' || $action == 'forget_2')
 
 					($hook = get_hook('li_forgot_pass_pre_flood_check')) ? eval($hook) : null;
 
+					// An administrator's password is not resettable by mail, and
+					// a second request inside the window is not resent. Both
+					// skip the mail without saying so: the page answers the
+					// same whatever the address turns out to be.
 					if ($cur_hit['group_id'] == FORUM_ADMIN)
-						message(sprintf($lang_login['Email important'], '<a href="mailto:'.forum_htmlencode($forum_config['o_admin_email']).'">'.forum_htmlencode($forum_config['o_admin_email']).'</a>'));
+						continue;
 
 					if ($cur_hit['last_email_sent'] != '' && (time() - $cur_hit['last_email_sent']) < $forgot_pass_timeout && (time() - $cur_hit['last_email_sent']) >= 0)
-						message(sprintf($lang_login['Email flood'], $forgot_pass_timeout));
+						continue;
 
 					// Generate a new password activation key
 					$new_password_key = random_key(8, true);
@@ -271,13 +296,17 @@ else if ($action == 'forget' || $action == 'forget_2')
 
 					($hook = get_hook('li_forgot_pass_new_user_replace_data')) ? eval($hook) : null;
 
-					forum_mail($email, $mail_subject, $cur_mail_message);
+					// Quiet: a relay that refuses the mail must not answer this
+					// form with an error page, which would name the address as
+					// one that has an account.
+					forum_mail($email, $mail_subject, $cur_mail_message, '', '', true);
 				}
+			});
 
-				message(sprintf($lang_login['Forget mail'], '<a href="mailto:'.forum_htmlencode($forum_config['o_admin_email']).'">'.forum_htmlencode($forum_config['o_admin_email']).'</a>'));
-			}
-			else
-				$errors[] = sprintf($lang_login['No e-mail match'], forum_htmlencode($email));
+			// Answered for every address alike. Whether the address is registered,
+			// belongs to an administrator or was asked for a minute ago, an
+			// unauthenticated visitor gets one and the same answer.
+			message(sprintf($lang_login['Forget mail'], '<a href="mailto:'.forum_htmlencode($forum_config['o_admin_email']).'">'.forum_htmlencode($forum_config['o_admin_email']).'</a>'));
 		}
 	}
 

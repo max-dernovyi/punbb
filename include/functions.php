@@ -227,11 +227,45 @@ function forum_setcookie($name, $value, $expire)
 }
 
 
+// Splits a URL the forum is allowed to fetch into its transport parts.
+// Only http and https are fetchable: every caller asks for one of them, and a
+// redirect re-enters get_remote_file(), so a Location: naming file://, gopher://
+// or any other wrapper is refused here instead of being handed to a transport.
+function forum_remote_url_parts($url)
+{
+	if (!is_string($url))
+		return false;
+
+	$parsed_url = parse_url(trim($url));
+	if (!is_array($parsed_url) || empty($parsed_url['host']))
+		return false;
+
+	$scheme = isset($parsed_url['scheme']) ? strtolower($parsed_url['scheme']) : '';
+	if ($scheme !== 'http' && $scheme !== 'https')
+		return false;
+
+	$port = isset($parsed_url['port']) ? intval($parsed_url['port']) : ($scheme === 'https' ? 443 : 80);
+	if ($port < 1 || $port > 65535)
+		return false;
+
+	return array(
+		'scheme'	=> $scheme,
+		'transport'	=> $scheme === 'https' ? 'ssl' : 'tcp',
+		'host'		=> $parsed_url['host'],
+		'port'		=> $port,
+		'path'		=> (!empty($parsed_url['path']) ? $parsed_url['path'] : '/').(!empty($parsed_url['query']) ? '?'.$parsed_url['query'] : '')
+	);
+}
+
+
 // Attempts to fetch the provided URL using any available means
 function get_remote_file($url, $timeout, $head_only = false, $max_redirects = 10)
 {
 	$result = null;
-	$parsed_url = parse_url($url);
+	$parsed_url = forum_remote_url_parts($url);
+	if ($parsed_url === false)
+		return null;
+
 	$allow_url_fopen = strtolower(@ini_get('allow_url_fopen'));
 
 	// Quite unlikely that this will be allowed on a shared host, but it can't hurt
@@ -292,15 +326,31 @@ function get_remote_file($url, $timeout, $head_only = false, $max_redirects = 10
 			}
 		}
 	}
-	// fsockopen() is the second best thing
-	else if (function_exists('fsockopen'))
+	// A raw socket is the second best thing
+	else if (function_exists('stream_socket_client'))
 	{
-		$remote = @fsockopen($parsed_url['host'], !empty($parsed_url['port']) ? intval($parsed_url['port']) : 80, $errno, $errstr, $timeout);
+		// The transport follows the scheme: an https:// URL is never fetched in
+		// cleartext on port 80, and the peer certificate is verified.
+		$stream_context = stream_context_create(array(
+			'ssl' => array(
+				'verify_peer'		=> true,
+				'verify_peer_name'	=> true,
+				'peer_name'			=> $parsed_url['host'],
+				'SNI_enabled'		=> true,
+				'allow_self_signed'	=> false
+			)
+		));
+
+		$remote = @stream_socket_client(
+			$parsed_url['transport'].'://'.$parsed_url['host'].':'.$parsed_url['port'],
+			$errno, $errstr, $timeout, STREAM_CLIENT_CONNECT, $stream_context
+		);
 		if ($remote)
 		{
 			// Send a standard HTTP 1.0 request for the page
-			fwrite($remote, ($head_only ? 'HEAD' : 'GET').' '.(!empty($parsed_url['path']) ? $parsed_url['path'] : '/').(!empty($parsed_url['query']) ? '?'.$parsed_url['query'] : '').' HTTP/1.0'."\r\n");
-			fwrite($remote, 'Host: '.$parsed_url['host']."\r\n");
+			fwrite($remote, ($head_only ? 'HEAD' : 'GET').' '.$parsed_url['path'].' HTTP/1.0'."\r\n");
+			$default_port = ($parsed_url['scheme'] === 'https') ? 443 : 80;
+			fwrite($remote, 'Host: '.$parsed_url['host'].($parsed_url['port'] !== $default_port ? ':'.$parsed_url['port'] : '')."\r\n");
 			fwrite($remote, 'User-Agent: PunBB'."\r\n");
 			fwrite($remote, 'Connection: Close'."\r\n\r\n");
 
@@ -1405,6 +1455,18 @@ function generate_form_token($target_url)
 		return $return;
 
 	return sha1(str_replace('&amp;', '&', $target_url).$forum_user['csrf_token']);
+}
+
+
+// Checks a submitted CSRF token against the one $target should carry
+// $token is whatever arrived in the request, so it may be absent or an array.
+function csrf_token_matches($token, $target)
+{
+	$return = ($hook = get_hook('fn_csrf_token_matches_start')) ? eval($hook) : null;
+	if ($return !== null)
+		return $return;
+
+	return is_string($token) && hash_equals(generate_form_token($target), $token);
 }
 
 
@@ -3671,10 +3733,122 @@ function redirect($destination_url, $message)
 }
 
 
+//
+// Queue work to run after the response has been sent
+//
+// A form that must answer identically whatever it found cannot do the work
+// that differs before it answers: the cost of that work, the errors it raises
+// and the state it writes are all readable from the response. What is queued
+// here runs in footer.php once the visitor has the whole page.
+//
+function forum_defer($callback)
+{
+	if (!isset($GLOBALS['forum_deferred']))
+		$GLOBALS['forum_deferred'] = array();
+
+	$GLOBALS['forum_deferred'][] = $callback;
+}
+
+
+//
+// Send the finished page and stop the visitor's clock
+//
+// Under FPM the request is closed outright. Everywhere else Content-Length is
+// what lets the client stop reading: without it the server holds a chunked
+// body open until this script returns and the deferred work would still sit
+// inside the measured time. Compression is dropped for this response for the
+// same reason - the length has to be known before the first byte goes out.
+//
+// Residual, on a server with no fastcgi_finish_request(): a reverse proxy that
+// re-chunks the response instead of passing Content-Length through leaves the
+// connection open for as long as the work takes. The body still arrives at the
+// same moment for every visitor; only the close does not.
+//
+function forum_finish_response($body)
+{
+	// Whatever was echoed before the page itself - a PHP warning, an extension
+	// - sits in the buffers common.php opened, and belongs in front of it.
+	$buffered = '';
+	while (ob_get_level() > 0)
+	{
+		$chunk = ob_get_clean();
+		if ($chunk === false)
+			break;
+
+		$buffered = $chunk.$buffered;
+	}
+
+	$body = $buffered.$body;
+
+	if (!headers_sent())
+	{
+		@ini_set('zlib.output_compression', '0');
+		header('Content-Length: '.strlen($body));
+
+		// The socket stays busy for as long as the deferred work takes, so it
+		// must not be offered back to the client as a keep-alive connection.
+		header('Connection: close');
+	}
+
+	define('FORUM_RESPONSE_SENT', 1);
+
+	// The visitor is gone. The work still has to finish.
+	ignore_user_abort(true);
+
+	echo $body;
+
+	if (function_exists('fastcgi_finish_request'))
+		fastcgi_finish_request();
+	else
+		flush();
+}
+
+
+//
+// Run what forum_defer() queued
+//
+function forum_run_deferred()
+{
+	if (empty($GLOBALS['forum_deferred']))
+		return;
+
+	$queue = $GLOBALS['forum_deferred'];
+	$GLOBALS['forum_deferred'] = array();
+
+	foreach ($queue as $cur_callback)
+	{
+		try
+		{
+			call_user_func($cur_callback);
+		}
+		catch (Throwable $e)
+		{
+			// Nobody is reading. One failed job must not skip the next.
+			error_log('PunBB deferred work failed: '.$e->getMessage());
+		}
+	}
+}
+
+
 // Display a simple error message
 function error()
 {
 	global $forum_config, $lang_common;
+
+	// The response is already on the wire and the visitor has stopped reading.
+	// An error page appended here reaches nobody but an attacker counting
+	// bytes, and naming the failure is exactly what the deferral prevents.
+	if (defined('FORUM_RESPONSE_SENT'))
+	{
+		$parts = array();
+		foreach (func_get_args() as $cur_arg)
+		{
+			$parts[] = is_scalar($cur_arg) ? (string) $cur_arg : gettype($cur_arg);
+		}
+
+		error_log('PunBB: '.implode(' ', $parts));
+		exit;
+	}
 
 	if (!headers_sent())
 	{

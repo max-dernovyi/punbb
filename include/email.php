@@ -14,6 +14,15 @@ if (!defined('FORUM'))
 
 
 //
+// Raised when a mail cannot be handed to the relay.
+//
+// A caller that must answer the same for every address catches it and says
+// nothing; every other caller lets forum_mail() render the error page.
+//
+class ForumMailException extends Exception {}
+
+
+//
 // Validate an e-mail address
 //
 function is_valid_email($email)
@@ -55,7 +64,7 @@ function is_banned_email($email)
 //
 // Wrapper for PHP's mail()
 //
-function forum_mail($to, $subject, $message, $reply_to_email = '', $reply_to_name = '')
+function forum_mail($to, $subject, $message, $reply_to_email = '', $reply_to_name = '', $quiet = false)
 {
 	global $forum_config, $lang_common;
 
@@ -93,7 +102,21 @@ function forum_mail($to, $subject, $message, $reply_to_email = '', $reply_to_nam
 	($hook = get_hook('em_fn_forum_mail_pre_send')) ? eval($hook) : null;
 
 	if ($forum_config['o_smtp_host'] != '')
-		smtp_mail($to, $subject, $message, $headers);
+	{
+		try
+		{
+			smtp_mail($to, $subject, $message, $headers);
+		}
+		catch (ForumMailException $e)
+		{
+			// A quiet caller answers the same for every address, so a relay
+			// that is down must not turn the send into the tell.
+			if ($quiet)
+				return false;
+
+			error($e->getMessage(), __FILE__, __LINE__);
+		}
+	}
 	else
 	{
 		// Change the linebreaks used in the headers according to OS
@@ -102,8 +125,15 @@ function forum_mail($to, $subject, $message, $reply_to_email = '', $reply_to_nam
 		else if (strtoupper(substr(PHP_OS, 0, 3)) != 'WIN')
 			$headers = str_replace("\r\n", "\n", $headers);
 
+		// mail() warns when the handoff fails, and with display_errors on that
+		// warning is the tell a quiet caller must not give.
+		if ($quiet)
+			return (bool) @mail($to, $subject, $message, $headers);
+
 		mail($to, $subject, $message, $headers);
 	}
+
+	return true;
 }
 
 
@@ -116,13 +146,12 @@ function server_parse($socket, $expected_response)
 	$server_response = '';
 	while (substr($server_response, 3, 1) != ' ')
 	{
-		if (!($server_response = fgets($socket, 256)))
-			error($expected_response.' Couldn\'t get mail server response codes.<br />Please contact the forum administrator.', __FILE__, __LINE__);
+		if (!($server_response = @fgets($socket, 256)))
+			throw new ForumMailException('Unable to send e-mail.<br />Please contact the forum administrator.'.(defined('FORUM_DEBUG') ? ' No response to the '.forum_htmlencode($expected_response).' command.' : ''));
 	}
 
-	if (!(substr($server_response, 0, 3) == $expected_response)) {
-        error($expected_response.' Unable to send e-mail.<br />Please contact the forum administrator with the following error message reported by the SMTP server: "'.$server_response.'"', __FILE__, __LINE__);
-        }
+	if (!(substr($server_response, 0, 3) == $expected_response))
+		throw new ForumMailException('Unable to send e-mail.<br />Please contact the forum administrator.'.(defined('FORUM_DEBUG') ? ' Expected '.forum_htmlencode($expected_response).', the SMTP server reported: "'.forum_htmlencode($server_response).'".' : ''));
 }
 
 
@@ -154,50 +183,50 @@ function smtp_mail($to, $subject, $message, $headers = '')
 	if ($forum_config['o_smtp_ssl'] == '1')
 		$smtp_host = 'ssl://'.$smtp_host;
 
-	if (!($socket = fsockopen($smtp_host, $smtp_port, $errno, $errstr, 15)))
-		error('Could not connect to smtp host "'.$forum_config['o_smtp_host'].'" ('.$errno.') ('.$errstr.').', __FILE__, __LINE__);
+	if (!($socket = @fsockopen($smtp_host, $smtp_port, $errno, $errstr, 15)))
+		throw new ForumMailException('Unable to send e-mail.<br />Please contact the forum administrator.'.(defined('FORUM_DEBUG') ? ' Could not connect to smtp host "'.forum_htmlencode($forum_config['o_smtp_host']).'" ('.forum_htmlencode((string) $errno).') ('.forum_htmlencode($errstr).').' : ''));
 
 	server_parse($socket, '220');
 
 	if ($forum_config['o_smtp_user'] != '' && $forum_config['o_smtp_pass'] != '')
 	{
-		fwrite($socket, 'EHLO '.$smtp_host."\r\n");
+		@fwrite($socket, 'EHLO '.$smtp_host."\r\n");
 		server_parse($socket, '250');
 
-		fwrite($socket, 'AUTH LOGIN'."\r\n");
+		@fwrite($socket, 'AUTH LOGIN'."\r\n");
 		server_parse($socket, '334');
 
-		fwrite($socket, base64_encode($forum_config['o_smtp_user'])."\r\n");
+		@fwrite($socket, base64_encode($forum_config['o_smtp_user'])."\r\n");
 		server_parse($socket, '334');
 
-		fwrite($socket, base64_encode($forum_config['o_smtp_pass'])."\r\n");
+		@fwrite($socket, base64_encode($forum_config['o_smtp_pass'])."\r\n");
 		server_parse($socket, '235');
 	}
 	else
 	{
-		fwrite($socket, 'HELO '.$smtp_host."\r\n");
+		@fwrite($socket, 'HELO '.$smtp_host."\r\n");
 		server_parse($socket, '250');
 	}
 
-	fwrite($socket, 'MAIL FROM: <'.$forum_config['o_webmaster_email'].'>'."\r\n");
+	@fwrite($socket, 'MAIL FROM: <'.$forum_config['o_webmaster_email'].'>'."\r\n");
 	server_parse($socket, '250');
 
 	foreach ($recipients as $email)
 	{
-		fwrite($socket, 'RCPT TO: <'.$email.'>'."\r\n");
+		@fwrite($socket, 'RCPT TO: <'.$email.'>'."\r\n");
 		server_parse($socket, '250');
 	}
 
-	fwrite($socket, 'DATA'."\r\n");
+	@fwrite($socket, 'DATA'."\r\n");
 	server_parse($socket, '354');
 
-	fwrite($socket, 'Subject: '.$subject."\r\n".'To: <'.implode('>, <', $recipients).'>'."\r\n".$headers."\r\n\r\n".$message."\r\n");
+	@fwrite($socket, 'Subject: '.$subject."\r\n".'To: <'.implode('>, <', $recipients).'>'."\r\n".$headers."\r\n\r\n".$message."\r\n");
 
-	fwrite($socket, '.'."\r\n");
+	@fwrite($socket, '.'."\r\n");
 	server_parse($socket, '250');
 
-	fwrite($socket, 'QUIT'."\r\n");
-	fclose($socket);
+	@fwrite($socket, 'QUIT'."\r\n");
+	@fclose($socket);
 
 	return true;
 }

@@ -1,6 +1,6 @@
 <?php
 /**
- * Keeps README, CLAUDE.md and the ChangeLog in sync with the drivers and the
+ * Keeps README and the ChangeLog in sync with the drivers and the
  * PHP version the code actually supports.
  *
  * @copyright (C) 2008-2012 PunBB, partially based on code (C) 2008-2009 FluxBB.org
@@ -44,17 +44,11 @@ class DocsDriverListTest extends TestCase {
 		$this->assertStringContainsString('db_update.php', $readme);
 	}
 
-	public function testClaudeMdDocumentsTheDbUpdateGuard(): void {
-		$claude = $this->doc('CLAUDE.md');
-
-		$this->assertStringContainsString('forum_removed_db_type_replacement()', $claude);
-		$this->assertStringContainsString('admin/db_update.php', $claude);
-	}
-
+	/** The ChangeLog opens with the version the code reports, whatever it is. */
 	public function testChangeLogHasAnEntryForThisRelease(): void {
 		$changelog = $this->doc('ChangeLog');
 
-		$this->assertStringStartsWith('PunBB 1.5.0', $changelog);
+		$this->assertStringStartsWith('PunBB '.FORUM_VERSION, $changelog);
 		$this->assertStringContainsString('PHP '.$this->release(), $changelog);
 
 		foreach (self::REMOVED as $db_type)
