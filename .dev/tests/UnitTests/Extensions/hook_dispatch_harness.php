@@ -1,6 +1,7 @@
 <?php
 /**
- * Calls get_hook() for every id of a hooks table and reports what came back.
+ * Calls get_hook() for every id of a hooks table and reports what came back,
+ * and the deprecation notices raised on the way.
  *
  * Out of process because the unit bootstrap defines FORUM_DISABLE_HOOKS.
  * $argv[1] is "enabled" or "disabled", $argv[2] a JSON file holding $forum_hooks.
@@ -19,8 +20,15 @@ require FORUM_ROOT.'include/functions.php';
 
 $forum_hooks = json_decode((string) file_get_contents($argv[2]), true);
 
+$notices = array();
+set_error_handler(function ($errno, $errstr) use (&$notices) {
+	$notices[] = $errstr;
+
+	return true;
+}, E_USER_DEPRECATED);
+
 $returned = array();
 foreach (array_merge(array_keys($forum_hooks), array('punbb_fixture_unknown_point')) as $id)
 	$returned[$id] = get_hook($id);
 
-echo json_encode($returned);
+echo json_encode(array('returned' => $returned, 'notices' => $notices));

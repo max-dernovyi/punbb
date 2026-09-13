@@ -60,6 +60,9 @@ else
 // A good place to modify the URL scheme
 ($hook = get_hook('co_modify_url_scheme')) ? eval($hook) : null;
 
+// The composition root: past this point the user, the language pack and the URL scheme exist.
+$forum_container = PunBB\Module\Framework\Modules\ModuleRegistry::discover(FORUM_ROOT.'include/PunBB/Module', 'PunBB\\Module\\')->container();
+
 // Check if we are to display a maintenance message
 if ($forum_config['o_maintenance'] && $forum_user['g_id'] > FORUM_ADMIN && !defined('FORUM_TURN_OFF_MAINT'))
 	maintenance_message();

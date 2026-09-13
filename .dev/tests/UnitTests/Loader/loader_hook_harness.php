@@ -15,6 +15,9 @@ define('FORUM', 1);
 
 require FORUM_ROOT.'include/constants.php';
 require FORUM_ROOT.'include/functions.php';
+
+// The hook is this harness's probe; its deprecation notice goes to the log, as essentials.php routes it.
+set_error_handler('forum_log_deprecation', E_USER_DEPRECATED);
 require FORUM_ROOT.'include/loader.php';
 require FORUM_ROOT.'include/utf8.php';
 

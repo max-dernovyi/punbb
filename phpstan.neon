@@ -25,6 +25,9 @@ parameters:
 		- viewforum.php
 		- viewtopic.php
 	excludePaths:
+		# Analysed by phpstan-core.neon, still scanned for the symbols the legacy tree uses.
+		analyse:
+			- include/PunBB
 		analyseAndScan:
 			- vendor
 			- .dev/tmp (?)

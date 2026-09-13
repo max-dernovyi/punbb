@@ -4,7 +4,8 @@
  *
  * Every site is `($hook = get_hook('x')) ? eval($hook) : null;`, so false means
  * nothing runs, and a `$return` site reads null. FORUM_DISABLE_HOOKS turns
- * every point off, including one with code attached.
+ * every point off, including one with code attached. Handing code to eval is
+ * the deprecated path, so each point that does raises a notice naming itself.
  *
  * @copyright (C) 2008-2012 PunBB, partially based on code (C) 2008-2009 FluxBB.org
  * @license http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
@@ -16,8 +17,8 @@ use PHPUnit\Framework\TestCase;
 class HookDispatchTest extends TestCase {
 	private const KNOWN = 'fn_get_remote_address_start';
 
-	/** @var array<string, array<string, string|false>> */
-	private static array $returned = array();
+	/** @var array<string, array{returned: array<string, string|false>, notices: list<string>}> */
+	private static array $reports = array();
 
 	/** One body on every inventoried point, two on KNOWN. */
 	private static function hooks(): array {
@@ -29,9 +30,9 @@ class HookDispatchTest extends TestCase {
 		return $hooks;
 	}
 
-	/** @return array<string, string|false> what get_hook() returned per id */
-	private function dispatch(string $state): array {
-		if (!isset(self::$returned[$state]))
+	/** @return array{returned: array<string, string|false>, notices: list<string>} what get_hook() returned per id, and the notices it raised */
+	private function report(string $state): array {
+		if (!isset(self::$reports[$state]))
 		{
 			$file = tempnam(sys_get_temp_dir(), 'punbb_hooks_');
 			file_put_contents($file, json_encode(self::hooks()));
@@ -40,13 +41,18 @@ class HookDispatchTest extends TestCase {
 				escapeshellarg(__DIR__.'/hook_dispatch_harness.php').' '.escapeshellarg($state).' '.escapeshellarg($file).' 2>&1');
 			unlink($file);
 
-			$returned = json_decode($output, true);
-			$this->assertIsArray($returned, 'the harness did not report: '.$output);
+			$report = json_decode($output, true);
+			$this->assertIsArray($report, 'the harness did not report: '.$output);
 
-			self::$returned[$state] = $returned;
+			self::$reports[$state] = $report;
 		}
 
-		return self::$returned[$state];
+		return self::$reports[$state];
+	}
+
+	/** @return array<string, string|false> */
+	private function dispatch(string $state): array {
+		return $this->report($state)['returned'];
 	}
 
 	public function testAnUnknownPointReturnsFalse(): void {
@@ -70,5 +76,14 @@ class HookDispatchTest extends TestCase {
 
 		$this->assertCount(count(self::hooks()) + 1, $returned);
 		$this->assertSame(array(false), array_values(array_unique($returned, SORT_REGULAR)));
+		$this->assertSame(array(), $this->report('disabled')['notices']);
+	}
+
+	public function testEveryPointHandingOverCodeRaisesOneNoticeNamingIt(): void {
+		$notices = $this->report('enabled')['notices'];
+
+		$this->assertCount(count(self::hooks()), $notices);
+		$this->assertContains('Running extension code at hook point '.self::KNOWN.' through eval($hook) is deprecated since 2.0, use the event or the plugged contract method that replaces the point', $notices);
+		$this->assertSame(array(), preg_grep('/punbb_fixture_unknown_point/', $notices));
 	}
 }

@@ -1146,7 +1146,45 @@ function get_hook($hook_id)
 {
 	global $forum_hooks;
 
-	return !defined('FORUM_DISABLE_HOOKS') && isset($forum_hooks[$hook_id]) ? implode("\n", $forum_hooks[$hook_id]) : false;
+	if (defined('FORUM_DISABLE_HOOKS') || !isset($forum_hooks[$hook_id]))
+		return false;
+
+	trigger_error('Running extension code at hook point '.$hook_id.' through eval($hook) is deprecated since 2.0, use the event or the plugged contract method that replaces the point', E_USER_DEPRECATED);
+
+	return implode("\n", $forum_hooks[$hook_id]);
+}
+
+
+// The E_USER_DEPRECATED handler essentials.php installs: a deprecation goes to the log, never
+// onto a page. Logged once per request, or once per call site under FORUM_DEBUG.
+function forum_log_deprecation($errno, $errstr, $errfile, $errline)
+{
+	static $logged = array();
+
+	// @ and error_reporting() still decide whether a notice counts
+	if (!(error_reporting() & $errno))
+		return true;
+
+	// trigger_error() inside a deprecated function reports its own line; the call site is its caller's.
+	// At the top level of an included file the notice's own line is already the call site.
+	$frames = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 3);
+	if (($frames[1]['function'] ?? '') == 'trigger_error' && isset($frames[2]['file'])
+		&& !in_array($frames[2]['function'], array('include', 'include_once', 'require', 'require_once'), true))
+	{
+		$errfile = $frames[2]['file'];
+		$errline = $frames[2]['line'];
+	}
+
+	$line = 'PunBB deprecation: '.$errstr.' in '.$errfile.' on line '.$errline;
+	$key = defined('FORUM_DEBUG') ? $line : $errstr;
+
+	if (!isset($logged[$key]))
+	{
+		$logged[$key] = true;
+		error_log($line);
+	}
+
+	return true;
 }
 
 

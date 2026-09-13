@@ -64,6 +64,9 @@ if (defined('FORUM_DEBUG'))
 else
 	error_reporting(E_ALL ^ E_NOTICE);
 
+// A deprecation notice goes to the log, never onto a page
+set_error_handler('forum_log_deprecation', E_USER_DEPRECATED);
+
 // PCRE2 in PHP 8.4 always carries UTF-8 support, and include/utf8.php has
 // already fataled above if it did not. The constant stays: extensions read it.
 define('FORUM_SUPPORT_PCRE_UNICODE', 1);

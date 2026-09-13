@@ -1,0 +1,10 @@
+# The new core under include/PunBB/: strict analysis, no baseline.
+# The legacy tree stays on phpstan.neon.
+parameters:
+	level: max
+	paths:
+		- include/PunBB
+	# The legacy functions the bridge calls, declared but not analysed.
+	scanFiles:
+		- include/functions.php
+	tmpDir: .dev/tmp/phpstan-core

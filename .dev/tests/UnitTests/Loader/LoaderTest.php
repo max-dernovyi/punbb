@@ -255,7 +255,7 @@ class LoaderTest extends TestCase {
 
 	private function hookHarness(string $case): string {
 		$output = shell_exec(
-			escapeshellarg(PHP_BINARY).' '.
+			escapeshellarg(PHP_BINARY).' -d display_errors=stdout -d error_log=/dev/null '.
 			escapeshellarg(__DIR__.'/loader_hook_harness.php').' '.
 			escapeshellarg($case).' 2>&1'
 		);

@@ -8,12 +8,23 @@
         "ext-intl": "*",
         "ext-json": "*",
         "ext-mbstring": "*",
-        "ext-xml": "*"
+        "ext-xml": "*",
+        "psr/container": "^2.0"
     },
     "require-dev": {
         "php-parallel-lint/php-parallel-lint": "^1.4",
         "phpstan/phpstan": "^2",
         "phpunit/phpunit": "^12"
+    },
+    "autoload": {
+        "psr-4": {
+            "PunBB\\": "include/PunBB/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "PunBBFixture\\Module\\": ".dev/tests/fixtures/modules/"
+        }
     },
     "minimum-stability": "stable",
     "config": {
@@ -29,7 +40,10 @@
         "protect-vendor": "@php -r \"file_put_contents('vendor/.htaccess', implode(PHP_EOL, ['# Composer tree. Never served.', '<IfModule mod_authz_core.c>', 'Require all denied', '</IfModule>', '<IfModule !mod_authz_core.c>', 'Order allow,deny', 'Deny from all', '</IfModule>', '']));\"",
         "lint": "@php .dev/bin/lint.php",
         "smoke": "@php .dev/bin/smoke.php",
-        "stan": "phpstan analyse --memory-limit=1G",
+        "stan": [
+            "phpstan analyse --memory-limit=1G",
+            "phpstan analyse --memory-limit=1G --configuration=phpstan-core.neon"
+        ],
         "test": "phpunit",
         "test-extensions": "@php .dev/tests/Integration/extension_corpus.php"
     }

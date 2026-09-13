@@ -17,6 +17,9 @@ define('FORUM_ROOT', dirname(__DIR__, 4).'/');
 
 require FORUM_ROOT.'include/functions.php';
 
+// The hook is this harness's probe; its deprecation notice goes to the log, as essentials.php routes it.
+set_error_handler('forum_log_deprecation', E_USER_DEPRECATED);
+
 $base_url = $argv[1];
 $forum_config = array('o_redirect_delay' => '1');
 $forum_user = array('style' => 'Oxygen');

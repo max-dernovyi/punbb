@@ -23,7 +23,7 @@ class RedirectTargetTest extends TestCase
 
 	private function destination(string $requested): string
 	{
-		$command = escapeshellarg(PHP_BINARY).' '.escapeshellarg(__DIR__.'/redirect_harness.php').
+		$command = escapeshellarg(PHP_BINARY).' -d display_errors=stdout -d error_log=/dev/null '.escapeshellarg(__DIR__.'/redirect_harness.php').
 			' '.escapeshellarg(self::BASE).' '.escapeshellarg($requested);
 
 		$output = shell_exec($command);

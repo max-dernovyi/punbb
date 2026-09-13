@@ -17,12 +17,17 @@ final class ScratchForum {
 
 	private const LINKED_DIRS = array('include', 'lang', 'style', 'img', 'vendor');
 
+	private const DEBUG = "\n\ndefine('FORUM_DEBUG', 1);\n";
+
 	private string $root;
 	private SQLite3 $db;
 	private int $adminId;
 
 	/** @var array<string, string> */
 	private array $cookie = array();
+
+	/** @var array<string, string> php.ini settings every request runs with */
+	private array $ini = array('display_errors' => '1', 'error_reporting' => '-1');
 
 	public function __construct() {
 		$this->root = sys_get_temp_dir().'/punbb_scratch_'.bin2hex(random_bytes(6));
@@ -68,9 +73,21 @@ final class ScratchForum {
 		$this->db->exec('UPDATE config SET conf_value=\'0\' WHERE conf_name IN (\'o_check_for_updates\', \'o_check_for_versions\')');
 		array_map('unlink', glob($this->root.'/cache/*.php'));
 
-		file_put_contents($this->root.'/config.php', "\n\ndefine('FORUM_DEBUG', 1);\n", FILE_APPEND);
+		$this->debug(true);
 
 		$this->logInAsAdmin();
+	}
+
+	/** Turns FORUM_DEBUG on or off in config.php; the forum starts with it on. */
+	public function debug(bool $on): void {
+		$config = str_replace(self::DEBUG, '', (string) file_get_contents($this->root.'/config.php'));
+
+		file_put_contents($this->root.'/config.php', $on ? $config.self::DEBUG : $config);
+	}
+
+	/** Sends what a request logs to $file instead of stderr. */
+	public function logTo(string $file): void {
+		$this->ini['error_log'] = $file;
 	}
 
 	/** Makes a fixture extension under .dev/tests/fixtures/extensions/ available to install. */
@@ -84,11 +101,20 @@ final class ScratchForum {
 		file_put_contents($this->root.'/extensions/'.$id.'/manifest.xml', $manifest);
 	}
 
+	/** Serves a script from outside the checkout's root as an entry point of the scratch root. */
+	public function addScript(string $file): void {
+		symlink($file, $this->root.'/'.basename($file));
+	}
+
 	/** @return string what the script printed, PHP diagnostics included */
 	public function request(string $script, array $get = array(), array $post = array()): string {
 		$request = json_encode(array('get' => $get, 'post' => $post, 'cookie' => $this->cookie));
 
-		return (string) shell_exec(escapeshellarg(PHP_BINARY).' -d display_errors=1 -d error_reporting=-1 '.
+		$ini = '';
+		foreach ($this->ini as $name => $value)
+			$ini .= ' -d '.escapeshellarg($name.'='.$value);
+
+		return (string) shell_exec(escapeshellarg(PHP_BINARY).$ini.' '.
 			escapeshellarg(__DIR__.'/forum_request_harness.php').' '.escapeshellarg($this->root).' '.
 			escapeshellarg($script).' '.escapeshellarg($request).' 2>&1');
 	}
