@@ -1,0 +1,4 @@
+<?php /* A feed as a list of links, for another site to place. Every variable is escaped unless it is Html. */ ?>
+<?php foreach ($items as $item): ?>
+<li><a href="<?= $item['link'] ?>" title="<?= $item['title'] ?>"><?= $item['subject'] ?></a></li>
+<?php endforeach ?>

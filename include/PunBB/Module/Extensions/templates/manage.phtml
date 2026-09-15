@@ -1,0 +1,34 @@
+<?php /* The extensions available for install and those installed, each box built as markup. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $ext['Extensions available'] ?></span></h2>
+	</div>
+	<div class="main-content main-extensions">
+<?= $preAvailable ?>
+<?php if ($available !== null): ?>
+		<?= $available, "\n" ?>
+<?php else: ?>
+		<div class="ct-box info-box">
+			<p><?= $ext['No available extensions'] ?></p>
+		</div>
+<?php endif ?>
+<?php if ($failed !== null): ?>
+		<div class="ct-box data-box">
+			<p class="important"><?= $ext['Invalid extensions'] ?></p>
+			<?= $failed, "\n" ?>
+		</div>
+<?php endif ?>
+	</div>
+<?= $preInstalled ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $ext['Installed extensions'] ?></span></h2>
+	</div>
+	<div class="main-content main-extensions">
+<?= $actionsMarkup ?>
+<?php if ($installed !== null): ?>
+	<?= $installed, "\n" ?>
+<?php else: ?>
+		<div class="ct-box info-box">
+			<p><?= $ext['No installed extensions'] ?></p>
+		</div>
+<?php endif ?>
+	</div>

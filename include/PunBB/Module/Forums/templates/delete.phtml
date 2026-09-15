@@ -1,0 +1,18 @@
+<?php /* The confirmation of a forum's deletion, which takes its posts with it. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $heading ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<input type="hidden" name="csrf_token" value="<?= $token ?>" />
+			</div>
+			<div class="ct-box warn-box">
+				<p class="warn"><?= $afo['Delete forum warning'] ?></p>
+			</div>
+			<div class="frm-buttons">
+				<span class="submit primary caution"><input type="submit" name="del_forum_comply" value="<?= $afo['Delete forum'] ?>" /></span>
+				<span class="cancel"><input type="submit" name="del_forum_cancel" value="<?= $common['Cancel'] ?>" /></span>
+			</div>
+		</form>
+	</div>

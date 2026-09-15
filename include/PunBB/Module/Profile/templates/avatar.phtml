@@ -1,0 +1,53 @@
+<?php /* The avatar section of a member's profile. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $heading ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+<?php if ($errors !== null): ?>
+		<div class="ct-box error-box">
+			<h2 class="warn hn"><?= $profile['Profile update errors'] ?></h2>
+			<ul class="error-list">
+				<?= $errors, "\n" ?>
+			</ul>
+		</div>
+<?php endif ?>
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>" enctype="multipart/form-data">
+			<div class="hidden">
+				<?= $hidden, "\n" ?>
+			</div>
+<?= $positions['pre_fieldset'] ?>
+			<div class="ct-box info-box">
+				<ul class="info-list">
+					<?= $info, "\n" ?>
+				</ul>
+			</div>
+			<div id="req-msg" class="req-warn ct-box info-box">
+				<p class="important"><?= $profile['No upload warn'] ?></p>
+			</div>
+			<fieldset class="frm-group group<?= $numbers['group'] ?>">
+				<legend class="group-legend"><strong><?= $profile['Avatar'] ?></strong></legend>
+<?= $positions['pre_cur_avatar_info'] ?>
+				<div class="ct-set set<?= $numbers['current_item'] ?>">
+					<div class="ct-box">
+						<h3 class="hn ct-legend"><?= $profile['Current avatar'] ?></h3>
+<?php if ($demo !== null): ?>
+						<p class="avatar-demo"><span><?= $demo ?></span></p>
+<?php endif ?>
+						<p><?php if ($demo !== null): ?><a href="<?= $deleteLink ?>"><?= $profile['Delete avatar info'] ?></a><?php else: ?><?= $profile['No avatar info'] ?><?php endif ?></p>
+					</div>
+				</div>
+<?= $positions['pre_avatar_upload'] ?>
+				<div class="sf-set set<?= $numbers['upload_item'] ?>">
+					<div class="sf-box text required">
+						<label for="fld<?= $numbers['upload'] ?>"><span><?= $profile['Upload avatar file'] ?></span><small><?= $profile['Avatar upload help'] ?></small></label><br />
+						<span class="fld-input"><input id="fld<?= $numbers['upload'] ?>" name="req_file" type="file" size="40" /></span>
+					</div>
+				</div>
+<?= $positions['pre_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="update" value="<?= $profile['Update profile'] ?>" /></span>
+			</div>
+		</form>
+	</div>

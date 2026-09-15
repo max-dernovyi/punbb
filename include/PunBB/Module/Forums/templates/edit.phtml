@@ -1,0 +1,106 @@
+<?php /* The form editing a forum: its details, then each group's permissions in it. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $heading ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<form method="post" class="frm-form" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<input type="hidden" name="csrf_token" value="<?= $token ?>" />
+			</div>
+			<div class="content-head">
+				<h3 class="hn"><span><?= $afo['Edit forum details head'] ?></span></h3>
+			</div>
+<?= $positions['pre_details_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['details_group'] ?>">
+				<legend class="group-legend"><strong><?= $afo['Edit forum details legend'] ?></strong></legend>
+<?= $positions['pre_forum_name'] ?>
+				<div class="sf-set set<?= $numbers['name_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['name_field'] ?>"><span><?= $afo['Forum name'] ?></span></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['name_field'] ?>" name="forum_name" size="35" maxlength="80" value="<?= $name ?>" required /></span>
+					</div>
+				</div>
+<?= $positions['pre_forum_descrip'] ?>
+				<div class="txt-set set<?= $numbers['description_item'] ?>">
+					<div class="txt-box textarea">
+						<label for="fld<?= $numbers['description_field'] ?>"><span><?= $afo['Forum description'] ?></span> <small><?= $afo['Forum description help'] ?></small></label><br />
+						<div class="txt-input"><span class="fld-input"><textarea id="fld<?= $numbers['description_field'] ?>" name="forum_desc" rows="3" cols="50"><?= $description ?></textarea></span></div>
+					</div>
+				</div>
+<?= $positions['pre_forum_cat'] ?>
+				<div class="sf-set set<?= $numbers['category_item'] ?>">
+					<div class="sf-box select">
+						<label for="fld<?= $numbers['category_field'] ?>"><span><?= $afo['Category assignment'] ?></span></label><br />
+						<span class="fld-input"><select id="fld<?= $numbers['category_field'] ?>" name="cat_id">
+<?php foreach ($categories as $category): ?>
+								<option value="<?= $category['id'] ?>"<?php if ($category['selected']): ?> selected="selected"<?php endif ?>><?= $category['name'] ?></option>
+<?php endforeach ?>
+						</select></span>
+					</div>
+				</div>
+<?= $positions['pre_forum_sort_by'] ?>
+				<div class="sf-set set<?= $numbers['sort_item'] ?>">
+					<div class="sf-box select">
+						<label for="fld<?= $numbers['sort_field'] ?>"><span><?= $afo['Sort topics by'] ?></span></label><br />
+						<span class="fld-input"><select id="fld<?= $numbers['sort_field'] ?>" name="sort_by">
+							<option value="0"<?php if ($sortBy === 0): ?> selected="selected"<?php endif ?>><?= $afo['Sort last post'] ?></option>
+							<option value="1"<?php if ($sortBy === 1): ?> selected="selected"<?php endif ?>><?= $afo['Sort topic start'] ?></option>
+<?= $positions['modify_sort_by'] ?>						</select></span>
+					</div>
+				</div>
+<?= $positions['pre_forum_redirect_url'] ?>
+				<div class="sf-set set<?= $numbers['redirect_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['redirect_field'] ?>"><span><?= $afo['Redirect URL'] ?></span></label><br />
+						<span class="fld-input"><?php if ($hasTopics): ?><input type="url" id="fld<?= $numbers['redirect_field'] ?>" name="redirect_url" size="45" maxlength="100" value="<?= $afo['Only for empty forums'] ?>" disabled="disabled" /><?php else: ?><input type="text" id="fld<?= $numbers['redirect_field'] ?>" name="redirect_url" size="35" maxlength="100" value="<?= $redirectUrl ?>" /><?php endif ?></span>
+					</div>
+				</div>
+<?= $positions['pre_details_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['details_fieldset_end'] ?><?= $positions['pre_permissions_part'] ?>
+			<div class="content-head">
+				<h3 class="hn"><span><?= $afo['Edit forum perms head'] ?></span></h3>
+			</div>
+			<div class="ct-box">
+				<ul>
+					<?= $lines, "\n" ?>
+				</ul>
+			</div>
+			<fieldset class="frm-group group<?= $numbers['permissions_group'] ?>">
+				<legend class="group-legend"><strong><?= $afo['Edit forum perms legend'] ?></strong></legend>
+<?php foreach ($groups as $group): ?>
+<?= $group['preFieldset'] ?>
+				<fieldset class="mf-set set<?= $group['item'] ?>">
+					<legend><span><?= $group['title'] ?></span></legend>
+					<div class="mf-box mf-yesno">
+<?= $group['preRead'] ?>
+						<div class="mf-item">
+							<input type="hidden" name="read_forum_old[<?= $group['id'] ?>]" value="<?= $group['read'] ? '1' : '0' ?>" />
+							<span class="fld-input"><input type="checkbox" id="fld<?= $group['readField'] ?>" name="read_forum_new[<?= $group['id'] ?>]" value="1"<?php if ($group['read']): ?> checked="checked"<?php endif ?><?php if (!$group['readsBoard']): ?> disabled="disabled"<?php endif ?> /></span>
+							<label for="fld<?= $group['readField'] ?>"<?php if (!$group['read']): ?> class="warn"<?php endif ?>><?= $afo['Read forum'] ?> <?php if (!$group['read']): ?><?= $afo['Not default'] ?><?php endif ?></label>
+						</div>
+<?= $group['preReplies'] ?>
+						<div class="mf-item">
+							<input type="hidden" name="post_replies_old[<?= $group['id'] ?>]" value="<?= $group['replies'] ? '1' : '0' ?>" />
+							<span class="fld-input"><input type="checkbox" id="fld<?= $group['repliesField'] ?>" name="post_replies_new[<?= $group['id'] ?>]" value="1"<?php if ($group['replies']): ?> checked="checked"<?php endif ?><?php if ($redirects): ?> disabled="disabled"<?php endif ?> /></span>
+							<label for="fld<?= $group['repliesField'] ?>"<?php if (!$group['repliesDefault']): ?> class="warn"<?php endif ?>><?= $afo['Post replies'] ?> <?php if (!$group['repliesDefault']): ?><?= $afo['Not default'] ?><?php endif ?></label>
+						</div>
+<?= $group['preTopics'] ?>
+						<div class="mf-item">
+							<input type="hidden" name="post_topics_old[<?= $group['id'] ?>]" value="<?= $group['topics'] ? '1' : '0' ?>" />
+							<span class="fld-input"><input type="checkbox" id="fld<?= $group['topicsField'] ?>" name="post_topics_new[<?= $group['id'] ?>]" value="1"<?php if ($group['topics']): ?> checked="checked"<?php endif ?><?php if ($redirects): ?> disabled="disabled"<?php endif ?> /></span>
+							<label for="fld<?= $group['topicsField'] ?>"<?php if (!$group['topicsDefault']): ?> class="warn"<?php endif ?>><?= $afo['Post topics'] ?> <?php if (!$group['topicsDefault']): ?><?= $afo['Not default'] ?><?php endif ?></label>
+						</div>
+<?= $group['postTopics'] ?>
+					</div>
+<?= $group['preFieldsetEnd'] ?>
+				</fieldset>
+<?= $group['fieldsetEnd'] ?>
+<?php endforeach ?>
+			</fieldset>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="save" value="<?= $common['Save changes'] ?>" /></span>
+				<span class="submit"><input type="submit" name="revert_perms" value="<?= $afo['Restore defaults'] ?>" formnovalidate /></span>
+			</div>
+		</form>
+	</div>

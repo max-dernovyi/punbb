@@ -1,0 +1,191 @@
+<?php /* The settings section of a member's profile: their language, time zone and formats, style and what posts show them, pagination, and mail and subscriptions. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $heading ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<?= $hidden, "\n" ?>
+			</div>
+<?= $positions['pre_local_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['local_group'] ?>">
+				<legend class="group-legend"><strong><?= $profile['Local settings'] ?></strong></legend>
+<?= $positions['pre_language'] ?>
+<?php if ($languages !== null): ?>
+				<div class="sf-set set<?= $numbers['language_item'] ?>">
+					<div class="sf-box select">
+						<label for="fld<?= $numbers['language'] ?>"><span><?= $profile['Language'] ?></span></label><br />
+						<span class="fld-input"><select id="fld<?= $numbers['language'] ?>" name="form[language]">
+<?php foreach ($languages as $language): ?>
+						<option value="<?= $language['name'] ?>"<?php if ($language['selected']): ?> selected="selected"<?php endif ?>><?= $language['name'] ?></option>
+<?php endforeach ?>
+						</select></span>
+					</div>
+				</div>
+<?php endif ?>
+<?= $positions['pre_timezone'] ?>
+				<div class="sf-set set<?= $numbers['timezone_item'] ?>">
+					<div class="sf-box select">
+						<label for="fld<?= $numbers['timezone'] ?>"><span><?= $profile['Timezone'] ?></span> <small><?= $profile['Timezone info'] ?></small></label><br />
+						<span class="fld-input"><select id="fld<?= $numbers['timezone'] ?>" name="form[timezone]">
+<?php foreach ($timezones as $zone): ?>
+						<option value="<?= $zone['name'] ?>"<?php if ($zone['selected']): ?> selected="selected"<?php endif ?>><?= $zone['label'] ?></option>
+<?php endforeach ?>
+						</select></span>
+					</div>
+				</div>
+<?= $positions['pre_dst_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['dst_item'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['dst'] ?>" name="form[dst]" value="1"<?php if ($user['dst']): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['dst'] ?>"><?= $profile['DST label'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_time_format'] ?>
+				<div class="sf-set set<?= $numbers['time_format_item'] ?>">
+					<div class="sf-box select">
+						<label for="fld<?= $numbers['time_format'] ?>"><span><?= $profile['Time format'] ?></span></label><br />
+						<span class="fld-input"><select id="fld<?= $numbers['time_format'] ?>" name="form[time_format]">
+<?php foreach ($timeFormats as $format): ?>
+						<option value="<?= $format['key'] ?>"<?php if ($format['selected']): ?> selected="selected"<?php endif ?>><?= $format['example'] ?><?php if ($format['key'] === 0): ?> (<?= $profile['Default'] ?>)<?php endif ?></option>
+<?php endforeach ?>
+						</select></span>
+					</div>
+				</div>
+<?= $positions['pre_date_format'] ?>
+				<div class="sf-set set<?= $numbers['date_format_item'] ?>">
+					<div class="sf-box select">
+						<label for="fld<?= $numbers['date_format'] ?>"><span class="legend"><?= $profile['Date format'] ?></span></label><br />
+						<span class="fld-input"><select id="fld<?= $numbers['date_format'] ?>" name="form[date_format]">
+<?php foreach ($dateFormats as $format): ?>
+							<option value="<?= $format['key'] ?>"<?php if ($format['selected']): ?> selected="selected"<?php endif ?>><?= $format['example'] ?><?php if ($format['key'] === 0): ?> (<?= $profile['Default'] ?>)<?php endif ?></option>
+<?php endforeach ?>
+						</select></span>
+					</div>
+				</div>
+<?= $positions['pre_local_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['local_fieldset_end'] ?>
+<?= $positions['pre_display_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['display_group'] ?>">
+				<legend class="group-legend"><strong><?= $profile['Display settings'] ?></strong></legend>
+<?= $positions['pre_style'] ?>
+<?php if ($onlyStyle !== null): ?>
+				<input type="hidden" name="form[style]" value="<?= $onlyStyle ?>" />
+<?php elseif ($styles !== null): ?>
+				<div class="sf-set set<?= $numbers['style_item'] ?>">
+					<div class="sf-box select">
+						<label for="fld<?= $numbers['style'] ?>"><span><?= $profile['Styles'] ?></span></label><br />
+						<span class="fld-input"><select id="fld<?= $numbers['style'] ?>" name="form[style]">
+<?php foreach ($styles as $style): ?>
+						<option value="<?= $style['name'] ?>"<?php if ($style['selected']): ?> selected="selected"<?php endif ?>><?= $style['label'] ?></option>
+<?php endforeach ?>
+						</select></span>
+					</div>
+				</div>
+<?php endif ?>
+<?= $positions['pre_image_display_fieldset'] ?>
+				<fieldset class="mf-set set<?= $numbers['image_item'] ?>">
+					<legend><span><?= $profile['Image display'] ?></span></legend>
+					<div class="mf-box">
+<?php if ($options['smilies']): ?>
+						<div class="mf-item">
+							<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['show_smilies'] ?>" name="form[show_smilies]" value="1"<?php if ($user['show_smilies']): ?> checked="checked"<?php endif ?> /></span>
+							<label for="fld<?= $numbers['show_smilies'] ?>"><?= $profile['Show smilies'] ?></label>
+						</div>
+<?php endif; if ($options['avatars']): ?>
+						<div class="mf-item">
+							<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['show_avatars'] ?>" name="form[show_avatars]" value="1"<?php if ($user['show_avatars']): ?> checked="checked"<?php endif ?> /></span>
+							<label for="fld<?= $numbers['show_avatars'] ?>"><?= $profile['Show avatars'] ?></label>
+						</div>
+<?php endif; if ($options['images']): ?>
+						<div class="mf-item">
+							<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['show_img'] ?>" name="form[show_img]" value="1"<?php if ($user['show_img']): ?> checked="checked"<?php endif ?> /></span>
+							<label for="fld<?= $numbers['show_img'] ?>"><?= $profile['Show images'] ?></label>
+						</div>
+<?php endif; if ($options['signatureImages']): ?>
+						<div class="mf-item">
+							<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['show_img_sig'] ?>" name="form[show_img_sig]" value="1"<?php if ($user['show_img_sig']): ?> checked="checked"<?php endif ?> /></span>
+							<label for="fld<?= $numbers['show_img_sig'] ?>"><?= $profile['Show images sigs'] ?></label>
+						</div>
+<?php endif ?>
+<?= $positions['new_image_display_option'] ?>
+					</div>
+<?= $positions['pre_image_display_fieldset_end'] ?>
+				</fieldset>
+<?= $positions['pre_show_sigs_checkbox'] ?>
+<?php if ($options['signatures']): ?>
+				<div class="sf-set set<?= $numbers['show_sig_item'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['show_sig'] ?>" name="form[show_sig]" value="1"<?php if ($user['show_sig']): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['show_sig'] ?>"><span><?= $profile['Signature display'] ?></span> <?= $profile['Show sigs'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_display_fieldset_end'] ?>
+<?php endif ?>
+			</fieldset>
+<?= $positions['display_fieldset_end'] ?>
+<?= $positions['pre_pagination_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['pagination_group'] ?>">
+				<legend class="group-legend"><strong><?= $profile['Pagination settings'] ?></strong></legend>
+<?= $positions['pre_disp_topics'] ?>
+				<div class="sf-set set<?= $numbers['disp_topics_item'] ?>">
+					<div class="sf-box sf-short text">
+						<label for="fld<?= $numbers['disp_topics'] ?>"><span><?= $profile['Topics per page'] ?></span> <small><?= $profile['Leave blank'] ?></small></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['disp_topics'] ?>" name="form[disp_topics]" value="<?= $user['disp_topics'] ?>" size="6" maxlength="3" /></span>
+					</div>
+				</div>
+<?= $positions['pre_disp_posts'] ?>
+				<div class="sf-set set<?= $numbers['disp_posts_item'] ?>">
+					<div class="sf-box sf-short text">
+						<label for="fld<?= $numbers['disp_posts'] ?>"><span><?= $profile['Posts per page'] ?></span>	<small><?= $profile['Leave blank'] ?></small></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['disp_posts'] ?>" name="form[disp_posts]" value="<?= $user['disp_posts'] ?>" size="6" maxlength="3" /></span>
+					</div>
+				</div>
+<?= $positions['pre_pagination_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['pagination_fieldset_end'] ?>
+<?= $positions['pre_email_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['email_group'] ?>">
+				<legend class="group-legend"><strong><?= $profile['E-mail and sub settings'] ?></strong></legend>
+<?= $positions['pre_email_settings_fieldset'] ?>
+				<fieldset class="mf-set set<?= $numbers['email_setting_item'] ?>">
+					<legend><span><?= $profile['E-mail settings'] ?></span></legend>
+					<div class="mf-box">
+<?php foreach (array(0, 1, 2) as $setting): ?>
+						<div class="mf-item">
+							<span class="fld-input"><input type="radio" id="fld<?= $numbers['email_setting_'.$setting] ?>" name="form[email_setting]" value="<?= $setting ?>"<?php if ($user['email_setting'] === $setting): ?> checked="checked"<?php endif ?> /></span>
+							<label for="fld<?= $numbers['email_setting_'.$setting] ?>"><?= $profile['E-mail setting '.($setting + 1)] ?></label>
+						</div>
+<?php endforeach ?>
+<?= $positions['new_email_setting_option'] ?>
+					</div>
+<?= $positions['pre_email_settings_fieldset_end'] ?>
+				</fieldset>
+<?= $positions['email_settings_fieldset_end'] ?>
+<?php if ($options['subscriptions']): ?>
+				<fieldset class="mf-set set<?= $numbers['subscription_item'] ?>">
+					<legend><span><?= $profile['Subscription settings'] ?></span></legend>
+					<div class="mf-box">
+						<div class="mf-item">
+							<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['notify_with_post'] ?>" name="form[notify_with_post]" value="1"<?php if ($user['notify_with_post']): ?> checked="checked"<?php endif ?> /></span>
+							<label for="fld<?= $numbers['notify_with_post'] ?>"><?= $profile['Notify full'] ?></label>
+						</div>
+						<div class="mf-item">
+							<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['auto_notify'] ?>" name="form[auto_notify]" value="1"<?php if ($user['auto_notify']): ?> checked="checked"<?php endif ?> /></span>
+							<label for="fld<?= $numbers['auto_notify'] ?>"><?= $profile['Subscribe by default'] ?></label>
+						</div>
+<?= $positions['new_subscription_option'] ?>
+					</div>
+<?= $positions['pre_subscription_fieldset_end'] ?>
+				</fieldset>
+<?= $positions['subscription_fieldset_end'] ?>
+<?php endif ?>
+<?= $positions['pre_email_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['email_fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="update" value="<?= $profile['Update profile'] ?>" /></span>
+			</div>
+		</form>
+	</div>

@@ -1,0 +1,85 @@
+<?php /* The registration form, with the notes above it and the errors that stopped the last attempt. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-head">
+		<h2 class="hn"><span><?= $heading ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+<?php if ($info !== null): ?>
+		<div class="ct-box info-box">
+			<?= $info, "\n" ?>
+		</div>
+<?php endif ?>
+<?php if ($errors !== null): ?>
+<?= $positions['pre_register_errors'] ?>
+		<div class="ct-box error-box">
+			<h2 class="warn hn"><span><?= $profile['Register errors'] ?></span></h2>
+			<ul class="error-list">
+				<?= $errors, "\n" ?>
+			</ul>
+		</div>
+<?php endif ?>
+		<div id="req-msg" class="req-warn ct-box error-box">
+			<p class="important"><?= $common['Required warn'] ?></p>
+		</div>
+		<form class="frm-form frm-suggest-username" id="afocus" method="post" accept-charset="utf-8" action="<?= $action ?>" autocomplete="off">
+			<div class="hidden">
+				<input type="hidden" name="form_sent" value="1" />
+				<input type="hidden" name="csrf_token" value="<?= $token ?>" />
+				<input type="hidden" name="timezone" id="register_timezone" value="<?= $timezone ?>" />
+				<input type="hidden" name="dst" id="register_dst" value="<?= $dst ?>" />
+			</div>
+<?= $positions['pre_group'] ?>
+			<div class="frm-group group<?= $numbers['group'] ?>">
+<?= $positions['pre_email'] ?>
+				<div class="sf-set set<?= $numbers['email_item'] ?>">
+					<div class="sf-box text required">
+						<label for="fld<?= $numbers['email_field'] ?>"><span><?= $profile['E-mail'] ?></span> <small><?= $profile['E-mail help'] ?></small></label><br />
+						<span class="fld-input"><input type="email" data-suggest-role="email" id="fld<?= $numbers['email_field'] ?>" name="req_email1" value="<?= $email ?>" size="35" maxlength="80" required spellcheck="false" /></span>
+					</div>
+				</div>
+<?= $positions['pre_username'] ?>
+				<div class="sf-set set<?= $numbers['username_item'] ?><?= $verifies ? '' : ' prepend-top' ?>">
+					<div class="sf-box text required">
+						<label for="fld<?= $numbers['username_field'] ?>"><span><?= $profile['Username'] ?></span> <small><?= $profile['Username help'] ?></small></label><br />
+						<span class="fld-input"><input type="text" data-suggest-role="username" id="fld<?= $numbers['username_field'] ?>" name="req_username" value="<?= $username ?>" size="35" maxlength="25" required spellcheck="false" /></span>
+					</div>
+				</div>
+<?= $positions['pre_password'] ?>
+<?php if (!$verifies): ?>
+				<div class="sf-set set<?= $numbers['password_item'] ?>">
+					<div class="sf-box text required">
+						<label for="fld<?= $numbers['password_field'] ?>"><span><?= $profile['Password'] ?></span> <small><?= $profile['Password help'] ?></small></label><br />
+						<span class="fld-input"><input type="<?= $masks ? 'password' : 'text' ?>" id="fld<?= $numbers['password_field'] ?>" name="req_password1" size="35" value="<?= $password ?>" required autocomplete="off" /></span>
+					</div>
+				</div>
+	<?= $positions['pre_confirm_password'] ?>
+	<?php if ($masks): ?>
+				<div class="sf-set set<?= $numbers['confirm_item'] ?>">
+					<div class="sf-box text required">
+						<label for="fld<?= $numbers['confirm_field'] ?>"><span><?= $profile['Confirm password'] ?></span> <small><?= $profile['Confirm password help'] ?></small></label><br />
+						<span class="fld-input"><input type="password" id="fld<?= $numbers['confirm_field'] ?>" name="req_password2" size="35" value="<?= $confirmation ?>" required autocomplete="off" /></span>
+					</div>
+				</div>
+	<?php endif ?>
+<?php endif ?>
+<?= $positions['pre_email_confirm'] ?>
+<?= $positions['pre_language'] ?>
+<?php if ($languages !== array()): ?>
+				<div class="sf-set set<?= $numbers['language_item'] ?>">
+					<div class="sf-box select">
+						<label for="fld<?= $numbers['language_field'] ?>"><span><?= $profile['Language'] ?></span></label><br />
+						<span class="fld-input"><select id="fld<?= $numbers['language_field'] ?>" name="language">
+<?php foreach ($languages as $language): ?>
+						<option value="<?= $language['name'] ?>"<?= $language['selected'] ?>><?= $language['name'] ?></option>
+<?php endforeach ?>
+						</select></span>
+					</div>
+				</div>
+<?php endif ?>
+<?= $positions['pre_group_end'] ?>
+			</div>
+<?= $positions['group_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="register" value="<?= $profile['Register'] ?>" /></span>
+			</div>
+		</form>
+	</div>

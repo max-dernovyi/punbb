@@ -307,15 +307,21 @@ function user_flows_submit(&$state, $session, $response, $needle, $overrides = a
  */
 function user_flows_follow(&$state, $session, $response)
 {
-	$target = user_flows_redirect_target($response['body']);
+	// A browser follows a redirect to a redirect too, as login.php?login=1 sends a signed-in member on to the index
+	for ($hop = 0; $hop < 5; ++$hop)
+	{
+		$target = user_flows_redirect_target($response['body']);
 
-	if ($target === '')
-		$target = (string) ($response['headers']['location'] ?? '');
+		if ($target === '')
+			$target = (string) ($response['headers']['location'] ?? '');
 
-	if ($target === '')
-		return $response;
+		if ($target === '')
+			return $response;
 
-	return user_flows_request($state, $session, user_flows_resolve($response['url'], $target));
+		$response = user_flows_request($state, $session, user_flows_resolve($response['url'], $target));
+	}
+
+	return $response;
 }
 
 

@@ -5,9 +5,8 @@
  * Four callers hand it a destination taken straight from the request —
  * `redirect_url` in login.php and misc.php, `prev_url` on the CSRF confirm
  * form's cancel button — so an open redirect here is a phishing hop carrying
- * the forum's own hostname. The normalisation is only readable from inside
- * redirect(), which ends the request with a rendered page, so it is driven
- * through a harness.
+ * the forum's own hostname. redirect() answers through the redirect page,
+ * which normalises every destination with RedirectTarget.
  *
  * @copyright (C) 2008-2012 PunBB, partially based on code (C) 2008-2009 FluxBB.org
  * @license http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
@@ -16,6 +15,7 @@
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use PunBB\Module\Message\Page\RedirectTarget;
 
 class RedirectTargetTest extends TestCase
 {
@@ -23,14 +23,14 @@ class RedirectTargetTest extends TestCase
 
 	private function destination(string $requested): string
 	{
-		$command = escapeshellarg(PHP_BINARY).' -d display_errors=stdout -d error_log=/dev/null '.escapeshellarg(__DIR__.'/redirect_harness.php').
-			' '.escapeshellarg(self::BASE).' '.escapeshellarg($requested);
+		return RedirectTarget::normalise($requested, self::BASE);
+	}
 
-		$output = shell_exec($command);
-
-		$this->assertIsString($output, 'the redirect harness produced no output');
-
-		return (string) $output;
+	/** Every redirect goes through the normalisation: redirect() answers with the redirect page, and the page normalises first. */
+	public function testEveryRedirectIsNormalised(): void
+	{
+		$this->assertMatchesRegularExpression('/function redirect\(\$destination_url, \$message\)\s*\{\s*forum_send_response\(\$GLOBALS\[\'forum_container\'\]->get\(PunBB\\\\Module\\\\Message\\\\Page\\\\RedirectPage::class\)->respond\(/', (string) file_get_contents(FORUM_ROOT.'include/functions.php'));
+		$this->assertStringContainsString('$destination = RedirectTarget::normalise($showing->destination(), $this->urls->base());', (string) file_get_contents(FORUM_ROOT.'include/PunBB/Module/Message/Page/RedirectPage.php'));
 	}
 
 	/**
@@ -113,6 +113,14 @@ class RedirectTargetTest extends TestCase
 	}
 
 	/** A newline in the destination would be a second header. */
+	/** A base URL written without a scheme still names the forum's host. */
+	public function testABaseUrlWithoutASchemeHonoursItsOwnHostOnly(): void
+	{
+		$this->assertSame('https://localhost/forum/index.php', RedirectTarget::normalise('https://localhost/forum/index.php', 'localhost/forum'));
+		$this->assertSame('localhost/forum/', RedirectTarget::normalise('https://evil.com/x', 'localhost/forum'));
+		$this->assertSame('localhost/forum/index.php', RedirectTarget::normalise('index.php', 'localhost/forum'));
+	}
+
 	public function testTheDestinationCarriesNoControlCharacters(): void
 	{
 		$destination = $this->destination("index.php\r\nSet-Cookie: session=1");

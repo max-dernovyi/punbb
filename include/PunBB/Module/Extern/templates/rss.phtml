@@ -1,0 +1,28 @@
+<?php /* A feed as RSS 2.0. Every variable is escaped unless it is Html; a CDATA section takes Html escaped for it. */ ?>
+<?= '<?xml version="1.0" encoding="utf-8"?>', "\n" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+	<channel>
+		<title><![CDATA[<?= $title ?>]]></title>
+		<link><?= $link ?></link>
+		<atom:link href="<?= $self ?>" rel="self" type="application/rss+xml" />
+		<description><![CDATA[<?= $description ?>]]></description>
+		<lastBuildDate><?= gmdate('r', $built) ?></lastBuildDate>
+<?php if ($version !== null): ?>
+		<generator>PunBB <?= $version ?></generator>
+<?php else: ?>
+		<generator>PunBB</generator>
+<?php endif ?>
+<?= $info ?>
+<?php foreach ($items as $item): ?>
+		<item>
+			<title><![CDATA[<?= $item['title'] ?>]]></title>
+			<link><?= $item['link'] ?></link>
+			<description><![CDATA[<?= $item['description'] ?>]]></description>
+			<author><![CDATA[<?= $item['email'] ?? 'null@example.com' ?> (<?= $item['name'] ?>)]]></author>
+			<pubDate><?= gmdate('r', $item['published']) ?></pubDate>
+			<guid><?= $item['link'] ?></guid>
+<?= $item['info'] ?>
+		</item>
+<?php endforeach ?>
+	</channel>
+</rss>

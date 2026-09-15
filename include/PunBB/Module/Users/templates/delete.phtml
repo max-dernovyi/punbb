@@ -1,0 +1,28 @@
+<?php /* The form confirming the users selected are deleted, and whether their posts go too. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $aus['Confirm delete'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<div class="ct-box warn-box">
+			<p class="warn"><?= $aus['Delete warning'] ?></p>
+		</div>
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<input type="hidden" name="csrf_token" value="<?= $token ?>" />
+				<input type="hidden" name="users" value="<?= $users ?>" />
+			</div>
+			<fieldset class="frm-group group<?= $numbers['group'] ?>">
+				<legend class="group-legend"><span><?= $aus['Delete posts legend'] ?></span></legend>
+				<div class="sf-set set<?= $numbers['item'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['field'] ?>" name="delete_posts" value="1" checked="checked" /></span>
+						<label for="fld<?= $numbers['field'] ?>"><span><?= $aus['Delete posts'] ?></span> <?= $aus['Delete posts label'] ?></label>
+					</div>
+				</div>
+			</fieldset>
+			<div class="frm-buttons">
+				<span class="submit primary caution"><input type="submit" name="delete_users_comply" value="<?= $aus['Delete users'] ?>" /></span>
+				<span class="cancel"><input type="submit" name="delete_users_cancel" value="<?= $common['Cancel'] ?>" /></span>
+			</div>
+		</form>
+	</div>

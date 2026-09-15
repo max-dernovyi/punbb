@@ -1,0 +1,130 @@
+<?php /* The help page: the section asked for, with the markup extension code added at each position. Every variable is escaped unless it is Html. */ ?>
+<div id="brd-main" class="main">
+
+<div class="main-head">
+	<h1 class="hn"><span><?= $help['Help'] ?></span></h1>
+</div>
+<?php if ($section->html === 'bbcode'): ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $heading ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<div class="ct-box info-box">
+			<p><?= $help['BBCode info'] ?></p>
+		</div>
+		<div class="ct-box help-box">
+			<h3 class="hn"><span><?= $help['Text style'] ?></span></h3>
+			<div class="entry-content">
+				<code>[b]<?= $help['Bold text'] ?>[/b]</code> <span><?= $help['produces'] ?></span>
+				<samp><strong><?= $help['Bold text'] ?></strong></samp>
+			</div>
+			<div class="entry-content">
+				<code>[u]<?= $help['Underlined text'] ?>[/u]</code> <span><?= $help['produces'] ?></span>
+				<samp><span class="bbu"><?= $help['Underlined text'] ?></span></samp>
+			</div>
+			<div class="entry-content">
+				<code>[i]<?= $help['Italic text'] ?>[/i]</code> <span><?= $help['produces'] ?></span>
+				<samp><i><?= $help['Italic text'] ?></i></samp>
+			</div>
+			<div class="entry-content">
+				<code>[color=#FF0000]<?= $help['Red text'] ?>[/color]</code> <span><?= $help['produces'] ?></span>
+				<samp><span style="color: #ff0000"><?= $help['Red text'] ?></span></samp>
+			</div>
+			<div class="entry-content">
+				<code>[color=blue]<?= $help['Blue text'] ?>[/color]</code> <span><?= $help['produces'] ?></span>
+				<samp><span style="color: blue"><?= $help['Blue text'] ?></span></samp>
+			</div>
+			<div class="entry-content">
+				<code>[b][u]<?= $help['Bold, underlined text'] ?>[/u][/b]</code> <span><?= $help['produces'] ?></span>
+				<samp><span class="bbu"><strong><?= $help['Bold, underlined text'] ?></strong></span></samp>
+			</div>
+			<div class="entry-content">
+				<code>[h]<?= $help['Heading text'] ?>[/h]</code> <span><?= $help['produces'] ?></span>
+				<div class="entry-content"><h5><samp><?= $help['Heading text'] ?></samp></h5></div>
+			</div>
+<?= $positions['text_styles'] ?>
+		</div>
+		<div class="ct-box help-box">
+			<h3 class="hn"><span><?= $help['Links info'] ?></span></h3>
+			<div class="entry-content">
+				<code>[url=<?= $base ?>/]<?= $board ?>[/url]</code> <span><?= $help['produces'] ?></span>
+				<samp><a href="<?= $base ?>/"><?= $board ?></a></samp>
+			</div>
+			<div class="entry-content">
+				<code>[url]<?= $base ?>/[/url]</code> <span><?= $help['produces'] ?></span>
+				<samp><a href="<?= $base ?>"><?= $base ?>/</a></samp>
+			</div>
+			<div class="entry-content">
+				<code>[email]name@example.com[/email]</code> <span><?= $help['produces'] ?></span>
+				<samp><a href="mailto:name@example.com">name@example.com</a></samp>
+			</div>
+			<div class="entry-content">
+				<code>[email=name@example.com]<?= $help['My e-mail address'] ?>[/email]</code> <span><?= $help['produces'] ?></span>
+				<samp><a href="mailto:name@example.com"><?= $help['My e-mail address'] ?></a></samp>
+			</div>
+<?= $positions['links'] ?>
+		</div>
+		<div class="ct-box help-box">
+			<h3 class="hn"><span><?= $help['Quotes info'] ?></span></h3>
+			<div class="entry-content">
+				<code>[quote=James]<?= $help['Quote text'] ?>[/quote]</code> <span><?= $help['produces named'] ?></span>
+				<div class="quotebox"><cite>James <?= $wrote ?>:</cite><blockquote><p><?= $help['Quote text'] ?></p></blockquote></div>
+				<code>[quote]<?= $help['Quote text'] ?>[/quote]</code> <span><?= $help['produces unnamed'] ?></span>
+				<div class="quotebox"><blockquote><p><?= $help['Quote text'] ?></p></blockquote></div>
+			</div>
+		</div>
+		<div class="ct-box help-box">
+			<h3 class="hn"><span><?= $help['Code info'] ?></span></h3>
+			<div class="entry-content">
+				<code>[code]<?= $help['Code text'] ?>[/code]</code> <span><?= $help['produces code box'] ?></span>
+				<div class="codebox"><pre><code><?= $help['Code text'] ?></code></pre></div>
+				<code>[code]<?= $help['Code text long'] ?>[/code]</code> <span><?= $help['produces scroll box'] ?></span>
+				<div class="codebox"><pre><code><?= $help['Code text long'] ?></code></pre></div>
+			</div>
+		</div>
+		<div class="ct-box help-box">
+			<h3 class="hn"><span><?= $help['List info'] ?></span></h3>
+			<div class="entry-content">
+				<code>[list][*]<?= $help['List text 1'] ?>[/*][*]<?= $help['List text 2'] ?>[/*][*]<?= $help['List text 3'] ?>[/*][/list]</code> <span><?= $help['produces list'] ?></span>
+				<ul><li><?= $help['List text 1'] ?></li><li><?= $help['List text 2'] ?></li><li><?= $help['List text 3'] ?></li></ul>
+				<code>[list=1][*]<?= $help['List text 1'] ?>[/*][*]<?= $help['List text 2'] ?>[/*][*]<?= $help['List text 3'] ?>[/*][/list]</code> <span><?= $help['produces decimal list'] ?></span>
+				<ol class="decimal"><li><?= $help['List text 1'] ?></li><li><?= $help['List text 2'] ?></li><li><?= $help['List text 3'] ?></li></ol>
+				<code>[list=a][*]<?= $help['List text 1'] ?>[/*][*]<?= $help['List text 2'] ?>[/*][*]<?= $help['List text 3'] ?>[/*][/list]</code> <span><?= $help['produces alpha list'] ?></span>
+				<ol class="alpha"><li><?= $help['List text 1'] ?></li><li><?= $help['List text 2'] ?></li><li><?= $help['List text 3'] ?></li></ol>
+			</div>
+		</div>
+<?= $positions['bbcode'] ?>
+	</div>
+<?php elseif ($section->html === 'img'): ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $heading ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<div class="ct-box help-box">
+			<p class="hn"><?= $help['Image info'] ?></p>
+			<div class="entry-content">
+				<code>[img=PunBB bbcode test]<?= $base ?>/img/test.png[/img]</code>
+				<samp><img src="<?= $base ?>/img/test.png" alt="PunBB bbcode test" /></samp>
+			</div>
+		</div>
+		<?= $positions['images'] ?>
+	</div>
+<?php elseif ($section->html === 'smilies'): ?>
+	<div id="smilies" class="main-subhead">
+		<h2 class="hn"><span><?= $heading ?></span></h2>
+	</div>
+
+	<div class="main-content main-frm">
+		<div class="ct-box help-box">
+			<p class="hn"><?= $help['Smilies info'] ?></p>
+			<div class="entry-content">
+<?php foreach ($smilies as $smiley): ?>
+				<p><?= implode(' '.$and.' ', $smiley['texts']) ?> <span><?= $help['produces'] ?></span> <img src="<?= $base ?>/img/smilies/<?= $smiley['image'] ?>" width="15" height="15" alt="<?= $smiley['texts'][0] ?>" /></p>
+<?php endforeach ?>
+			</div>
+		</div>
+	</div>
+<?php endif ?>
+<?= $positions['section'] ?>
+
+</div>

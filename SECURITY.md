@@ -34,8 +34,9 @@ unless they ask otherwise.
   PHP that `eval()` runs, and `validate_manifest()` does not inspect what the
   code does. A finding that starts with "as an administrator, install this
   extension" is the mechanism working as documented.
-- `admin/db_update.php` has no permission check. Delete it after an upgrade, as
-  the upgrade instructions say — that is the documented mitigation.
+- `admin/db_update.php` has no permission check. Delete its module,
+  `include/PunBB/Module/Update/`, after an upgrade, as the upgrade instructions
+  say — that is the documented mitigation.
 - `FORUM_DEBUG`, `FORUM_SHOW_QUERIES` and `FORUM_DISABLE_CSRF_CONFIRM` in
   `config.php` are operator switches that weaken the forum on purpose. Do not
   set them on a public forum.

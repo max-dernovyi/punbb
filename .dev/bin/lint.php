@@ -46,7 +46,7 @@ if ($problems)
 
 echo 'No compile-time diagnostics in '.count($files).' files'.PHP_EOL;
 
-/** @return list<string> every .php file below $targets, minus the excluded trees */
+/** @return list<string> every .php and .phtml file below $targets, minus the excluded trees */
 function lint_files($targets)
 {
 	$files = array();
@@ -67,7 +67,7 @@ function lint_files($targets)
 		);
 
 		foreach (new RecursiveIteratorIterator($tree) as $file)
-			if ($file->isFile() && strtolower($file->getExtension()) === 'php')
+			if ($file->isFile() && in_array(strtolower($file->getExtension()), array('php', 'phtml'), true))
 				$files[] = $file->getPathname();
 	}
 

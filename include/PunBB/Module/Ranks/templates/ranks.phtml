@@ -1,0 +1,80 @@
+<?php /* The ranks page: the form adding a rank, and the form editing the stored ranks or the note that there are none. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $ark['Rank head'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>?action=foo">
+			<div class="hidden">
+				<input type="hidden" name="csrf_token" value="<?= $addToken ?>" />
+			</div>
+			<div class="ct-box" id="info-ranks-intro">
+				<p><?= $intro ?></p>
+			</div>
+			<fieldset class="frm-group frm-hdgroup group<?= $numbers['add_group'] ?>">
+				<legend class="group-legend"><strong><?= $ark['Add rank legend'] ?></strong></legend>
+<?= $positions['pre_add_rank_fieldset'] ?>
+				<fieldset class="mf-set set<?= $numbers['add_item'] ?><?= $numbers['add_item'] === 1 ? ' mf-head' : ' mf-extra' ?>">
+					<legend><span><?= $ark['New rank'] ?></span></legend>
+					<div class="mf-box">
+<?= $positions['pre_add_rank_title'] ?>
+						<div class="mf-field mf-field1 text">
+							<label for="fld<?= $numbers['add_title'] ?>"><span class="fld-label"><?= $ark['Rank title label'] ?></span></label><br />
+							<span class="fld-input"><input type="text" id="fld<?= $numbers['add_title'] ?>" name="new_rank" size="24" maxlength="50" required /></span>
+						</div>
+<?= $positions['pre_add_rank_min_posts'] ?>
+						<div class="mf-field text">
+							<label for="fld<?= $numbers['add_min_posts'] ?>"><span class="fld-label"><?= $ark['Min posts label'] ?></span></label><br />
+							<span class="fld-input"><input type="number" id="fld<?= $numbers['add_min_posts'] ?>" name="new_min_posts" size="7" maxlength="7" required /></span>
+						</div>
+<?= $positions['pre_add_rank_submit'] ?>
+						<div class="mf-field text">
+							<span class="submit"><input type="submit" name="add_rank" value="<?= $ark['Add rank'] ?>" /></span>
+						</div>
+					</div>
+<?= $positions['pre_add_rank_fieldset_end'] ?>
+				</fieldset>
+<?= $positions['add_rank_fieldset_end'] ?>
+			</fieldset>
+		</form>
+<?php if ($ranks !== array()): ?>
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>?action=foo">
+			<div class="hidden">
+				<input type="hidden" name="csrf_token" value="<?= $editToken ?>" />
+			</div>
+			<fieldset class="frm-group group<?= $numbers['edit_group'] ?>">
+				<legend class="group-legend"><span><?= $ark['Existing ranks legend'] ?></span></legend>
+<?php foreach ($ranks as $rank): ?>
+<?= $rank['preFieldset'] ?>
+				<fieldset class="mf-set mf-extra set<?= $rank['item'] ?>">
+					<legend><span><?= $ark['Existing rank'] ?></span></legend>
+					<div class="mf-box">
+<?= $rank['preTitle'] ?>
+						<div class="mf-field text mf-field1">
+							<label for="fld<?= $rank['titleField'] ?>"><span><?= $ark['Rank title label'] ?></span></label><br />
+							<span class="fld-input"><input type="text" id="fld<?= $rank['titleField'] ?>" name="rank[<?= $rank['id'] ?>]" value="<?= $rank['title'] ?>" size="24" maxlength="50" required /></span>
+						</div>
+<?= $rank['preMinPosts'] ?>
+						<div class="mf-field text">
+							<label for="fld<?= $rank['minPostsField'] ?>"><span class="fld-label"><?= $ark['Min posts label'] ?></span></label><br />
+							<span class="fld-input"><input type="number" id="fld<?= $rank['minPostsField'] ?>" name="min_posts[<?= $rank['id'] ?>]" value="<?= $rank['minPosts'] ?>" size="7" maxlength="7" required /></span>
+						</div>
+<?= $rank['preSubmit'] ?>
+						<div class="mf-field text">
+							<span class="submit"><input type="submit" name="update[<?= $rank['id'] ?>]" value="<?= $ark['Update'] ?>" /> <input type="submit" name="remove[<?= $rank['id'] ?>]" value="<?= $ark['Remove'] ?>" /></span>
+						</div>
+					</div>
+<?= $rank['preFieldsetEnd'] ?>
+				</fieldset>
+<?= $rank['fieldsetEnd'] ?>
+<?php endforeach ?>
+			</fieldset>
+		</form>
+	</div>
+<?php else: ?>
+		<div class="frm-form">
+			<div class="ct-box">
+				<p><?= $ark['No ranks'] ?></p>
+			</div>
+		</div>
+	</div>
+<?php endif ?>

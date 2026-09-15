@@ -1,0 +1,234 @@
+<?php /* The setup section: the board's title and description, its default style, language, time zone and formats, the timeouts, the pagination, how reports reach the administrators, the URL scheme and the extra navigation links. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-content main-frm">
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<input type="hidden" name="csrf_token" value="<?= $token ?>" />
+				<input type="hidden" name="form_sent" value="1" />
+			</div>
+				<div class="content-head">
+					<h2 class="hn"><span><?= $aop['Setup personal'] ?></span></h2>
+				</div>
+<?= $positions['pre_personal_fieldset'] ?>
+				<fieldset class="frm-group group<?= $numbers['g1'] ?>">
+					<legend class="group-legend"><strong><?= $aop['Setup personal legend'] ?></strong></legend>
+<?= $positions['pre_board_title'] ?>
+					<div class="sf-set set<?= $numbers['i1'] ?>">
+						<div class="sf-box text">
+							<label for="fld<?= $numbers['board_title'] ?>">
+								<span><?= $aop['Board title label'] ?></span>
+							</label><br />
+							<span class="fld-input"><input type="text" id="fld<?= $numbers['board_title'] ?>" name="form[board_title]" size="50" maxlength="255" value="<?= $config['o_board_title'] ?>" /></span>
+						</div>
+					</div>
+<?= $positions['pre_board_descrip'] ?>
+					<div class="sf-set set<?= $numbers['i2'] ?>">
+						<div class="sf-box text">
+							<label for="fld<?= $numbers['board_desc'] ?>">
+								<span><?= $aop['Board description label'] ?></span>
+							</label><br />
+							<span class="fld-input"><input type="text" id="fld<?= $numbers['board_desc'] ?>" name="form[board_desc]" size="50" maxlength="255" value="<?= $config['o_board_desc'] ?>" /></span>
+						</div>
+					</div>
+<?= $positions['pre_default_style'] ?>
+					<div class="sf-set set<?= $numbers['i3'] ?>">
+						<div class="sf-box select">
+							<label for="fld<?= $numbers['default_style'] ?>">
+								<span><?= $aop['Default style label'] ?></span>
+							</label><br />
+							<span class="fld-input"><select id="fld<?= $numbers['default_style'] ?>" name="form[default_style]">
+<?php foreach ($styles as $style): ?>
+								<option value="<?= $style['name'] ?>"<?php if ($style['selected']): ?> selected="selected"<?php endif ?>><?= $style['label'] ?></option>
+<?php endforeach ?>
+							</select></span>
+						</div>
+					</div>
+<?= $positions['pre_personal_fieldset_end'] ?>
+				</fieldset>
+<?= $positions['personal_fieldset_end'] ?>
+				<div class="content-head">
+					<h2 class="hn"><span><?= $aop['Setup local'] ?></span></h2>
+				</div>
+<?= $positions['pre_local_fieldset'] ?>
+				<fieldset class="frm-group group<?= $numbers['g2'] ?>">
+					<legend class="group-legend"><strong><?= $aop['Setup local legend'] ?></strong></legend>
+<?= $positions['pre_default_language'] ?>
+					<div class="sf-set set<?= $numbers['i4'] ?>">
+						<div class="sf-box select">
+							<label for="fld<?= $numbers['default_lang'] ?>"><span><?= $aop['Default language label'] ?></span><small><?= $aop['Default language help'] ?></small></label><br />
+							<span class="fld-input"><select id="fld<?= $numbers['default_lang'] ?>" name="form[default_lang]">
+<?php foreach ($languages as $language): ?>
+								<option value="<?= $language['name'] ?>"<?php if ($language['selected']): ?> selected="selected"<?php endif ?>><?= $language['label'] ?></option>
+<?php endforeach ?>
+							</select></span>
+						</div>
+					</div>
+<?= $positions['pre_default_timezone'] ?>
+					<div class="sf-set set<?= $numbers['i5'] ?>">
+						<div class="sf-box select">
+							<label for="fld<?= $numbers['default_timezone'] ?>"><span><?= $aop['Default timezone label'] ?></span></label><br />
+							<span class="fld-input"><select id="fld<?= $numbers['default_timezone'] ?>" name="form[default_timezone]">
+<?php foreach ($timezones as $zone): ?>
+								<option value="<?= $zone['name'] ?>"<?php if ($zone['selected']): ?> selected="selected"<?php endif ?>><?= $zone['label'] ?></option>
+<?php endforeach ?>
+							</select></span>
+						</div>
+					</div>
+<?= $positions['pre_default_dst'] ?>
+					<div class="sf-set set<?= $numbers['i6'] ?>">
+						<div class="sf-box checkbox">
+							<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['default_dst'] ?>" name="form[default_dst]" value="1"<?php if ($config['o_default_dst'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+							<label for="fld<?= $numbers['default_dst'] ?>"><?= $aop['DST label'] ?></label>
+						</div>
+					</div>
+<?= $positions['pre_time_format'] ?>
+					<div class="sf-set set<?= $numbers['i7'] ?>">
+						<div class="sf-box text">
+							<label for="fld<?= $numbers['time_format'] ?>"><span><?= $aop['Time format label'] ?></span><small><?= $timeFormatHelp ?></small></label><br />
+							<span class="fld-input"><input type="text" id="fld<?= $numbers['time_format'] ?>" name="form[time_format]" size="25" maxlength="25" value="<?= $config['o_time_format'] ?>" /></span>
+						</div>
+					</div>
+<?= $positions['pre_date_format'] ?>
+					<div class="sf-set set<?= $numbers['i8'] ?>">
+						<div class="sf-box text">
+							<label for="fld<?= $numbers['date_format'] ?>"><span><?= $aop['Date format label'] ?></span><small><?= $dateFormatHelp ?></small></label><br />
+							<span class="fld-input"><input type="text" id="fld<?= $numbers['date_format'] ?>" name="form[date_format]" size="25" maxlength="25" value="<?= $config['o_date_format'] ?>" /></span>
+						</div>
+					</div>
+<?= $positions['pre_local_fieldset_end'] ?>
+				</fieldset>
+<?= $positions['local_fieldset_end'] ?>
+				<div class="content-head">
+					<h2 class="hn"><span><?= $aop['Setup timeouts'] ?></span></h2>
+				</div>
+<?= $positions['pre_timeouts_fieldset'] ?>
+				<fieldset class="frm-group group<?= $numbers['g3'] ?>">
+					<legend class="group-legend"><strong><?= $aop['Setup timeouts legend'] ?></strong></legend>
+<?= $positions['pre_visit_timeout'] ?>
+					<div class="sf-set set<?= $numbers['i9'] ?>">
+						<div class="sf-box text">
+							<label for="fld<?= $numbers['timeout_visit'] ?>"><span><?= $aop['Visit timeout label'] ?></span><small><?= $aop['Visit timeout help'] ?></small></label><br />
+							<span class="fld-input"><input type="number" id="fld<?= $numbers['timeout_visit'] ?>" name="form[timeout_visit]" size="5" maxlength="5" value="<?= $config['o_timeout_visit'] ?>" /></span>
+						</div>
+					</div>
+<?= $positions['pre_online_timeout'] ?>
+					<div class="sf-set set<?= $numbers['i10'] ?>">
+						<div class="sf-box text">
+							<label for="fld<?= $numbers['timeout_online'] ?>"><span><?= $aop['Online timeout label'] ?></span><small><?= $aop['Online timeout help'] ?></small></label><br />
+							<span class="fld-input"><input type="number" id="fld<?= $numbers['timeout_online'] ?>" name="form[timeout_online]" size="5" maxlength="5" value="<?= $config['o_timeout_online'] ?>" /></span>
+						</div>
+					</div>
+<?= $positions['pre_redirect_time'] ?>
+					<div class="sf-set set<?= $numbers['i11'] ?>">
+						<div class="sf-box text">
+							<label for="fld<?= $numbers['redirect_delay'] ?>"><span><?= $aop['Redirect time label'] ?></span><small><?= $aop['Redirect time help'] ?></small></label><br />
+							<span class="fld-input"><input type="number" id="fld<?= $numbers['redirect_delay'] ?>" name="form[redirect_delay]" size="5" maxlength="5" value="<?= $config['o_redirect_delay'] ?>" /></span>
+						</div>
+					</div>
+<?= $positions['pre_timeouts_fieldset_end'] ?>
+				</fieldset>
+<?= $positions['timeouts_fieldset_end'] ?>
+				<div class="content-head">
+					<h2 class="hn"><span><?= $aop['Setup pagination'] ?></span></h2>
+				</div>
+<?= $positions['pre_pagination_fieldset'] ?>
+				<fieldset class="frm-group group<?= $numbers['g4'] ?>">
+					<legend class="group-legend"><strong><?= $aop['Setup pagination legend'] ?></strong></legend>
+<?= $positions['pre_topics_per_page'] ?>
+					<div class="sf-set set<?= $numbers['i12'] ?>">
+						<div class="sf-box text">
+							<label for="fld<?= $numbers['disp_topics_default'] ?>"><span><?= $aop['Topics per page label'] ?></span></label><br />
+							<span class="fld-input"><input type="number" id="fld<?= $numbers['disp_topics_default'] ?>" name="form[disp_topics_default]" size="5" maxlength="3" value="<?= $config['o_disp_topics_default'] ?>" /></span>
+						</div>
+					</div>
+<?= $positions['pre_posts_per_page'] ?>
+					<div class="sf-set set<?= $numbers['i13'] ?>">
+						<div class="sf-box text">
+							<label for="fld<?= $numbers['disp_posts_default'] ?>"><span><?= $aop['Posts per page label'] ?></span></label><br />
+							<span class="fld-input"><input type="number" id="fld<?= $numbers['disp_posts_default'] ?>" name="form[disp_posts_default]" size="5" maxlength="3" value="<?= $config['o_disp_posts_default'] ?>" /></span>
+						</div>
+					</div>
+<?= $positions['pre_topic_review'] ?>
+					<div class="sf-set set<?= $numbers['i14'] ?>">
+						<div class="sf-box frm-short text">
+							<label for="fld<?= $numbers['topic_review'] ?>"><span><?= $aop['Topic review label'] ?></span><small><?= $aop['Topic review help'] ?></small></label><br />
+							<span class="fld-input"><input type="number" id="fld<?= $numbers['topic_review'] ?>" name="form[topic_review]" size="5" maxlength="3" value="<?= $config['o_topic_review'] ?>" /></span>
+						</div>
+					</div>
+<?= $positions['pre_pagination_fieldset_end'] ?>
+				</fieldset>
+<?= $positions['pagination_fieldset_end'] ?>
+				<div class="content-head">
+					<h2 class="hn"><span><?= $aop['Setup reports'] ?></span></h2>
+				</div>
+<?= $positions['pre_reports_fieldset'] ?>
+				<fieldset class="frm-group group<?= $numbers['g5'] ?>">
+					<legend class="group-legend"><strong><?= $aop['Setup reports legend'] ?></strong></legend>
+					<fieldset class="mf-set set<?= $numbers['i15'] ?>">
+						<legend><span><?= $aop['Reporting method'] ?></span></legend>
+						<div class="mf-box">
+							<div class="mf-item">
+								<span class="fld-input"><input type="radio" id="fld<?= $numbers['report_method_0'] ?>" name="form[report_method]" value="0"<?php if ($config['o_report_method'] == '0'): ?> checked="checked"<?php endif ?> /></span>
+								<label for="fld<?= $numbers['report_method_0'] ?>"><?= $aop['Report internal label'] ?></label>
+							</div>
+							<div class="mf-item">
+								<span class="fld-input"><input type="radio" id="fld<?= $numbers['report_method_1'] ?>" name="form[report_method]" value="1"<?php if ($config['o_report_method'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+								<label for="fld<?= $numbers['report_method_1'] ?>"><?= $aop['Report email label'] ?></label>
+							</div>
+							<div class="mf-item">
+								<span class="fld-input"><input type="radio" id="fld<?= $numbers['report_method_2'] ?>" name="form[report_method]" value="2"<?php if ($config['o_report_method'] == '2'): ?> checked="checked"<?php endif ?> /></span>
+								<label for="fld<?= $numbers['report_method_2'] ?>"><?= $aop['Report both label'] ?></label>
+							</div>
+<?= $positions['new_reporting_method'] ?>
+						</div>
+					</fieldset>
+<?= $positions['pre_reports_fieldset_end'] ?>
+				</fieldset>
+<?= $positions['reports_fieldset_end'] ?>
+				<div class="content-head">
+					<h2 class="hn"><span><?= $aop['Setup URL'] ?></span></h2>
+				</div>
+				<div class="ct-box">
+					<p class="warn"><?= $aop['URL scheme info'] ?></p>
+				</div>
+<?= $positions['pre_url_scheme_fieldset'] ?>
+				<fieldset class="frm-group group<?= $numbers['g6'] ?>">
+					<legend class="group-legend"><strong><?= $aop['Setup URL legend'] ?></strong></legend>
+<?= $positions['pre_url_scheme'] ?>
+					<div class="sf-set set<?= $numbers['i16'] ?>">
+						<div class="sf-box select">
+							<label for="fld<?= $numbers['sef'] ?>"><span><?= $aop['URL scheme label'] ?></span><small><?= $aop['URL scheme help'] ?></small></label><br />
+							<span class="fld-input"><select id="fld<?= $numbers['sef'] ?>" name="form[sef]">
+<?php foreach ($schemes as $scheme): ?>
+								<option value="<?= $scheme['name'] ?>"<?php if ($scheme['selected']): ?> selected="selected"<?php endif ?>><?= $scheme['label'] ?></option>
+<?php endforeach ?>
+							</select></span>
+						</div>
+					</div>
+<?= $positions['pre_url_scheme_fieldset_end'] ?>
+				</fieldset>
+<?= $positions['url_scheme_fieldset_end'] ?>
+				<div class="content-head">
+					<h2 class="hn"><span><?= $aop['Setup links'] ?></span></h2>
+				</div>
+				<div class="ct-box">
+					<p class="warn"><?= $aop['Setup links info'] ?></p>
+				</div>
+<?= $positions['pre_links_fieldset'] ?>
+				<fieldset class="frm-group group<?= $numbers['g7'] ?>">
+					<legend class="group-legend"><strong><?= $aop['Setup links legend'] ?></strong></legend>
+<?= $positions['pre_additional_navlinks'] ?>
+					<div class="txt-set set<?= $numbers['i17'] ?>">
+						<div class="txt-box textarea">
+							<label for="fld<?= $numbers['additional_navlinks'] ?>"><span><?= $aop['Enter links label'] ?></span></label>
+							<div class="txt-input"><span class="fld-input"><textarea id="fld<?= $numbers['additional_navlinks'] ?>" name="form[additional_navlinks]" rows="3" cols="55"><?= $config['o_additional_navlinks'] ?></textarea></span></div>
+						</div>
+					</div>
+<?= $positions['pre_links_fieldset_end'] ?>
+				</fieldset>
+<?= $positions['links_fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="save" value="<?= $common['Save changes'] ?>" /></span>
+			</div>
+		</form>
+	</div>
+

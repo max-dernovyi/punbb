@@ -149,7 +149,7 @@ class SmokeAssetGateTest extends TestCase {
 
 	/** The tags admin/install.php and admin/db_update.php emit outside the Loader. */
 	public function testTheWizardScriptTagsResolveToFilesThatExist(): void {
-		foreach (array('admin/install.php', 'admin/db_update.php') as $wizard)
+		foreach (array('include/PunBB/Module/Install/templates/form.phtml', 'include/PunBB/Module/Update/templates/form.phtml') as $wizard)
 		{
 			$source = (string) file_get_contents(FORUM_ROOT.$wizard);
 			preg_match_all('#<script[^>]+src="[^"]*?(include/js/[\w./]+\.js)"#', $source, $matches);

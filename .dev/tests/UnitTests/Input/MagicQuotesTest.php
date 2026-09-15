@@ -81,7 +81,7 @@ class MagicQuotesTest extends TestCase {
 		{
 			$this->assertFalse(function_exists($function), $function.'() still exists');
 
-			foreach (array('include/common.php', 'admin/install.php', 'admin/db_update.php') as $file)
+			foreach (array('include/common.php', 'include/setup.php') as $file)
 				$this->assertStringNotContainsString($function, file_get_contents($root.$file), $file);
 		}
 	}

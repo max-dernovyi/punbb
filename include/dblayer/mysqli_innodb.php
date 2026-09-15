@@ -203,6 +203,7 @@ class DBLayer
 		return $this->query_result;
 	}
 
+	#[\Deprecated(since: '2.0', message: 'use a repository method behind the Api contract of a module, over prepared statements')]
 	public function query_build($query, $return_query_string = false, $unbuffered = false)
 	{
 		$sql = '';
@@ -387,7 +388,7 @@ class DBLayer
 			$this->free_result($query_result);
 
 			// PHP 8.0+ throws on an already-closed mysqli object where ext/mysqli used to warn.
-			// close() is called explicitly (footer.php) and again from __destruct().
+			// close() is called explicitly (forum_end_page()) and again from __destruct().
 			try
 			{
 				return @mysqli_close($link_id);

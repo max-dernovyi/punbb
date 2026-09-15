@@ -33,7 +33,6 @@ class CacheFileGuardTest extends TestCase
 			'config'       => array('cache_config.php', 'FORUM_CONFIG_LOADED'),
 			'bans'         => array('cache_bans.php', 'FORUM_BANS_LOADED'),
 			'ranks'        => array('cache_ranks.php', 'FORUM_RANKS_LOADED'),
-			'stats'        => array('cache_stats.php', 'FORUM_STATS_LOADED'),
 			'censors'      => array('cache_censors.php', 'FORUM_CENSORS_LOADED'),
 			'hooks'        => array('cache_hooks.php', 'FORUM_HOOKS_LOADED'),
 			'updates'      => array('cache_updates.php', 'FORUM_UPDATES_LOADED'),
@@ -76,12 +75,12 @@ class CacheFileGuardTest extends TestCase
 
 	/**
 	 * No generator may write a cache file without it: the two tests above
-	 * cover the nine calls the file makes, so a tenth has to be added to them
+	 * cover the eight calls the file makes, so a ninth has to be added to them
 	 * rather than slipping past unguarded.
 	 */
 	public function testEveryCacheFileIsCovered(): void
 	{
-		$this->assertSame(9, substr_count($this->source(), 'write_cache_file(FORUM_CACHE_DIR.'),
+		$this->assertSame(8, substr_count($this->source(), 'write_cache_file(FORUM_CACHE_DIR.'),
 			'include/cache.php writes a cache file this test does not cover');
 	}
 

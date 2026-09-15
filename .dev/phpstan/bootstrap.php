@@ -17,6 +17,9 @@ define('FORUM_QUIET_VISIT', 1);
 define('FORUM_CACHE_DIR', FORUM_ROOT.'cache/');
 define('FORUM_MAX_POSTSIZE_BYTES', 65535);
 define('FORUM_SUPPORT_PCRE_UNICODE', 1);
+// A page defines these as its header opens, from a value PHPStan cannot see
+define('FORUM_PAGE', 'index');
+define('FORUM_PAGE_SECTION', 'settings');
 
 require FORUM_ROOT.'include/constants.php';
 

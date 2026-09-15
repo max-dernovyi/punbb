@@ -1,0 +1,136 @@
+<?php /* The search form: keywords, and in the advanced form the author, where to search, the forums to search and how to show the results. Every variable is escaped unless it is Html. */ ?>
+<?= $positions['main_output_start'] ?>
+	<div class="main-head">
+<?php if ($headOptions !== null): ?>
+
+		<p class="options"><?= $headOptions ?></p><?php endif ?>
+		<h2 class="hn"><span><?= $search['Search heading'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+<?php if ($advanced): ?>
+		<div class="ct-box info-box">
+			<ul class="info-list">
+				<?= $info, "\n" ?>
+			</ul>
+		</div>
+<?php endif ?>
+		<form id="afocus" class="frm-form" method="get" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<input type="hidden" name="action" value="search" />
+			</div>
+<?= $positions['pre_criteria_fieldset'] ?>
+			<fieldset class="frm-group group<?= $groups['criteria'] ?>">
+				<legend class="group-legend"><strong><?= $search['Search legend'] ?></strong></legend>
+<?= $positions['pre_keywords'] ?>
+				<div class="sf-set set<?= $items['keywords'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $fields['keywords'] ?>"><span><?= $search['Keyword search'] ?></span></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $fields['keywords'] ?>" name="keywords" size="40" maxlength="100" <?= $advanced ? '' : 'required' ?> /></span>
+					</div>
+				</div>
+<?= $positions['pre_author'] ?>
+<?php if ($advanced): ?>
+				<div class="sf-set set<?= $items['author'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $fields['author'] ?>"><span><?= $search['Author search'] ?></span></label><br />
+						<span class="fld-input"><input id="fld<?= $fields['author'] ?>" type="text" name="author" size="40" maxlength="25" /></span>
+					</div>
+				</div>
+<?= $positions['pre_search_in'] ?>
+				<div class="sf-set set<?= $items['search_in'] ?>">
+					<div class="sf-box select">
+						<label for="fld<?= $fields['search_in'] ?>"><span><?= $search['Search in'] ?></span></label><br />
+						<span class="fld-input"><select id="fld<?= $fields['search_in'] ?>" name="search_in">
+							<option value="all"><?= $search['Message and subject'] ?></option>
+							<option value="message"><?= $search['Message only'] ?></option>
+							<option value="topic"><?= $search['Topic only'] ?></option>
+						</select></span>
+					</div>
+				</div>
+<?php endif ?>
+<?php if ($forumFieldset): ?>
+<?= $positions['pre_forum_fieldset'] ?>
+				<fieldset class="mf-set set<?= $items['forums'] ?>">
+					<legend><span><?= $search['Forum search'] ?> <em><?= $forumNote ?></em></span></legend>
+<?= $positions['pre_forum_checklist'] ?>
+					<div class="mf-box">
+						<div class="checklist">
+<?php foreach ($checklist as $box): ?>
+<?= $box['start'] ?>
+<?php if ($box['opens']): ?>
+<?php if ($box['closes']): ?>
+							</fieldset>
+<?php endif ?>
+							<fieldset>
+								<legend><span><?= $box['category'] ?>:</span></legend>
+<?php endif ?>
+								<div class="checklist-item"><span class="fld-input"><input type="checkbox" id="fld<?= $box['field'] ?>" name="forum[]" value="<?= $box['id'] ?>" /></span> <label for="fld<?= $box['field'] ?>"><?= $box['name'] ?></label></div>
+<?= $box['end'] ?>
+<?php endforeach ?>
+<?php if ($checklist !== array()): ?>
+							</fieldset>
+<?php endif ?>
+						</div>
+					</div>
+<?= $positions['pre_forum_fieldset_end'] ?>
+				</fieldset>
+<?php endif ?>
+<?= $positions['forum_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['criteria_fieldset_end'] ?>
+<?= $positions['pre_results_fieldset'] ?>
+<?php if ($advanced): ?>
+			<fieldset class="frm-group group<?= $groups['results'] ?>">
+				<legend class="group-legend"><strong><?= $search['Results legend'] ?></strong></legend>
+<?= $positions['pre_sort_by'] ?>
+				<div class="sf-set set<?= $items['sort_by'] ?>">
+					<div class="sf-box select">
+						<label for="fld<?= $fields['sort_by'] ?>"><span><?= $search['Sort by'] ?></span></label><br />
+						<span class="fld-input"><select id="fld<?= $fields['sort_by'] ?>" name="sort_by">
+						<?= $sort, "\n" ?>
+						</select></span>
+					</div>
+				</div>
+<?= $positions['pre_sort_order_fieldset'] ?>
+				<fieldset class="mf-set set<?= $items['sort_order'] ?>">
+					<legend><span><?= $search['Sort order'] ?></span></legend>
+<?= $positions['pre_sort_order'] ?>
+					<div class="mf-box mf-yesno">
+						<div class="mf-item">
+							<span class="fld-input"><input type="radio" id="fld<?= $fields['ascending'] ?>" name="sort_dir" value="ASC" /></span>
+							<label for="fld<?= $fields['ascending'] ?>"><?= $search['Ascending'] ?></label>
+						</div>
+						<div class="mf-item">
+							<span class="fld-input"><input type="radio" id="fld<?= $fields['descending'] ?>" name="sort_dir" value="DESC" checked="checked" /></span>
+							<label for="fld<?= $fields['descending'] ?>"><?= $search['Descending'] ?></label>
+						</div>
+					</div>
+<?= $positions['pre_sort_order_fieldset_end'] ?>
+				</fieldset>
+<?= $positions['pre_display_choices_fieldset'] ?>
+				<fieldset class="mf-set set<?= $items['display'] ?>">
+					<legend><span><?= $search['Display results'] ?></span></legend>
+<?= $positions['pre_display_choices'] ?>
+					<div class="mf-box mf-yesno">
+						<div class="mf-item">
+							<span class="fld-input"><input type="radio" id="fld<?= $fields['topics'] ?>" name="show_as" value="topics" /></span>
+							<label for="fld<?= $fields['topics'] ?>"><?= $search['Show as topics'] ?></label>
+						</div>
+						<div class="mf-item">
+							<span class="fld-input"><input type="radio" id="fld<?= $fields['posts'] ?>" name="show_as" value="posts" checked="checked" /></span>
+							<label for="fld<?= $fields['posts'] ?>"><?= $search['Show as posts'] ?></label>
+						</div>
+<?= $positions['new_display_choices'] ?>
+					</div>
+<?= $positions['pre_display_choices_fieldset_end'] ?>
+				</fieldset>
+<?= $positions['pre_results_fieldset_end'] ?>
+			</fieldset>
+<?php endif ?>
+<?= $positions['results_fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="search" value="<?= $search['Submit search'] ?>" /></span>
+			</div>
+		</form>
+	</div>
+<?= $positions['end'] ?>

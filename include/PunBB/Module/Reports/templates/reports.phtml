@@ -1,0 +1,57 @@
+<?php /* The reports page: the unread reports in a form marking them read, the reports marked read last, or the note that there are none. Every variable is escaped unless it is Html. */ ?>
+<?php if ($unread !== array()): ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $arp['New reports heading'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<form id="arp-new-report-form" class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>?action=zap">
+			<div class="hidden">
+				<input type="hidden" name="csrf_token" value="<?= $token ?>" />
+			</div>
+<?php foreach ($unread as $report): ?>
+<?= $report['before'] ?>
+			<div class="ct-set warn-set report set<?= $report['item'] ?>">
+				<div class="ct-box warn-box">
+					<h3 class="ct-legend hn"><strong><?= $report['number'] ?></strong> <cite class="username"><?= $report['by'] ?></cite> <span><?= $report['created'] ?></span></h3>
+					<h4 class="hn"><?= $report['forum'] ?> &rarr; <?= $report['topic'] ?> &rarr; <?= $report['post'] ?></h4>
+					<p><?= $report['message'] ?></p>
+					<p class="item-select"><input type="checkbox" id="fld<?= $report['field'] ?>" name="reports[<?= $report['id'] ?>]" value="1" /> <label for="fld<?= $report['field'] ?>"><?= $arp['Select report'] ?></label></p>
+<?= $report['end'] ?>
+				</div>
+			</div>
+<?php endforeach ?>
+			<div class="frm-buttons">
+				<span class="select-all js_link" data-check-form="arp-new-report-form"><?= $selectAll ?></span>
+				<span class="submit primary"><input type="submit" name="mark_as_read" value="<?= $arp['Mark read'] ?>" /></span>
+			</div>
+		</form>
+	</div>
+<?php endif ?>
+<?php if ($read !== array()): ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $arp['Read reports heading'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+<?php foreach ($read as $report): ?>
+<?= $report['before'] ?>
+			<div class="ct-set report data-set set<?= $report['item'] ?>">
+				<div class="ct-box data-box">
+					<h3 class="ct-legend hn"><strong><?= $report['number'] ?></strong> <cite class="username"><?= $report['by'] ?></cite> <span><?= $report['created'] ?></span></h3>
+					<h4 class="hn"><?= $report['forum'] ?> &rarr; <?= $report['topic'] ?> &rarr; <?= $report['post'] ?></h4>
+					<p><?= $report['message'] ?> <strong><?= $report['marked'] ?></strong></p>
+<?= $report['end'] ?>
+				</div>
+			</div>
+<?php endforeach ?>
+	</div>
+<?php endif ?>
+<?php if ($unread === array() && $read === array()): ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $arp['Empty reports heading'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<div class="ct-box">
+			<p><?= $arp['No reports'] ?></p>
+		</div>
+	</div>
+<?php endif ?>

@@ -99,7 +99,7 @@ class CookieHashTest extends TestCase
 	//
 	public function testEveryCookieSiteUsesTheHelper(): void
 	{
-		foreach (array('login.php', 'register.php', 'profile.php', 'include/functions.php') as $file)
+		foreach (array('include/PunBB/Module/LegacyBridge/Site/LegacySignIn.php', 'include/functions.php') as $file)
 		{
 			$source = (string) file_get_contents(FORUM_ROOT.$file);
 
@@ -107,6 +107,9 @@ class CookieHashTest extends TestCase
 			$this->assertStringNotContainsString('.forum_hash($expire,', $source,
 				$file.': the cookie authenticator is still built inline');
 		}
+
+		// A member changing their own password signs in again through the site's sign-in
+		$this->assertStringContainsString('$this->signIn->signIn($user->id(), $hash, $user->salt(), ', (string) file_get_contents(FORUM_ROOT.'include/PunBB/Module/Profile/Controller/PasswordChange.php'));
 	}
 
 	//

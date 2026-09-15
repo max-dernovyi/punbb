@@ -17,14 +17,15 @@
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use PHPUnit\Framework\TestCase;
-use PunBB\Module\Framework\Module as FrameworkModule;
+use PunBB\Module\Framework\Event\EventInterface;
 use PunBB\Module\Framework\Modules\ModuleRegistry;
 use PunBB\Module\LegacyBridge\Hook\HookException;
 use PunBB\Module\LegacyBridge\Hook\HookMap;
 use PunBB\Module\LegacyBridge\Hook\MarkupHookRunner;
 use PunBB\Module\LegacyBridge\Hook\PointEvaluator;
 use PunBB\Module\LegacyBridge\Hook\StatementHookRunner;
-use PunBB\Module\LegacyBridge\Module as LegacyBridgeModule;
+use PunBBFixture\Module\Greeting\Event\GreetingSending;
+use PunBBFixture\Module\Greeting\Model\Greeting;
 
 #[IgnoreDeprecations('^Method PunBB\\\\Module\\\\LegacyBridge\\\\Hook\\\\(StatementHookRunner::run|MarkupHookRunner::render)\\(\\) is deprecated since 2\\.0, ')]
 class HookRunnerTest extends TestCase {
@@ -251,6 +252,78 @@ class HookRunnerTest extends TestCase {
 		$this->assertTrue($ran, 'a point the map does not cover did not fall back to the legacy path');
 	}
 
+	/** The bridge's observer of the covering event is where a covered point's stored code runs, and nowhere else. */
+	public function testACoveredPointRunsWhereItsCoveringEventIsObserved(): void {
+		$ran = 0;
+		$points = self::points(array('x_moved' => array('$ran++; echo \'moved\';'), 'x_legacy' => array('$ran++;')), array('x_moved' => GreetingSending::class));
+		$event = new GreetingSending(new Greeting('Rick', 'Hello, Rick'));
+
+		ob_start();
+		$points->run('x_moved', array('ran' => &$ran), $event);
+		ob_end_clean();
+		$this->assertSame(1, $ran);
+		$this->assertSame('moved', $points->render('x_moved', array('ran' => &$ran), $event));
+		$this->assertSame(2, $ran);
+
+		foreach (array(
+			'x_moved is covered by '.GreetingSending::class	=> fn () => $points->run('x_moved', array('ran' => &$ran), new class implements EventInterface {}),
+			'x_legacy is not covered by '.GreetingSending::class	=> fn () => $points->run('x_legacy', array('ran' => &$ran), $event),
+		) as $message => $run)
+		{
+			try {
+				$run();
+				$this->fail('ran: '.$message);
+			}
+			catch (HookException $e) {
+				$this->assertStringContainsString($message, $e->getMessage());
+			}
+		}
+
+		$this->assertSame(2, $ran);
+	}
+
+	/** A point a plugin covers runs from that plugin's contract method, and from nothing else. */
+	public function testAPluggedPointRunsOnlyFromTheMethodCoveringIt(): void {
+		$query = array('WHERE' => 'u.id > 1');
+		$points = self::points(array('x_qr' => array('$query[\'WHERE\'] .= \' AND u.id=2\';')), array('x_qr' => 'PunBBFixture\\Module\\Greeting\\Api\\GreeterInterface::greet'));
+
+		$points->runPlugged('x_qr', array('query' => &$query), 'PunBBFixture\\Module\\Greeting\\Api\\GreeterInterface::greet');
+		$this->assertSame('u.id > 1 AND u.id=2', $query['WHERE']);
+
+		foreach (array(
+			'x_qr is covered by PunBBFixture\\Module\\Greeting\\Api\\GreeterInterface::greet, not by PunBBFixture\\Module\\Greeting\\Api\\GreeterInterface::farewell' => fn () => $points->runPlugged('x_qr', array('query' => &$query), 'PunBBFixture\\Module\\Greeting\\Api\\GreeterInterface::farewell'),
+			'x_other is covered by nothing, not by PunBBFixture\\Module\\Greeting\\Api\\GreeterInterface::greet' => fn () => $points->runPlugged('x_other', array(), 'PunBBFixture\\Module\\Greeting\\Api\\GreeterInterface::greet'),
+			'x_qr is covered by PunBBFixture\\Module\\Greeting\\Api\\GreeterInterface::greet, where its stored code runs' => fn () => $points->run('x_qr', array('query' => &$query)),
+		) as $message => $run)
+		{
+			try {
+				$run();
+				$this->fail('ran: '.$message);
+			}
+			catch (HookException $e) {
+				$this->assertStringContainsString($message, $e->getMessage());
+			}
+		}
+
+		$this->assertSame('u.id > 1 AND u.id=2', $query['WHERE']);
+	}
+
+	/** A page script ran its points at global scope, so what one point creates the bridge keeps for the next. */
+	public function testTheVariablesStoredCodeCreatesAreHandedOverByName(): void {
+		$id = 3;
+		$created = null;
+		$points = self::points(array('x' => array('$id = 4; $new_thing = array($id); $another = \'text\'; unset($another);'), 'x_markup' => array('echo \'shown\'; $made = 1;')));
+
+		$points->run('x', array('id' => &$id), null, function (array $variables) use (&$created): void { $created = $variables; });
+
+		$this->assertSame(4, $id);
+		$this->assertSame(array('new_thing' => array(4)), $created, 'neither an exposed variable nor one the code unset again');
+
+		$markup = null;
+		$this->assertSame('shown', $points->render('x_markup', array(), null, function (array $variables) use (&$markup): void { $markup = $variables; }));
+		$this->assertSame(array('made' => 1), $markup);
+	}
+
 	public function testMarkupThatClosesPhpLandsAtTheSitesPosition(): void {
 		$forum_page = array('item_count' => 3);
 		$markup = $this->markup(array('x_markup' => array(
@@ -294,7 +367,7 @@ class HookRunnerTest extends TestCase {
 	}
 
 	public function testTheModuleWiresBothRunnersOverTheHooksCache(): void {
-		$container = (new ModuleRegistry(new FrameworkModule(), new LegacyBridgeModule()))->container();
+		$container = ModuleRegistry::discover(FORUM_ROOT.'include/PunBB/Module', 'PunBB\\Module\\')->container();
 		$this->expectUserDeprecationMessage(self::RUN_NOTICE);
 		$this->expectUserDeprecationMessage(self::RENDER_NOTICE);
 

@@ -1,0 +1,107 @@
+<?php /* The registration section: whether and how new users register, the email checks and settings they start with, and the rules they agree to. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-content main-frm">
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<input type="hidden" name="csrf_token" value="<?= $token ?>" />
+				<input type="hidden" name="form_sent" value="1" />
+			</div>
+			<div class="content-head">
+				<h2 class="hn"><span><?= $aop['Registration new'] ?></span></h2>
+			</div>
+			<div class="ct-box">
+				<p><?= $aop['New reg info'] ?></p>
+			</div>
+<?= $positions['pre_new_regs_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['g1'] ?>">
+				<legend class="group-legend"><span><?= $aop['Registration new legend'] ?></span></legend>
+<?= $positions['pre_allow_new_regs_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['i1'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['regs_allow'] ?>" name="form[regs_allow]" value="1"<?php if ($config['o_regs_allow'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['regs_allow'] ?>"><span><?= $aop['Allow new reg'] ?></span> <?= $aop['Allow new reg label'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_verify_regs_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['i2'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['regs_verify'] ?>" name="form[regs_verify]" value="1"<?php if ($config['o_regs_verify'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['regs_verify'] ?>"><span><?= $aop['Verify reg'] ?></span> <?= $aop['Verify reg label'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_email_fieldset'] ?>
+				<fieldset class="mf-set set<?= $numbers['i3'] ?>">
+					<legend><span><?= $aop['Reg e-mail group'] ?></span></legend>
+					<div class="mf-box">
+						<div class="mf-item">
+							<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['allow_banned_email'] ?>" name="form[allow_banned_email]" value="1"<?php if ($config['p_allow_banned_email'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+							<label for="fld<?= $numbers['allow_banned_email'] ?>"><?= $aop['Allow banned label'] ?></label>
+						</div>
+						<div class="mf-item">
+							<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['allow_dupe_email'] ?>" name="form[allow_dupe_email]" value="1"<?php if ($config['p_allow_dupe_email'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+							<label for="fld<?= $numbers['allow_dupe_email'] ?>"><?= $aop['Allow dupe label'] ?></label>
+						</div>
+<?= $positions['new_email_option'] ?>
+					</div>
+<?= $positions['pre_email_fieldset_end'] ?>
+				</fieldset>
+<?= $positions['email_fieldset_end'] ?>
+				<div class="sf-set set<?= $numbers['i4'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['regs_report'] ?>" name="form[regs_report]" value="1"<?php if ($config['o_regs_report'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['regs_report'] ?>"><span><?= $aop['Report new reg'] ?></span> <?= $aop['Report new reg label'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_email_setting_fieldset'] ?>
+				<fieldset class="mf-set set<?= $numbers['i5'] ?>">
+					<legend><span><?= $aop['E-mail setting group'] ?></span></legend>
+					<div class="mf-box">
+						<div class="mf-item">
+							<span class="fld-input"><input type="radio" id="fld<?= $numbers['default_email_setting_0'] ?>" name="form[default_email_setting]" value="0"<?php if ($config['o_default_email_setting'] == '0'): ?> checked="checked"<?php endif ?> /></span>
+							<label for="fld<?= $numbers['default_email_setting_0'] ?>"><?= $aop['Display e-mail label'] ?></label>
+						</div>
+						<div class="mf-item">
+							<span class="fld-input"><input type="radio" id="fld<?= $numbers['default_email_setting_1'] ?>" name="form[default_email_setting]" value="1"<?php if ($config['o_default_email_setting'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+							<label for="fld<?= $numbers['default_email_setting_1'] ?>"><?= $aop['Allow form e-mail label'] ?></label>
+						</div>
+						<div class="mf-item">
+							<span class="fld-input"><input type="radio" id="fld<?= $numbers['default_email_setting_2'] ?>" name="form[default_email_setting]" value="2"<?php if ($config['o_default_email_setting'] == '2'): ?> checked="checked"<?php endif ?> /></span>
+							<label for="fld<?= $numbers['default_email_setting_2'] ?>"><?= $aop['Disallow form e-mail label'] ?></label>
+						</div>
+<?= $positions['new_email_setting_option'] ?>
+					</div>
+<?= $positions['pre_email_setting_fieldset_end'] ?>
+				</fieldset>
+<?= $positions['email_setting_fieldset_end'] ?>
+				</fieldset>
+<?= $positions['new_regs_fieldset_end'] ?>
+			<div class="content-head">
+				<h2 class="hn"><span><?= $aop['Registration rules'] ?></span></h2>
+			</div>
+				<div class="ct-box">
+					<p><?= $aop['Registration rules info'] ?></p>
+				</div>
+<?= $positions['pre_rules_fieldset'] ?>
+				<fieldset class="frm-group group<?= $numbers['g2'] ?>">
+					<legend class="group-legend"><span><?= $aop['Registration rules legend'] ?></span></legend>
+<?= $positions['pre_rules_checkbox'] ?>
+					<div class="sf-set set<?= $numbers['i6'] ?>">
+						<div class="sf-box checkbox">
+							<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['rules'] ?>" name="form[rules]" value="1"<?php if ($config['o_rules'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+							<label for="fld<?= $numbers['rules'] ?>"><span><?= $aop['Require rules'] ?></span><?= $aop['Require rules label'] ?></label>
+						</div>
+					</div>
+<?= $positions['pre_rules_text'] ?>
+					<div class="txt-set set<?= $numbers['i7'] ?>">
+						<div class="txt-box textarea">
+							<label for="fld<?= $numbers['rules_message'] ?>"><span><?= $aop['Compose rules label'] ?></span><small><?= $aop['Compose rules help'] ?></small></label>
+							<div class="txt-input"><span class="fld-input"><textarea id="fld<?= $numbers['rules_message'] ?>" name="form[rules_message]" rows="10" cols="55"><?= $config['o_rules_message'] ?></textarea></span></div>
+						</div>
+					</div>
+<?= $positions['pre_rules_fieldset_end'] ?>
+				</fieldset>
+<?= $positions['rules_fieldset_end'] ?>
+				<div class="frm-buttons">
+					<span class="submit primary"><input type="submit" name="save" value="<?= $common['Save changes'] ?>" /></span>
+				</div>
+		</form>
+	</div>

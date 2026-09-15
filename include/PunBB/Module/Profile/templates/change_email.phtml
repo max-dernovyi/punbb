@@ -1,0 +1,49 @@
+<?php /* The form a member's address is changed with, from their profile. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-head">
+		<h2 class="hn"><span><?= $heading ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<div class="ct-box info-box">
+			<p class="important"><span><?= $info ?></span></p>
+		</div>
+<?php if ($errors !== null): ?>
+		<div class="ct-box error-box">
+			<h2 class="warn hn"><?= $profile['Change e-mail errors'] ?></h2>
+			<ul class="error-list">
+				<?= $errors, "\n" ?>
+			</ul>
+		</div>
+<?php endif ?>
+		<div id="req-msg" class="req-warn ct-box error-box">
+			<p class="important"><?= $common['Required warn'] ?></p>
+		</div>
+		<form id="afocus" class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<?= $hidden, "\n" ?>
+			</div>
+<?= $positions['pre_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['group'] ?>">
+				<legend class="group-legend"><strong><?= $common['Required information'] ?></strong></legend>
+<?= $positions['pre_new_email'] ?>
+				<div class="sf-set set<?= $numbers['email_item'] ?>">
+					<div class="sf-box text required">
+						<label for="fld<?= $numbers['email'] ?>"><span><?= $profile['New e-mail'] ?></span></label><br />
+						<span class="fld-input"><input type="email" id="fld<?= $numbers['email'] ?>" name="req_new_email" size="35" maxlength="80" value="<?= $email ?>" required /></span>
+					</div>
+				</div>
+<?= $positions['pre_password'] ?>
+				<div class="sf-set set<?= $numbers['password_item'] ?>">
+					<div class="sf-box text required">
+						<label for="fld<?= $numbers['password'] ?>"><span><?= $profile['Password'] ?></span><small><?= $profile['Old password help'] ?></small></label><br />
+						<span class="fld-input"><input type="<?= $masked ? 'password' : 'text' ?>" id="fld<?= $numbers['password'] ?>" name="req_password" size="35" value="<?= $password ?>" required autocomplete="off" /></span>
+					</div>
+				</div>
+<?= $positions['pre_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="update" value="<?= $common['Submit'] ?>" /></span>
+				<span class="cancel"><input type="submit" name="cancel" value="<?= $common['Cancel'] ?>" formnovalidate /></span>
+			</div>
+		</form>
+	</div>

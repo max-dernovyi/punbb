@@ -208,6 +208,7 @@ class DBLayer
 		}
 	}
 
+	#[\Deprecated(since: '2.0', message: 'use a repository method behind the Api contract of a module, over prepared statements')]
 	public function query_build($query, $return_query_string = false, $unbuffered = false)
 	{
 		$sql = '';
@@ -480,7 +481,7 @@ class DBLayer
 			$this->in_transaction = 0;
 
 			// PHP 8+ throws on an already-closed SQLite3 object; close() is called
-			// explicitly (footer.php) and again from __destruct(). With exceptions
+			// explicitly (forum_end_page()) and again from __destruct(). With exceptions
 			// enabled a driver-level failure is a SQLite3Exception, not an Error.
 			try
 			{

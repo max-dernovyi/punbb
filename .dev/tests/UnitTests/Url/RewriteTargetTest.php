@@ -1,13 +1,13 @@
 <?php
 /**
- * rewrite.php only ever require()s an entry point in the forum root.
+ * A rewrite rule only ever reaches a routed page in the forum root.
  *
- * The SEF front controller runs the request URI through a table of rewrite
- * rules and require()s whatever the winning replacement names before the "?".
+ * The front controller runs a path no route serves through a table of rewrite
+ * rules and routes whatever the winning replacement names before the "?".
  * The shipped rules all replace into a fixed filename, but the table is data:
  * the `re_rewrite_rules` hook hands it to any installed extension, and the
  * request URI reaching the match is urldecode()d, so the sink is what has to
- * hold. forum_rewrite_target() is that sink.
+ * hold. forum_rewrite_target() is that sink, and the route map is behind it.
  *
  * @copyright (C) 2008-2012 PunBB, partially based on code (C) 2008-2009 FluxBB.org
  * @license http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
@@ -16,6 +16,7 @@
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use PunBB\Module\Framework\Modules\ModuleRegistry;
 
 class RewriteTargetTest extends TestCase
 {
@@ -27,8 +28,7 @@ class RewriteTargetTest extends TestCase
 		return array(
 			'with a query'  => array('viewtopic.php?id=1&p=2', 'viewtopic.php'),
 			// The shipped rules are /i and substitute the request's casing, so
-			// /Login expands to Login.php. rewrite.php still has to find the
-			// file before it requires it.
+			// /Login expands to Login.php, which the route map does not serve.
 			'mixed case'    => array('Login.php', 'Login.php'),
 			'bare'          => array('userlist.php', 'userlist.php'),
 			'underscore'    => array('extern.php?action=feed', 'extern.php'),
@@ -118,10 +118,12 @@ class RewriteTargetTest extends TestCase
 		}
 	}
 
-	/** Each of those filenames, once expanded, is a file that exists. */
+	/** Each of those filenames, once expanded, is a page the route map serves. */
 	#[DataProvider('rulesetProvider')]
-	public function testEveryShippedRuleNamesAFileThatExists(string $file): void
+	public function testEveryShippedRuleNamesARoutedPage(string $file): void
 	{
+		$router = ModuleRegistry::discover(FORUM_ROOT.'include/PunBB/Module', 'PunBB\\Module\\')->router();
+
 		$forum_rewrite_rules = array();
 		require $file;
 
@@ -141,23 +143,24 @@ class RewriteTargetTest extends TestCase
 			foreach ($candidates as $candidate)
 			{
 				$this->assertIsString(forum_rewrite_target($candidate), $rule.': "'.$candidate.'" is refused by the sink');
-				$this->assertFileExists(FORUM_ROOT.$candidate, $rule.': "'.$candidate.'" does not exist');
+				$this->assertNotNull($router->match($candidate), $rule.': "'.$candidate.'" is not routed');
 			}
 		}
 	}
 
 	/**
-	 * Source guard: rewrite.php must require the validated value, not the raw
-	 * one. The pre-fix line is the control.
+	 * Source guard: the front controller routes the validated value, never the
+	 * raw one, and requires nothing but the bootstrap a route runs on.
 	 */
-	public function testRewritePhpRequiresTheValidatedTarget(): void
+	public function testTheFrontControllerRoutesTheValidatedTarget(): void
 	{
-		$source = (string) file_get_contents(FORUM_ROOT.'rewrite.php');
+		$source = (string) file_get_contents(FORUM_ROOT.'index.php');
 
-		$this->assertStringNotContainsString('require FORUM_ROOT.$url_parts[0];', $source,
-			'rewrite.php is back to requiring the rule output unchecked');
-		$this->assertStringContainsString('$rewrite_target = forum_rewrite_target($url_parts[0]);', $source);
-		$this->assertStringContainsString('require FORUM_ROOT.$rewrite_target;', $source);
-		$this->assertStringContainsString('if ($rewrite_target === false || !file_exists(FORUM_ROOT.$rewrite_target))', $source);
+		$this->assertStringContainsString('$rewrite_target = $forum_rewrite !== null ? forum_rewrite_target($forum_rewrite->target) : false;', $source);
+		$this->assertStringContainsString('$forum_route = $rewrite_target !== false ? $forum_router->match($rewrite_target) : null;', $source);
+		$this->assertSame(array('FORUM_ROOT.\'include/autoload.php\'', 'FORUM_ROOT.\'include/essentials.php\'',
+			'FORUM_ROOT.\'include/url/\'.$forum_config[\'o_sef\'].\'/rewrite_rules.php\'', 'FORUM_ROOT.\'include/url/Default/rewrite_rules.php\'',
+			'FORUM_ROOT.\'include/setup.php\'', 'FORUM_ROOT.\'include/common.php\''),
+			preg_match_all('/\brequire\s+([^;]+);/', $source, $matches) > 0 ? $matches[1] : array());
 	}
 }

@@ -1,0 +1,50 @@
+<?php /* The form mailing a member, with the errors that stopped the last attempt. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-head">
+		<h2 class="hn"><span><?= $heading ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<div class="ct-box warn-box">
+			<p class="important"><?= $misc['E-mail disclosure note'] ?></p>
+		</div>
+<?php if ($errors !== null): ?>
+<?= $positions['pre_email_errors'] ?>
+		<div class="ct-box error-box">
+			<h2 class="warn hn"><?= $misc['Form e-mail errors'] ?></h2>
+			<ul class="error-list">
+				<?= $errors, "\n" ?>
+			</ul>
+		</div>
+<?php endif ?>
+		<div id="req-msg" class="req-warn ct-box error-box">
+			<p class="important"><?= $common['Required warn'] ?></p>
+		</div>
+		<form id="afocus" class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<?= $hidden, "\n" ?>
+			</div>
+<?= $positions['pre_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['group'] ?>">
+				<legend class="group-legend"><strong><?= $misc['Write e-mail'] ?></strong></legend>
+<?= $positions['pre_subject'] ?>
+				<div class="sf-set set<?= $numbers['subject_item'] ?>">
+					<div class="sf-box text required longtext">
+						<label for="fld<?= $numbers['subject_field'] ?>"><span><?= $misc['E-mail subject'] ?></span></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['subject_field'] ?>" name="req_subject" value="<?= $subject ?>" size="<?= $subjectLength ?>" maxlength="<?= $subjectLength ?>" required /></span>
+					</div>
+				</div>
+<?= $positions['pre_message_contents'] ?>
+				<div class="txt-set set<?= $numbers['message_item'] ?>">
+					<div class="txt-box textarea required">
+						<label for="fld<?= $numbers['message_field'] ?>"><span><?= $misc['E-mail message'] ?></span></label>
+						<div class="txt-input"><span class="fld-input"><textarea id="fld<?= $numbers['message_field'] ?>" name="req_message" rows="10" cols="95" required><?= $message ?></textarea></span></div>
+					</div>
+				</div>
+<?= $positions['pre_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="submit" value="<?= $common['Submit'] ?>" /></span>
+				<span class="cancel"><input type="submit" name="cancel" value="<?= $common['Cancel'] ?>" formnovalidate /></span>
+			</div>
+		</form>
+	</div>

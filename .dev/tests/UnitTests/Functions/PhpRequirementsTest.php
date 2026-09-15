@@ -23,15 +23,12 @@ class PhpRequirementsTest extends TestCase {
 		$this->assertSame('8.4.0', FORUM_MIN_PHP_VERSION);
 	}
 
+	/** The installer and the updater refuse an older PHP through the requirements, which name the constant's version. */
 	public function testInstallAndUpdateGatesMatchTheConstant(): void {
-		$this->assertStringContainsString(
-			'define(\'MIN_PHP_VERSION\', \''.FORUM_MIN_PHP_VERSION.'\');',
-			$this->source('admin/install.php')
-		);
-		$this->assertStringContainsString(
-			'version_compare(PHP_VERSION, \''.FORUM_MIN_PHP_VERSION.'\', \'<\')',
-			$this->source('admin/db_update.php')
-		);
+		$this->assertStringContainsString('version_compare($php_version, FORUM_MIN_PHP_VERSION, \'<\')', $this->source('include/functions.php'));
+
+		foreach (array('include/PunBB/Module/Install/Controller/InstallController.php', 'include/PunBB/Module/Update/Controller/UpdateController.php') as $controller)
+			$this->assertStringContainsString('$this->environment->requirementErrors()', $this->source($controller), $controller);
 	}
 
 	public function testAMetEnvironmentReportsNothing(): void {
@@ -140,13 +137,13 @@ class PhpRequirementsTest extends TestCase {
 
 	/** @return list<array{string}> */
 	public static function entryPointProvider(): array {
-		return array(array('admin/install.php'), array('admin/db_update.php'));
+		return array(array('include/setup.php'), array('include/PunBB/Module/LegacyBridge/Setup/LegacyEnvironment.php'));
 	}
 
 	public function testDeadPhp5GatesAreCollapsed(): void {
 		$this->assertStringNotContainsString(
 			'version_compare(PHP_VERSION, \'5.',
-			$this->source('include/functions.php').$this->source('include/essentials.php').$this->source('admin/db_update.php'),
+			$this->source('include/functions.php').$this->source('include/essentials.php').$this->source('include/setup.php'),
 			'PHP 5 version branches are dead code on 8.4'
 		);
 	}
@@ -169,8 +166,7 @@ class PhpRequirementsTest extends TestCase {
 	/** @return array<string, array{string}> */
 	public static function independentBootstraps(): array {
 		return array(
-			'install' => array('admin/install.php'),
-			'db_update' => array('admin/db_update.php'),
+			'install and db_update' => array('include/setup.php'),
 		);
 	}
 

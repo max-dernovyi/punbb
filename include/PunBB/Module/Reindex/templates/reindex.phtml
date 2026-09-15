@@ -1,0 +1,46 @@
+<?php /* The form starting a rebuild of the search index. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $ari['Reindex heading'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<div class="ct-box warn-box">
+			<p><?= $ari['Reindex info'] ?></p>
+			<p class="important"><?= $ari['Reindex warning'] ?></p>
+			<p class="warn"><?= $ari['Empty index warning'] ?></p>
+		</div>
+		<form class="frm-form" method="get" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<input type="hidden" name="csrf_token" value="<?= $token ?>" />
+			</div>
+<?= $positions['pre_rebuild_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['group'] ?>">
+				<legend class="group-legend"><span><?= $ari['Rebuild index legend'] ?></span></legend>
+<?= $positions['pre_rebuild_per_page'] ?>
+				<div class="sf-set set<?= $numbers['per_page_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['per_page_field'] ?>"><span><?= $ari['Posts per cycle'] ?></span> <small><?= $ari['Posts per cycle info'] ?></small></label><br />
+						<span class="fld-input"><input type="number" id="fld<?= $numbers['per_page_field'] ?>" name="i_per_page" size="7" maxlength="7" value="100" /></span>
+					</div>
+				</div>
+<?= $positions['pre_rebuild_start_post'] ?>
+				<div class="sf-set set<?= $numbers['start_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['start_field'] ?>"><span class="fld-label"><?= $ari['Starting post'] ?></span> <small><?= $ari['Starting post info'] ?></small></label><br />
+						<span class="fld-input"><input type="number" id="fld<?= $numbers['start_field'] ?>" name="i_start_at" size="7" maxlength="7" value="<?= $firstId ?>" /></span>
+					</div>
+				</div>
+<?= $positions['pre_rebuild_empty_index'] ?>
+				<div class="sf-set set<?= $numbers['empty_item'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['empty_field'] ?>" name="i_empty_index" value="1" checked="checked" /></span>
+						<label for="fld<?= $numbers['empty_field'] ?>"><?= $ari['Empty index'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_rebuild_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['rebuild_fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="rebuild_index" value="<?= $ari['Rebuild index'] ?>" /></span>
+			</div>
+		</form>
+	</div>

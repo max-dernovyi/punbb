@@ -42,7 +42,7 @@ if (defined('PUN'))
 	define('FORUM', 1);
 
 if (!defined('FORUM'))
-	error('The file \'config.php\' doesn\'t exist or is corrupt.<br />Please run <a href="'.FORUM_ROOT.'admin/install.php">install.php</a> to install PunBB first.');
+	error('The file \'config.php\' doesn\'t exist or is corrupt.<br />Please run <a href="'.forum_htmlencode(rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/')).'/admin/install.php">install.php</a> to install PunBB first.');
 
 // Block prefetch requests
 if (isset($_SERVER['HTTP_X_MOZ']) && $_SERVER['HTTP_X_MOZ'] == 'prefetch')

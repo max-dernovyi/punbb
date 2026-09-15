@@ -1,0 +1,20 @@
+<?php /* The confirmation of a form whose token did not match: the fields it posts again. Every variable is escaped unless it is Html. */ ?>
+<div id="brd-main" class="main">
+	<div class="main-head">
+		<h2 class="hn"><span><?= $common['Confirm action head'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<div class="ct-box info-box">
+			<p><?= $common['CSRF token mismatch'] ?></p>
+		</div>
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<?= $fields, "\n" ?>
+			</div>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" value="<?= $common['Confirm'] ?>" /></span>
+				<span class="cancel"><input type="submit" name="confirm_cancel" value="<?= $common['Cancel'] ?>" /></span>
+			</div>
+		</form>
+	</div>
+</div>

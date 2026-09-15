@@ -15,14 +15,17 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 class RuntimeApiGuardTest extends TestCase {
-	/** @return list<string> every PHP file the forum serves, minus the vendored libraries */
+	/** @return list<string> every PHP file and template the forum serves, minus the vendored libraries */
 	private static function sources(): array {
 		$files = array_merge(
 			(array)glob(FORUM_ROOT.'*.php'),
-			(array)glob(FORUM_ROOT.'admin/*.php'),
 			(array)glob(FORUM_ROOT.'include/*.php'),
 			(array)glob(FORUM_ROOT.'include/dblayer/*.php')
 		);
+
+		foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(FORUM_ROOT.'include/PunBB', FilesystemIterator::SKIP_DOTS)) as $file)
+			if (in_array($file->getExtension(), array('php', 'phtml'), true))
+				$files[] = $file->getPathname();
 
 		return array_values(array_filter($files, 'is_string'));
 	}

@@ -7,6 +7,7 @@ namespace PunBB\Module\Framework\Modules;
 use PunBB\Module\Framework\Container\Container;
 use PunBB\Module\Framework\Event\EventDispatcher;
 use PunBB\Module\Framework\Plugin\PluginManager;
+use PunBB\Module\Framework\Routing\Router;
 
 /**
  * The registered modules in load order: every dependency, and every present
@@ -17,6 +18,9 @@ final class ModuleRegistry {
 
 	/** @var array<string, ModuleInterface> */
 	private readonly array $modules;
+
+	/** @var array<string, Wiring>|null module => what it declared, each module wired once */
+	private ?array $wirings = null;
 
 	public function __construct(ModuleInterface ...$modules) {
 		$this->modules = self::resolve($modules);
@@ -74,11 +78,8 @@ final class ModuleRegistry {
 		$plugins = array();
 		$observers = array();
 
-		foreach ($this->modules as $name => $module)
+		foreach ($this->wirings() as $name => $wiring)
 		{
-			$wiring = new Wiring($name);
-			$module->wire($wiring);
-
 			foreach ($wiring->services() as $id => $factory)
 			{
 				if (isset($owners[$id]))
@@ -106,6 +107,34 @@ final class ModuleRegistry {
 		}
 
 		return new Container($factories);
+	}
+
+	/**
+	 * The route map from every module's routes, in load order. It needs no
+	 * container, so a request is routed before the forum is booted for it.
+	 */
+	public function router(): Router {
+		$routes = array();
+		foreach ($this->wirings() as $wiring)
+			$routes = array_merge($routes, $wiring->routes());
+
+		return new Router($routes);
+	}
+
+	/** @return array<string, Wiring> */
+	private function wirings(): array {
+		if ($this->wirings !== null)
+			return $this->wirings;
+
+		$wirings = array();
+		foreach ($this->modules as $name => $module)
+		{
+			$wiring = new Wiring($name);
+			$module->wire($wiring);
+			$wirings[$name] = $wiring;
+		}
+
+		return $this->wirings = $wirings;
 	}
 
 	/**

@@ -1,0 +1,46 @@
+<?php /* The deletion page: the post to delete, and the form confirming it. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-content main-frm">
+		<div class="ct-box info-box">
+			<ul class="info-list">
+				<?= implode("\n\t\t\t\t", $info), "\n" ?>
+			</ul>
+		</div>
+<?= $positions['pre_post_display'] ?>
+		<div class="post singlepost">
+			<div class="posthead">
+				<h3 class="hn post-ident"><?= implode(' ', $ident) ?></h3>
+<?= $positions['new_post_head_option'] ?>
+			</div>
+			<div class="postbody">
+				<div class="post-entry">
+					<h4 class="entry-title hn"><?= $subject ?></h4>
+					<div class="entry-content">
+						<?= $message, "\n" ?>
+					</div>
+<?= $positions['new_post_entry_data'] ?>
+				</div>
+			</div>
+		</div>
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<?= implode("\n\t\t\t\t", $hidden), "\n" ?>
+			</div>
+<?= $positions['pre_confirm_delete_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['group'] ?>">
+				<legend class="group-legend"><strong><?= $legend ?></strong></legend>
+<?= $positions['pre_confirm_delete_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['confirm_item'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['confirm_field'] ?>" name="req_confirm" value="1" checked="checked" /></span>
+						<label for="fld<?= $numbers['confirm_field'] ?>"><span><?= $delete['Please confirm'] ?></span> <?= $label ?></label>
+					</div>
+				</div>
+<?= $positions['pre_confirm_delete_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['confirm_delete_fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary caution"><input type="submit" name="delete" value="<?= $legend ?>" /></span>
+				<span class="cancel"><input type="submit" name="cancel" value="<?= $cancel ?>" formnovalidate /></span>
+			</div>
+		</form>
+	</div>

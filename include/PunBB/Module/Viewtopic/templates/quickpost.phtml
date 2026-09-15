@@ -1,0 +1,34 @@
+<?php /* The quick reply form below a topic. Every variable is escaped unless it is Html. */ ?>
+<div class="main-subhead">
+	<h2 class="hn"><span><?= $vt['Quick post'] ?></span></h2>
+</div>
+<div id="brd-qpost" class="main-content main-frm">
+<?php if ($textOptions !== null): ?>
+	<p class="content-options options"><?= $textOptions ?></p>
+<?php endif ?>
+	<div id="req-msg" class="req-warn ct-box error-box">
+		<p class="important"><?= $vt['Required warn'] ?></p>
+	</div>
+	<form class="frm-form frm-ctrl-submit" method="post" accept-charset="utf-8" action="<?= $action ?>"<?= $attributes ?>>
+		<div class="hidden">
+			<?= $hidden, "\n" ?>
+		</div>
+<?= $positions['pre_fieldset'] ?>
+		<fieldset class="frm-group group1">
+			<legend class="group-legend"><strong><?= $common['Write message legend'] ?></strong></legend>
+<?= $positions['pre_message_box'] ?>
+			<div class="txt-set set1">
+				<div class="txt-box textarea required">
+					<label for="fld1"><span><?= $common['Write message'] ?></span></label>
+					<div class="txt-input"><span class="fld-input"><textarea id="fld1" name="req_message" rows="10" cols="95" required spellcheck="true" ></textarea></span></div>
+				</div>
+			</div>
+<?= $positions['pre_fieldset_end'] ?>
+		</fieldset>
+<?= $positions['fieldset_end'] ?>
+		<div class="frm-buttons">
+			<span class="submit primary"><input type="submit" name="submit_button" value="<?= $common['Submit'] ?>" /></span>
+			<span class="submit"><input type="submit" name="preview" value="<?= $common['Preview'] ?>" /></span>
+		</div>
+	</form>
+</div>

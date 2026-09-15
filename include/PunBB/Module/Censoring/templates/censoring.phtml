@@ -1,0 +1,80 @@
+<?php /* The censoring page: the form adding a word, and the form editing the stored words or the note that there are none. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $acs['Censored word head'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>?action=foo">
+			<div class="hidden">
+				<input type="hidden" name="csrf_token" value="<?= $addToken ?>" />
+			</div>
+			<div class="ct-box" id="info-censored-intro">
+				<p><?= $intro ?></p>
+			</div>
+			<fieldset class="frm-group frm-hdgroup group<?= $numbers['add_group'] ?>">
+				<legend class="group-legend"><span><?= $acs['Add censored word legend'] ?></span></legend>
+<?= $positions['pre_add_word_fieldset'] ?>
+				<fieldset class="mf-set set<?= $numbers['add_item'] ?><?= $numbers['add_item'] === 1 ? ' mf-head' : ' mf-extra' ?>">
+					<legend><span><?= $acs['Add new word legend'] ?></span></legend>
+					<div class="mf-box">
+<?= $positions['pre_add_search_for'] ?>
+						<div class="mf-field mf-field1">
+							<label for="fld<?= $numbers['add_search_for'] ?>"><span class="fld-label"><?= $acs['Censored word label'] ?></span></label><br />
+							<span class="fld-input"><input type="text" id="fld<?= $numbers['add_search_for'] ?>" name="new_search_for" size="24" maxlength="60" required /></span>
+						</div>
+<?= $positions['pre_add_replace_with'] ?>
+						<div class="mf-field">
+							<label for="fld<?= $numbers['add_replace_with'] ?>"><span class="fld-label"><?= $acs['Replacement label'] ?></span></label><br />
+							<span class="fld-input"><input type="text" id="fld<?= $numbers['add_replace_with'] ?>" name="new_replace_with" size="24" maxlength="60" required /></span>
+						</div>
+<?= $positions['pre_add_submit'] ?>
+						<div class="mf-field">
+							<span class="submit"><input type="submit" name="add_word" value=" <?= $acs['Add word'] ?> " /></span>
+						</div>
+					</div>
+<?= $positions['pre_add_word_fieldset_end'] ?>
+				</fieldset>
+<?= $positions['add_word_fieldset_end'] ?>
+			</fieldset>
+		</form>
+<?php if ($words !== array()): ?>
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>?action=foo">
+			<div class="hidden">
+				<input type="hidden" name="csrf_token" value="<?= $editToken ?>" />
+			</div>
+			<fieldset class="frm-group group<?= $numbers['edit_group'] ?>">
+				<legend class="group-legend"><span><?= $acs['Edit censored word legend'] ?></span></legend>
+<?php foreach ($words as $word): ?>
+<?= $word['preFieldset'] ?>
+				<fieldset class="mf-set mf-extra set<?= $word['item'] ?><?= $word['item'] === 1 ? ' mf-head' : ' mf-extra' ?>">
+					<legend><span><?= $acs['Existing censored word legend'] ?></span></legend>
+					<div class="mf-box">
+<?= $word['preSearchFor'] ?>
+						<div class="mf-field mf-field1">
+							<label for="fld<?= $word['searchForField'] ?>"><span><?= $acs['Censored word label'] ?></span></label><br />
+							<span class="fld-input"><input type="text" id="fld<?= $word['searchForField'] ?>" name="search_for[<?= $word['id'] ?>]" value="<?= $word['searchFor'] ?>" size="24" maxlength="60" required /></span>
+						</div>
+<?= $word['preReplaceWith'] ?>
+						<div class="mf-field">
+							<label for="fld<?= $word['replaceWithField'] ?>"><span><?= $acs['Replacement label'] ?></span></label><br />
+							<span class="fld-input"><input type="text" id="fld<?= $word['replaceWithField'] ?>" name="replace_with[<?= $word['id'] ?>]" value="<?= $word['replaceWith'] ?>" size="24" maxlength="60" required /></span>
+						</div>
+<?= $word['preSubmit'] ?>
+						<div class="mf-field">
+							<span class="submit"><input type="submit" name="update[<?= $word['id'] ?>]" value="<?= $common['Update'] ?>" /> <input type="submit" name="remove[<?= $word['id'] ?>]" value="<?= $common['Remove'] ?>" formnovalidate /></span>
+						</div>
+					</div>
+<?= $word['preFieldsetEnd'] ?>
+				</fieldset>
+<?= $word['fieldsetEnd'] ?>
+<?php endforeach ?>
+			</fieldset>
+		</form>
+	</div>
+<?php else: ?>
+		<div class="frm-form">
+			<div class="ct-box">
+				<p><?= $acs['No censored words'] ?></p>
+			</div>
+		</div>
+	</div>
+<?php endif ?>

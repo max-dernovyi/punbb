@@ -1,0 +1,33 @@
+<?php /* The form removing a group with members, which asks which group they move to. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $heading ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<input type="hidden" name="csrf_token" value="<?= $token ?>" />
+			</div>
+<?= $positions['pre_del_fieldset'] ?>
+			<fieldset class="frm-group set<?= $numbers['remove_group'] ?>">
+				<legend class="group-legend"><span><?= $agr['Remove group legend'] ?></span></legend>
+<?= $positions['pre_move_to_group'] ?>
+				<div class="sf-set set<?= $numbers['move_item'] ?>">
+					<div class="sf-box select">
+						<label for="fld<?= $numbers['move_field'] ?>"><span><?= $agr['Move users to'] ?></span> <small><?= $agr['Remove group help'] ?></small></label><br />
+						<span class="fld-input"><select id="fld<?= $numbers['move_field'] ?>" name="move_to_group">
+<?php foreach ($targets as $group): ?>
+							<option value="<?= $group['id'] ?>"<?php if ($group['default']): ?> selected="selected"<?php endif ?>><?= $group['title'] ?></option>
+<?php endforeach ?>
+
+						</select></span>
+					</div>
+				</div>
+<?= $positions['pre_del_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['del_fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="del_group" value="<?= $agr['Remove group'] ?>" /></span>
+				<span class="cancel"><input type="submit" name="del_group_cancel" value="<?= $common['Cancel'] ?>" /></span>
+			</div>
+		</form>
+	</div>

@@ -1,0 +1,62 @@
+<?php /* The form adding or editing a ban: the username, email, addresses, message and expiry it bans by. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $aba['Ban advanced heading'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<div class="ct-box warn-box">
+			<p class="warn"><?= $aba['Ban IP warning'] ?></p>
+		</div>
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<input type="hidden" name="csrf_token" value="<?= $token ?>" />
+				<input type="hidden" name="mode" value="<?= $mode ?>" />
+<?php if ($editing): ?>
+				<input type="hidden" name="ban_id" value="<?= $banId ?>" />
+<?php endif ?>
+			</div>
+<?= $positions['pre_criteria_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['group'] ?>">
+				<legend class="group-legend"><span><?= $aba['Ban criteria legend'] ?></span></legend>
+<?= $positions['pre_username'] ?>
+				<div class="sf-set set<?= $numbers['username_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['username_field'] ?>"><span><?= $aba['Username to ban label'] ?></span></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['username_field'] ?>" name="ban_user" size="40" maxlength="25" value="<?= $username ?>" /></span>
+					</div>
+				</div>
+<?= $positions['pre_email'] ?>
+				<div class="sf-set set<?= $numbers['email_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['email_field'] ?>"><span><?= $aba['E-mail/domain to ban label'] ?></span> <small><?= $aba['E-mail/domain help'] ?></small></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['email_field'] ?>" name="ban_email" size="40" maxlength="80" value="<?= $email ?>" /></span>
+					</div>
+				</div>
+<?= $positions['pre_ip'] ?>
+				<div class="sf-set set<?= $numbers['ip_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['ip_field'] ?>"><span><?= $aba['IP-addresses to ban label'] ?></span> <small><?= $aba['IP-addresses help'] ?><?= $stats ?></small></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['ip_field'] ?>" name="ban_ip" size="40" maxlength="255" value="<?= $ip ?>" /></span>
+					</div>
+				</div>
+<?= $positions['pre_message'] ?>
+				<div class="sf-set set<?= $numbers['message_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['message_field'] ?>"><span><?= $aba['Ban message label'] ?></span> <small><?= $aba['Ban message help'] ?></small></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['message_field'] ?>" name="ban_message" size="40" maxlength="255" value="<?= $message ?>" /></span>
+					</div>
+				</div>
+<?= $positions['pre_expire'] ?>
+				<div class="sf-set set<?= $numbers['expire_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['expire_field'] ?>"><span><?= $aba['Expire date label'] ?></span> <small><?= $aba['Expire date help'] ?></small></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['expire_field'] ?>" name="ban_expire" size="20" maxlength="10" value="<?= $expire ?>" /></span>
+					</div>
+				</div>
+<?= $positions['criteria_pre_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['criteria_fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="add_edit_ban" value=" <?= $aba['Save ban'] ?>" /></span>
+			</div>
+		</form>
+	</div>

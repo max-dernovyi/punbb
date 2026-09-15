@@ -3,7 +3,7 @@
 *.patch
 .DS_Store
 config.php
-cache/
+/cache/
 img/avatars/
 db.sqlite
 test.php

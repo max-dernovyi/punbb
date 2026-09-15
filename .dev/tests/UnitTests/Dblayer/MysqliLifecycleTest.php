@@ -5,7 +5,7 @@
  * mysqli_query() returns bool(true) for every non-SELECT statement, and PHP 8
  * throws a TypeError when that reaches mysqli_free_result() and an Error on an
  * already-freed result or an already-closed connection. close() runs at the end
- * of every request (footer.php, plus __destruct() in mysqli_innodb), so an
+ * of every request (forum_end_page(), plus __destruct() in mysqli_innodb), so an
  * unguarded free there fatals any page whose last query was a write.
  *
  * Needs a live server, addressed by PUNBB_TEST_MYSQL_*; the test skips without

@@ -1,8 +1,8 @@
 <?php
 /**
- * Reaches both kinds of deprecated entry from two lines each — the bridge's
- * runner and a legacy point with punbb_fixture's code attached — then prints
- * a page body.
+ * Reaches both kinds of deprecated entry from two lines each — a legacy point
+ * with punbb_fixture's code attached, and the bridge's runner at a point no
+ * event covers — then prints a page body.
  *
  * An entry point of a ScratchForum, served by forum_request_harness.php.
  *
@@ -23,7 +23,7 @@ $runner = $forum_container->get(StatementHookRunner::class);
 ($hook = get_hook('vt_modify_topic_info')) ? eval($hook) : null; // hook: first
 ($hook = get_hook('vt_modify_topic_info')) ? eval($hook) : null; // hook: second
 
-$runner->run('vt_modify_topic_info', array('id' => &$id, 'cur_topic' => &$cur_topic)); // run: first
-$runner->run('vt_modify_topic_info', array('id' => &$id, 'cur_topic' => &$cur_topic)); // run: second
+$runner->run('fn_get_remote_address_start', array()); // run: first
+$runner->run('fn_get_remote_address_start', array()); // run: second
 
 echo '<p id="harness-page">page</p>', "\n";

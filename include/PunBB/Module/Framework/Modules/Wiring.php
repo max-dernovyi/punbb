@@ -10,12 +10,17 @@ use PunBB\Module\Framework\Event\EventInterface;
 use PunBB\Module\Framework\Event\ObserverDeclaration;
 use PunBB\Module\Framework\Plugin\PluginChain;
 use PunBB\Module\Framework\Plugin\PluginDeclaration;
+use PunBB\Module\Framework\Routing\ControllerInterface;
+use PunBB\Module\Framework\Routing\Route;
 use ReflectionClass;
 
 /**
- * What one module declares into the container.
+ * What one module declares: its services, contracts, plugins, observers and routes.
  */
 final class Wiring {
+	/** A path below the forum root: '', 'index.php', 'admin/', 'admin/users.php'. */
+	private const PATH_PATTERN = '#\A(?:[A-Za-z0-9_][A-Za-z0-9_.-]*/)*(?:[A-Za-z0-9_][A-Za-z0-9_.-]*)?\z#';
+
 	/** @var array<string, Closure(Container): object> */
 	private array $services = array();
 
@@ -27,6 +32,9 @@ final class Wiring {
 
 	/** @var list<ObserverDeclaration> */
 	private array $observers = array();
+
+	/** @var list<Route> */
+	private array $routes = array();
 
 	public function __construct(private readonly string $module) {}
 
@@ -88,6 +96,24 @@ final class Wiring {
 		$this->observers[] = new ObserverDeclaration($this->module, $event, $observer, $factory);
 	}
 
+	/**
+	 * Routes paths below the forum root to a controller.
+	 *
+	 * @param list<string> $paths matched exactly; the first is the route's own, the rest are aliases
+	 * @param class-string $controller a class implementing ControllerInterface
+	 * @param Closure(Container): object $factory builds the controller, resolving its constructor arguments from the container
+	 * @param bool $quiet whether a request leaves no visit behind, as a feed reader's should not
+	 * @param list<string> $quietWith query parameters that make a request quiet when it carries any of them
+	 * @param bool $checksOwnToken whether the controller checks the token of a POST itself, for every caller, instead of the gate every other POST goes through
+	 * @param bool $setup whether the route runs before a usable configuration exists: no forum is booted for it
+	 */
+	public function route(array $paths, string $controller, Closure $factory, bool $quiet = false, array $quietWith = array(), bool $checksOwnToken = false, bool $setup = false): void {
+		if (!is_a($controller, ControllerInterface::class, true))
+			throw new ModuleException(sprintf('Module %s routes to %s, which does not implement %s', $this->module, $controller, ControllerInterface::class));
+
+		$this->routes[] = new Route($this->module, $this->paths($paths), $controller, $factory, $quiet, $quietWith, $checksOwnToken, $setup);
+	}
+
 	/** @return array<string, Closure(Container): object> */
 	public function services(): array {
 		return $this->services;
@@ -106,6 +132,26 @@ final class Wiring {
 	/** @return list<ObserverDeclaration> in declaration order */
 	public function observers(): array {
 		return $this->observers;
+	}
+
+	/** @return list<Route> in declaration order */
+	public function routes(): array {
+		return $this->routes;
+	}
+
+	/**
+	 * @param list<string> $paths
+	 * @return list<string>
+	 */
+	private function paths(array $paths): array {
+		if ($paths === array())
+			throw new ModuleException(sprintf('Module %s declares a route without a path', $this->module));
+
+		foreach ($paths as $path)
+			if (preg_match(self::PATH_PATTERN, $path) !== 1)
+				throw new ModuleException(sprintf('Module %s routes "%s", which is not a path below the forum root', $this->module, $path));
+
+		return $paths;
 	}
 
 	/** @param Closure(Container): object $factory */

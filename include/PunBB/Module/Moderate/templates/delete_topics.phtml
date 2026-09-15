@@ -1,0 +1,28 @@
+<?php /* The form confirming the topics selected are deleted. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-head">
+		<h2 class="hn"><span><?= $misc['Confirm topic delete'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<?= $hiddenFields, "\n" ?>
+			</div>
+<?= $positions['pre_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['group'] ?>">
+				<legend class="group-legend"><strong><?= $misc['Delete topics'] ?></strong></legend>
+<?= $positions['pre_confirm_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['confirm_item'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['confirm_field'] ?>" name="req_confirm" value="1" checked="checked" /></span>
+						<label for="fld<?= $numbers['confirm_field'] ?>"><span><?= $common['Please confirm'] ?></span> <?= $multi ? $misc['Delete topics comply'] : $misc['Delete topic comply'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary caution"><input type="submit" name="delete_topics_comply" value="<?= $common['Delete'] ?>" /></span>
+				<span class="cancel"><input type="submit" name="cancel" value="<?= $common['Cancel'] ?>" formnovalidate /></span>
+			</div>
+		</form>
+	</div>

@@ -32,7 +32,12 @@ class BridgeBoundaryTest extends TestCase {
 		foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(FORUM_ROOT.$tree, FilesystemIterator::SKIP_DOTS)) as $file)
 		{
 			$path = substr($file->getPathname(), strlen(FORUM_ROOT));
-			if ($file->getExtension() === 'php' && !str_starts_with($path, self::BRIDGE_DIRECTORY))
+
+			// Every file, not only .php: a .phtml template is executed PHP and is
+			// the likeliest place to want a markup hook, which is the thing the
+			// bridge exists to replace. token_get_all() on a file with no PHP tag
+			// yields inline HTML and matches nothing, so scanning wide is free.
+			if (!str_starts_with($path, self::BRIDGE_DIRECTORY))
 				$files[] = $path;
 		}
 

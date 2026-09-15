@@ -28,6 +28,8 @@ class FileHandlingGuardTest extends TestCase
 	 */
 	private const SANITISER = "preg_replace('#[\\.\\\\\\/]#', '', ";
 
+	private const UPLOAD = 'include/PunBB/Module/Profile/Controller/AvatarUpload.php';
+
 	private function read(string $file): string
 	{
 		return (string) file_get_contents(FORUM_ROOT.$file);
@@ -36,27 +38,24 @@ class FileHandlingGuardTest extends TestCase
 	/** The stored avatar is named from the account id and nothing else. */
 	public function testTheAvatarNameComesFromTheAccountId(): void
 	{
-		$source = $this->read('profile.php');
-
-		$this->assertStringContainsString('$id = isset($_GET[\'id\']) ? intval($_GET[\'id\']) : 0;', $source,
+		$this->assertStringContainsString('$id = ProfilePage::integer($request->query[\'id\'] ?? 0);', $this->read('include/PunBB/Module/Profile/Controller/ProfileController.php'),
 			'the id the avatar is named after is no longer an integer');
-		$this->assertStringContainsString('@rename($avatar_tmp_file, $forum_config[\'o_avatars_dir\'].\'/\'.$id.$extension);', $source);
+		$this->assertStringContainsString('$this->files->place($temporary, $directory.\'/\'.$user->id().$extension);', $this->read(self::UPLOAD));
 	}
 
 	/** And the extension from what getimagesize() found, not from the upload. */
 	public function testTheAvatarExtensionComesFromTheDetectedType(): void
 	{
-		$source = $this->read('profile.php');
+		$source = $this->read(self::UPLOAD);
 
 		foreach (array('.gif' => 'IMAGETYPE_GIF', '.jpg' => 'IMAGETYPE_JPEG', '.png' => 'IMAGETYPE_PNG') as $extension => $type)
-			$this->assertStringContainsString(
-				'if ($type == '.$type.')'."\n\t\t\t\t\t\t".'{'."\n\t\t\t\t\t\t\t".'$extension = \''.$extension.'\';',
-				str_replace('else if', 'if', $source),
-				'the '.$extension.' extension is no longer tied to '.$type
-			);
+			$this->assertMatchesRegularExpression('#'.$type.'\t=> array\(\''.preg_quote($extension, '#').'\', [123]\),#', $source,
+				'the '.$extension.' extension is no longer tied to '.$type);
 
-		$this->assertStringContainsString('list($width, $height, $type) = $avatar_size;', $source);
-		$this->assertStringContainsString('if (empty($errors) && (!in_array($avatar_type, $allowed_types) || empty($extension)))', $source);
+		$this->assertStringContainsString('[$width, $height, $type] = $image ?? array(0, 0, 0);', $source);
+		$this->assertStringContainsString('[$extension, $avatarType] = self::TYPES[$type] ?? array(\'\', 0);', $source);
+		$this->assertStringContainsString('if ($errors === array() && (!in_array($typed->avatarType(), $accepting->imageTypes(), true) || $extension === \'\'))', $source);
+		$this->assertStringContainsString('$info = @getimagesize($file);', $this->read('include/PunBB/Module/Profile/Model/UploadedFiles.php'));
 	}
 
 	/**
@@ -65,30 +64,30 @@ class FileHandlingGuardTest extends TestCase
 	 */
 	public function testTheUploadedFilenameIsNeverUsed(): void
 	{
-		$source = $this->read('profile.php');
+		$source = $this->read(self::UPLOAD);
 
-		$this->assertStringNotContainsString('$uploaded_file[\'name\']', $source,
-			'profile.php reads the client-supplied filename');
+		$this->assertStringNotContainsString('[\'name\']', $source,
+			'the avatar upload reads the client-supplied filename');
 		$this->assertStringNotContainsString('pathinfo(', $source);
 	}
 
 	/** The temporary file is named from the id too, and never survives a rejection. */
 	public function testTheTemporaryUploadIsNamedFromTheAccountId(): void
 	{
-		$source = $this->read('profile.php');
+		$source = $this->read(self::UPLOAD);
 
-		$this->assertStringContainsString('$avatar_tmp_file = $forum_config[\'o_avatars_dir\'].\'/\'.$id.\'.tmp\';', $source);
+		$this->assertStringContainsString('$temporary = $directory.\'/\'.$user->id().\'.tmp\';', $source);
 
-		$start = (int) strpos($source, '$avatar_tmp_file = ');
-		$block = substr($source, $start, (int) strpos($source, '// Put the new avatar in its place') - $start);
+		$start = (int) strpos($source, '$temporary = ');
+		$block = substr($source, $start, (int) strpos($source, '$this->removal->remove($user->id());') - $start);
 
 		// Five things can go wrong after the move is attempted, and four of
-		// them leave a file behind unless they unlink it. The fifth is the
+		// them leave a file behind unless they delete it. The fifth is the
 		// move itself failing, which leaves nothing.
 		$this->assertSame(5, substr_count($block, '$errors[] = '), 'the avatar rejections have changed shape');
-		$this->assertSame(4, substr_count($block, '@unlink($avatar_tmp_file);'),
+		$this->assertSame(4, substr_count($block, '$this->files->delete($temporary);'),
 			'a rejected upload can be left behind in the avatar directory');
-		$this->assertStringContainsString('$lang_profile[\'Move failed\']', $block);
+		$this->assertStringContainsString('\'Move failed\'', $block);
 	}
 
 	/**
@@ -99,13 +98,7 @@ class FileHandlingGuardTest extends TestCase
 	public static function nameWriterProvider(): array
 	{
 		return array(
-			'profile language'  => array('profile.php', 'FORUM_ROOT.\'lang/\'.$form[\'language\'].\'/common.php\''),
-			'profile style'     => array('profile.php', 'FORUM_ROOT.\'style/\'.$form[\'style\'].\'/\'.$form[\'style\'].\'.php\''),
-			'register language' => array('register.php', 'FORUM_ROOT.\'lang/\'.$language.\'/common.php\''),
-			'settings language' => array('admin/settings.php', 'FORUM_ROOT.\'lang/\'.$form[\'default_lang\'].\'/common.php\''),
-			'settings style'    => array('admin/settings.php', 'FORUM_ROOT.\'style/\'.$form[\'default_style\'].\'/\'.$form[\'default_style\'].\'.php\''),
-			'settings sef'      => array('admin/settings.php', 'FORUM_ROOT.\'include/url/\'.$form[\'sef\'].\'/forum_urls.php\''),
-			'install language'  => array('admin/install.php', 'FORUM_ROOT.\'lang/\'.$language.\'/install.php\''),
+			'install language'  => array('include/PunBB/Module/LegacyBridge/Setup/LegacyInstallerLanguage.php', 'LegacyChromeSource::root().\'lang/\'.$language.\'/install.php\''),
 		);
 	}
 
@@ -123,6 +116,50 @@ class FileHandlingGuardTest extends TestCase
 	{
 		$this->assertGreaterThan(0, substr_count($this->read($file), self::SANITISER),
 			$file.': the path characters are no longer stripped from the name');
+	}
+
+	/**
+	 * The settings take a default style, language and URL scheme through the
+	 * module: stripped of the path characters, then one of the packs the board
+	 * lists, which are the directories holding the pack's own file.
+	 */
+	public function testTheSettingsTakeOnlyAPackTheBoardHas(): void
+	{
+		$controller = $this->read('include/PunBB/Module/Settings/Controller/SettingsController.php');
+		$functions = $this->read('include/functions.php');
+
+		$this->assertStringContainsString("\$form->set(\$name, (string) preg_replace('#[\\.\\\\\\/]#', '', (string) (\$form->value(\$name) ?? '')));", $controller);
+		$this->assertStringContainsString("if (!in_array(\$form->value('default_style'), \$this->packs->styles(), true)\n\t\t\t|| !in_array(\$form->value('default_lang'), \$this->packs->languages(), true)\n\t\t\t|| !in_array(\$form->value('sef'), \$this->packs->urlSchemes(), true))", $controller);
+		$this->assertStringContainsString("if (is_dir(\$dirname) && file_exists(\$dirname.'/'.\$tempname.'.php'))", $functions);
+		$this->assertStringContainsString("if (is_dir(\$dirname) && file_exists(\$dirname.'/common.php'))", $functions);
+		$this->assertStringContainsString("if (is_dir(\$dirname) && file_exists(\$dirname.'/forum_urls.php'))", $functions);
+	}
+
+	/**
+	 * A profile's settings take a language and a style through the module:
+	 * stripped of the path characters, then one of the packs the board lists.
+	 */
+	public function testTheProfileTakesOnlyAPackTheBoardHas(): void
+	{
+		$update = $this->read('include/PunBB/Module/Profile/Controller/DetailsUpdate.php');
+
+		$this->assertStringContainsString("private const PATH_CHARACTERS = '#[\\.\\\\\\/]#';", $update);
+		foreach (array('language' => 'languages', 'style' => 'styles') as $field => $packs)
+			$this->assertStringContainsString("\$details->set('".$field."', (string) preg_replace(self::PATH_CHARACTERS, '', (string) \$details->value('".$field."')));\n\t\t\tif (!in_array(\$details->value('".$field."'), \$this->packs->".$packs."(), true))", $update);
+	}
+
+	/**
+	 * The registration takes a language through the module: stripped of the
+	 * path characters, then one of the packs the board has, which are the
+	 * directories of lang/ holding a common.php.
+	 */
+	public function testTheRegistrationTakesOnlyALanguageTheBoardHas(): void
+	{
+		$controller = $this->read('include/PunBB/Module/Register/Controller/RegisterController.php');
+
+		$this->assertStringContainsString("private const PATH_CHARACTERS = '#[\\.\\\\\\/]#';", $controller);
+		$this->assertStringContainsString("\$language = (string) preg_replace(self::PATH_CHARACTERS, '', \$request->post['language']);\n\t\t\tif (!in_array(\$language, \$this->language->available(), true))", $controller);
+		$this->assertStringContainsString("file_exists(\$root.\$entry.'/common.php')", $this->read('include/PunBB/Module/LegacyBridge/Site/LegacyLanguage.php'));
 	}
 
 	/**
@@ -185,9 +222,10 @@ class FileHandlingGuardTest extends TestCase
 	/** The extension id reaching the filesystem is stripped to one path segment. */
 	public function testTheExtensionIdCannotLeaveTheExtensionsDirectory(): void
 	{
-		$source = $this->read('admin/extensions.php');
+		$source = $this->read('include/PunBB/Module/Extensions/Controller/ExtensionsController.php');
 
-		$this->assertStringContainsString('$id = preg_replace(\'/[^0-9a-z_]/\', \'\', is_string($id) ? $id : \'\');', $source);
+		$this->assertStringContainsString('private const ID = \'/[^0-9a-z_]/\';', $source);
+		$this->assertSame(3, substr_count($source, '$id = (string) preg_replace(self::ID, \'\', '), 'an install, an uninstall and a switch each strip the id');
 
 		foreach (array('../../config.php', '..\\config', "cache\0.php", 'a/b') as $hostile)
 		{

@@ -393,18 +393,18 @@ function forum_remote_location_header($headers)
 
 
 // Returns the entry point a rewrite rule routes to, or false.
-// rewrite.php require()s this value, so it may only ever be one plain script
-// name in the forum root: no directory separator, no traversal, no NUL. The
-// shipped rules all replace into a fixed name, but a rule is data an extension
-// can add through the re_rewrite_rules hook, and this is the sink.
+// index.php looks this value up in the route map, and a rule may only reach one
+// plain script name in the forum root: no directory separator, no traversal, no
+// NUL. The shipped rules all replace into a fixed name, but a rule is data an
+// extension can add through the re_rewrite_rules hook.
 function forum_rewrite_target($rewritten_url)
 {
 	if (!is_string($rewritten_url))
 		return false;
 
 	// The stem may carry the request's casing: the shipped rules are /i and
-	// substitute a captured group into it, so /Login produces Login.php.
-	// rewrite.php checks the file exists before it is required.
+	// substitute a captured group into it, so /Login produces Login.php, which
+	// the route map, matched exactly, does not serve.
 	$target = explode('?', $rewritten_url, 2)[0];
 	if (!preg_match('/\A[A-Za-z0-9_]+\.php\z/', $target))
 		return false;
@@ -2597,7 +2597,8 @@ function delete_user($user_id, $delete_posts = false)
 	// Should we delete all posts made by this user?
 	if ($delete_posts)
 	{
-		@set_time_limit(0);
+		if (function_exists('set_time_limit'))
+			set_time_limit(0);
 
 		// Find all posts made by this user
 		$query = array(
@@ -3572,190 +3573,43 @@ function send_forum_subscriptions($topic_info, $new_tid)
 // Used when the CSRF token from the request does not match the token stored in the database.
 function csrf_confirm_form()
 {
-	global $forum_db, $forum_url, $lang_common, $forum_config, $base_url, $forum_start, $tpl_main, $forum_user, $forum_page, $forum_updates, $forum_flash, $forum_loader;
-
 	// If we've disabled the CSRF check for this page, we have nothing to do here.
 	if (defined('FORUM_DISABLE_CSRF_CONFIRM'))
 		return;
 
-	// User pressed the cancel button
-	if (isset($_POST['confirm_cancel']))
-		redirect(forum_htmlencode($_POST['prev_url'] ?? ''), $lang_common['Cancel redirect']);
+	$response = $GLOBALS['forum_container']->get(PunBB\Module\Message\Page\ConfirmPage::class)->respond($_POST, defined('FORUM_REQUEST_AJAX'));
 
-	// A helper function for csrf_confirm_form. It takes a multi-dimensional array and returns it as a
-	// single-dimensional array suitable for use in hidden fields.
-	function _csrf_confirm_form($key, $values)
-	{
-		$fields = array();
-
-		if (is_array($values))
-		{
-			foreach ($values as $cur_key => $cur_values)
-				$fields = array_merge($fields, _csrf_confirm_form($key.'['.$cur_key.']', $cur_values));
-
-			return $fields;
-		}
-		else
-			$fields[$key] = $values;
-
-		return $fields;
-	}
-
-	$return = ($hook = get_hook('fn_csrf_confirm_form_start')) ? eval($hook) : null;
-	if ($return !== null)
-		return;
-
-	if (defined('FORUM_REQUEST_AJAX'))
-	{
-		$json_data = array(
-				'code'			=>	-3,
-				'message'		=>	$lang_common['CSRF token mismatch'],
-				'csrf_token'	=>	generate_form_token(get_current_url()),
-				'prev_url'		=>	forum_htmlencode($forum_user['prev_url']),
-		);
-
-		foreach ($_POST as $submitted_key => $submitted_val)
-		{
-			if ($submitted_key != 'csrf_token' && $submitted_key != 'prev_url')
-			{
-				$hidden_fields = _csrf_confirm_form($submitted_key, $submitted_val);
-				foreach ($hidden_fields as $field_key => $field_val)
-				{
-					$json_data['post_data'][$field_key] = forum_htmlencode($field_val);
-				}
-			}
-		}
-
-		($hook = get_hook('fn_redirect_pre_send_json')) ? eval($hook) : null;
-		
-		send_json($json_data);
-	}	
-	
-	// Setup breadcrumbs
-	$forum_page['crumbs'] = array(
-		array($forum_config['o_board_title'], forum_link($forum_url['index'])),
-		$lang_common['Confirm action']
-	);
-
-	$forum_page['form_action'] = get_current_url();
-
-	$forum_page['hidden_fields'] = array(
-		'csrf_token'	=> '<input type="hidden" name="csrf_token" value="'.generate_form_token($forum_page['form_action']).'" />',
-		'prev_url'		=> '<input type="hidden" name="prev_url" value="'.forum_htmlencode($forum_user['prev_url']).'" />'
-	);
-
-	foreach ($_POST as $submitted_key => $submitted_val)
-		if ($submitted_key != 'csrf_token' && $submitted_key != 'prev_url')
-		{
-			$hidden_fields = _csrf_confirm_form($submitted_key, $submitted_val);
-			foreach ($hidden_fields as $field_key => $field_val)
-				$forum_page['hidden_fields'][$field_key] = '<input type="hidden" name="'.forum_htmlencode($field_key).'" value="'.forum_htmlencode($field_val).'" />';
-		}
-
-	define('FORUM_PAGE', 'dialogue');
-	require FORUM_ROOT.'header.php';
-
-	// START SUBST - <!-- forum_main -->
-	ob_start();
-
-	($hook = get_hook('fn_csrf_confirm_form_pre_header_load')) ? eval($hook) : null;
-
-?>
-<div id="brd-main" class="main">
-	<div class="main-head">
-		<h2 class="hn"><span><?php echo $lang_common['Confirm action head'] ?></span></h2>
-	</div>
-	<div class="main-content main-frm">
-		<div class="ct-box info-box">
-			<p><?php echo $lang_common['CSRF token mismatch'] ?></p>
-		</div>
-		<form class="frm-form" method="post" accept-charset="utf-8" action="<?php echo forum_htmlencode($forum_page['form_action']) ?>">
-			<div class="hidden">
-				<?php echo implode("\n\t\t\t\t", $forum_page['hidden_fields'])."\n" ?>
-			</div>
-			<div class="frm-buttons">
-				<span class="submit primary"><input type="submit" value="<?php echo $lang_common['Confirm'] ?>" /></span>
-				<span class="cancel"><input type="submit" name="confirm_cancel" value="<?php echo $lang_common['Cancel'] ?>" /></span>
-			</div>
-		</form>
-	</div>
-</div>
-<?php
-
-	($hook = get_hook('fn_csrf_confirm_form_end')) ? eval($hook) : null;
-
-	$tpl_temp = forum_trim(ob_get_contents());
-	$tpl_main = str_replace('<!-- forum_main -->', $tpl_temp, $tpl_main);
-	ob_end_clean();
-	// END SUBST - <!-- forum_main -->
-
-	require FORUM_ROOT.'footer.php';
+	if ($response !== null)
+		forum_send_response($response);
 }
 
 
 // Display a message
 function message($message, $link = '', $heading = '')
 {
-	global $forum_db, $forum_url, $lang_common, $forum_config, $base_url, $forum_start, $tpl_main, $forum_user, $forum_page, $forum_updates, $forum_loader, $forum_flash;
+	global $forum_page, $tpl_main;
 
-	($hook = get_hook('fn_message_start')) ? eval($hook) : null;
-	
-	if (defined('FORUM_REQUEST_AJAX'))
-	{
-		$json_data = array(
-			'code'		=> -1,
-			'message'	=> $message
-		);
+	$messages = $GLOBALS['forum_container']->get(PunBB\Module\Message\Page\MessagePage::class);
 
-		($hook = get_hook('fn_message_pre_send_json')) ? eval($hook) : null;
-		
-		send_json($json_data);
-	}
+	// Extension callers may pass null or a non-string; Html takes a string only
+	$message = PunBB\Module\LegacyBridge\Layout\Markers::markup($message);
+	$link = PunBB\Module\LegacyBridge\Layout\Markers::markup($link);
+	$heading = PunBB\Module\LegacyBridge\Layout\Markers::markup($heading);
 
-	if (!defined('FORUM_HEADER'))
-	{
-		if ($heading == '')
-			$heading = $lang_common['Forum message'];
+	$options = array();
+	foreach (is_array($forum_page['main_head_options'] ?? null) ? $forum_page['main_head_options'] : array() as $option)
+		$options[] = new PunBB\Module\Layout\View\Html(PunBB\Module\LegacyBridge\Layout\Markers::markup($option));
 
-		// Setup breadcrumbs
-		$forum_page['crumbs'] = array(
-			array($forum_config['o_board_title'], forum_link($forum_url['index'])),
-			$lang_common['Forum message']
-		);
+	if (!defined('FORUM_HEADER') || defined('FORUM_REQUEST_AJAX'))
+		forum_send_response($messages->respond(new PunBB\Module\Layout\View\Html($message), new PunBB\Module\Layout\View\Html($link), new PunBB\Module\Layout\View\Html($heading), $options, defined('FORUM_REQUEST_AJAX')));
 
-		($hook = get_hook('fn_message_pre_header_load')) ? eval($hook) : null;
+	// A page that has built its header already shows the message inside it, after what it printed into its buffer
+	$inside = $messages->inside(new PunBB\Module\Layout\View\Html($message), new PunBB\Module\Layout\View\Html($link), new PunBB\Module\Layout\View\Html($heading), $options)->html;
+	$printed = ob_get_level() > 0 ? (string) ob_get_contents() : '';
+	if (ob_get_level() > 0)
+		ob_end_clean();
 
-		define('FORUM_PAGE', 'message');
-		require FORUM_ROOT.'header.php';
-
-		// START SUBST - <!-- forum_main -->
-		ob_start();
-
-		($hook = get_hook('fn_message_output_start')) ? eval($hook) : null;
-	}
-
-?>
-	<div class="main-head">
-<?php
-
-	if (!empty($forum_page['main_head_options']))
-		echo "\n\t\t".'<p class="options">'.implode(' ', $forum_page['main_head_options']).'</p>';
-
-?>
-		<h2 class="hn"><span><?php echo $heading ?></span></h2>
-	</div>
-
-	<div class="main-content main-message">
-		<p><?php echo $message ?><?php if ($link != '') echo ' <span>'.$link.'</span>' ?></p>
-	</div>
-<?php
-
-	($hook = get_hook('fn_message_output_end')) ? eval($hook) : null;
-
-	$tpl_temp = forum_trim(ob_get_contents());
-	$tpl_main = str_replace('<!-- forum_main -->', "\t".$tpl_temp, $tpl_main);
-	ob_end_clean();
-	// END SUBST - <!-- forum_main -->
+	$tpl_main = str_replace('<!-- forum_main -->', "\t".forum_trim($printed.$inside), $tpl_main);
 
 	require FORUM_ROOT.'footer.php';
 }
@@ -3764,97 +3618,39 @@ function message($message, $link = '', $heading = '')
 // Display a message when board is in maintenance mode
 function maintenance_message()
 {
-	global $forum_db, $forum_config, $lang_common, $forum_user, $base_url, $forum_loader;
+	$response = $GLOBALS['forum_container']->get(PunBB\Module\Message\Page\MaintenancePage::class)->respond();
 
-	$return = ($hook = get_hook('fn_maintenance_message_start')) ? eval($hook) : null;
-	if ($return !== null)
-		return $return;
-
-	// Deal with newlines, tabs and multiple spaces
-	$pattern = array("\t\t", '  ', '  ');
-	$replace = array('&#160; &#160; ', '&#160; ', ' &#160;');
-	$message = str_replace($pattern, $replace, $forum_config['o_maintenance_message']);
-
-	// Send the Content-type header in case the web server is setup to send something else
-	header('Content-type: text/html; charset=utf-8');
-
-	// Send a 503 HTTP response code to prevent search bots from indexing the maintenace message
-	header('HTTP/1.1 503 Service Temporarily Unavailable');
-
-	// Load the maintenance template
-	if (file_exists(FORUM_ROOT.'style/'.$forum_user['style'].'/maintenance.tpl'))
-		$tpl_path = FORUM_ROOT.'style/'.$forum_user['style'].'/maintenance.tpl';
-	else
-		$tpl_path = FORUM_ROOT.'include/template/maintenance.tpl';
-
-	($hook = get_hook('fn_maintenance_message_pre_template_loaded')) ? eval($hook) : null;
-
-	$tpl_maint = forum_trim(file_get_contents($tpl_path));
-
-	($hook = get_hook('fn_maintenance_message_template_loaded')) ? eval($hook) : null;
-
-	// START SUBST - <!-- forum_local -->
-	$tpl_maint = str_replace('<!-- forum_local -->', 'xml:lang="'.$lang_common['lang_identifier'].'" lang="'.$lang_common['lang_identifier'].'" dir="'.$lang_common['lang_direction'].'"', $tpl_maint);
-	// END SUBST - <!-- forum_local -->
-
-	// START SUBST - <!-- forum_head -->
-	ob_start();
-
-	if (file_exists(FORUM_ROOT.'style/'.$forum_user['style'].'/'.$forum_user['style'].'.php'))
-		require FORUM_ROOT.'style/'.$forum_user['style'].'/'.$forum_user['style'].'.php';
-	else
-		$forum_loader->add_css($base_url.'/style/print.css', array('type' => 'url', 'group' => FORUM_CSS_GROUP_SYSTEM, 'media' => 'screen'));
-	echo $forum_loader->render_css();
-
-	$tpl_temp = forum_trim(ob_get_contents());
-	$tpl_maint = str_replace('<!-- forum_head -->', $tpl_temp, $tpl_maint);
-	ob_end_clean();
-	// END SUBST - <!-- forum_head -->
+	if ($response !== null)
+		forum_send_response($response);
+}
 
 
-	// START SUBST - <!-- forum_maint_main -->
-	ob_start();
-
-?>
-	<div class="main-head">
-		<h1 class="hn"><span><?php echo $lang_common['Maintenance mode'] ?></span></h1>
-	</div>
-	<div class="main-content main-message">
-		<div class="ct-box user-box">
-			<?php echo $message."\n" ?>
-		</div>
-	</div>
-<?php
-
-	$tpl_temp = "\t".forum_trim(ob_get_contents());
-	$tpl_maint = str_replace('<!-- forum_maint_main -->', $tpl_temp, $tpl_maint);
-	ob_end_clean();
-	// END SUBST - <!-- forum_maint_main -->
+// Sends the response a module answered with and ends the request
+function forum_send_response($response)
+{
+	$response->sendHead();
+	forum_end_page($response->body);
+}
 
 
-	// End the transaction
-	$forum_db->end_transaction();
+// Sends a finished page and ends the request. Work the page deferred runs here, with the
+// whole response already delivered: what it costs and whether it fails is no longer
+// something the visitor can read. An ordinary page defers nothing.
+function forum_end_page($body)
+{
+	global $forum_db;
 
-
-	// START SUBST - <!-- forum_include "*" -->
-	while (preg_match('#<!-- ?forum_include "([^/\\\\]*?)" ?-->#', $tpl_maint, $cur_include))
+	$deferred = !empty($GLOBALS['forum_deferred']);
+	if ($deferred)
 	{
-		if (!file_exists(FORUM_ROOT.'include/user/'.$cur_include[1]))
-			error('Unable to process user include &lt;!-- forum_include "'.forum_htmlencode($cur_include[1]).'" --&gt; from template maintenance.tpl.<br />There is no such file in folder /include/user/.');
-
-		ob_start();
-		include FORUM_ROOT.'include/user/'.$cur_include[1];
-		$tpl_temp = ob_get_contents();
-		$tpl_maint = str_replace($cur_include[0], $tpl_temp, $tpl_maint);
-		ob_end_clean();
+		forum_finish_response($body);
+		forum_run_deferred();
 	}
-	// END SUBST - <!-- forum_include "*" -->
 
-
-	// Close the db connection (and free up any result data)
+	$forum_db->end_transaction();
 	$forum_db->close();
 
-	exit($tpl_maint);
+	exit($deferred ? '' : $body);
 }
 
 
@@ -3928,165 +3724,7 @@ function forum_idna_convert($url, $to_ascii)
 // Display $message and redirect user to $destination_url
 function redirect($destination_url, $message)
 {
-	global $forum_db, $forum_config, $lang_common, $forum_user, $base_url, $forum_loader;
-
-	define('FORUM_PAGE', 'redirect');
-
-	($hook = get_hook('fn_redirect_start')) ? eval($hook) : null;
-
-	// Spring cleaning first: browsers drop control characters out of a Location URL before they
-	// parse it, so a check run before this would test a URL the browser never follows -
-	// "/%0d/evil.com" would pass the same-origin test and leave as "//evil.com".
-	$destination_url = preg_replace('/([\x00-\x1f\x7f])|(%0[09ad])|(%7f)|(;[\s]*data[\s]*:)/i', '', $destination_url);
-
-	// Prefix with base_url (unless it's there already)
-	$destination_is_local = false;
-	if (strpos($destination_url, 'http://') !== 0 && strpos($destination_url, 'https://') !== 0 && strpos($destination_url, '/') !== 0)
-	{
-		$destination_url = $base_url.'/'.$destination_url;
-		$destination_is_local = true;
-	}
-
-	// Several callers redirect to a URL taken straight from $_POST - keep the destination on this
-	// forum. Browsers fold a backslash to a slash in the authority, so normalise it before testing;
-	// a backslash after the '?' or '#' is payload and must survive.
-	$path_length = strcspn($destination_url, '?#');
-	$destination_url = str_replace('\\', '/', substr($destination_url, 0, $path_length)).substr($destination_url, $path_length);
-
-	// A destination built out of $base_url just above is local by construction - re-testing it would
-	// reject every relative redirect on an install whose $base_url carries no scheme.
-	if (!$destination_is_local && strpos($destination_url, '//') === 0)
-		$destination_url = $base_url.'/';
-	else if (!$destination_is_local && strpos($destination_url, '/') !== 0)
-	{
-		// Compare hosts, not prefixes: an install served on a scheme or port its $base_url does
-		// not name still has to honour its own stored prev_url.
-		$destination_host = parse_url($destination_url, PHP_URL_HOST);
-		$base_host = forum_url_host($base_url);
-
-		if ($destination_host === null || $destination_host === false || $base_host === null || strcasecmp($destination_host, $base_host) !== 0)
-			$destination_url = $base_url.'/';
-	}
-
-	if (defined('FORUM_REQUEST_AJAX'))
-	{
-		$json_data = array(
-			'code'		=> -2,
-			'message'	=> $message,
-			'destination_url' => $destination_url
-		);
-	
-		($hook = get_hook('fn_redirect_pre_send_json')) ? eval($hook) : null;
-		
-		send_json($json_data);
-	}	
-	
-	// If the delay is 0 seconds, we might as well skip the redirect all together
-	if ($forum_config['o_redirect_delay'] == '0')
-		header('Location: '.str_replace('&amp;', '&', $destination_url));
-
-	// Send no-cache headers
-	header('Expires: Thu, 21 Jul 1977 07:30:00 GMT');	// When yours truly first set eyes on this world! :)
-	header('Last-Modified: '.gmdate('D, d M Y H:i:s').' GMT');
-	header('Cache-Control: post-check=0, pre-check=0', false);
-	header('Pragma: no-cache');		// For HTTP/1.0 compability
-
-	// Send the Content-type header in case the web server is setup to send something else
-	header('Content-type: text/html; charset=utf-8');
-
-	// Load the redirect template
-	if (file_exists(FORUM_ROOT.'style/'.$forum_user['style'].'/redirect.tpl'))
-		$tpl_path = FORUM_ROOT.'style/'.$forum_user['style'].'/redirect.tpl';
-	else
-		$tpl_path = FORUM_ROOT.'include/template/redirect.tpl';
-
-	($hook = get_hook('fn_redirect_pre_template_loaded')) ? eval($hook) : null;
-
-	$tpl_redir = forum_trim(file_get_contents($tpl_path));
-
-	($hook = get_hook('fn_redirect_template_loaded')) ? eval($hook) : null;
-
-	// START SUBST - <!-- forum_local -->
-	$tpl_redir = str_replace('<!-- forum_local -->', 'xml:lang="'.$lang_common['lang_identifier'].'" lang="'.$lang_common['lang_identifier'].'" dir="'.$lang_common['lang_direction'].'"', $tpl_redir);
-	// END SUBST - <!-- forum_local -->
-
-	// START SUBST - <!-- forum_head -->
-	$forum_head['refresh'] = '<meta http-equiv="refresh" content="'.$forum_config['o_redirect_delay'].';URL='.str_replace(array('<', '>', '"'), array('&lt;', '&gt;', '&quot;'), $destination_url).'" />';
-	$forum_head['title'] = '<title>'.$lang_common['Redirecting'].$lang_common['Title separator'].forum_htmlencode($forum_config['o_board_title']).'</title>';
-
-	ob_start();
-
-	// Include stylesheets
-	if (file_exists(FORUM_ROOT.'style/'.$forum_user['style'].'/'.$forum_user['style'].'.php'))
-		require FORUM_ROOT.'style/'.$forum_user['style'].'/'.$forum_user['style'].'.php';
-	else
-		$forum_loader->add_css($base_url.'/style/print.css', array('type' => 'url', 'group' => FORUM_CSS_GROUP_SYSTEM, 'media' => 'screen'));
-
-	$head_temp = forum_trim(ob_get_contents());
-	$num_temp = 0;
-	foreach (explode("\n", $head_temp) as $style_temp)
-		$forum_head['style'.$num_temp++] = $style_temp;
-
-	ob_end_clean();
-
-	($hook = get_hook('fn_redirect_head')) ? eval($hook) : null;
-
-	$tmp_head = implode("\n", $forum_head).$forum_loader->render_css();
-
-	$tpl_redir = str_replace('<!-- forum_head -->', $tmp_head, $tpl_redir);
-	unset($forum_head,$tmp_head);
-	// END SUBST - <!-- forum_head -->
-
-	// START SUBST - <!-- forum_redir_main -->
-	ob_start();
-?>
-<div id="brd-main" class="main basic">
-
-	<div class="main-head">
-		<h1 class="hn"><span><?php echo $message.$lang_common['Redirecting'] ?></span></h1>
-	</div>
-
-	<div class="main-content main-message">
-		<p><?php printf($lang_common['Forwarding info'], $forum_config['o_redirect_delay'], intval($forum_config['o_redirect_delay']) == 1 ? $lang_common['second'] : $lang_common['seconds']) ?><span> <a href="<?php echo $destination_url ?>"><?php echo $lang_common['Click redirect'] ?></a></span></p>
-	</div>
-
-</div>
-<?php
-
-	$tpl_temp = "\t".forum_trim(ob_get_contents());
-	$tpl_redir = str_replace('<!-- forum_redir_main -->', $tpl_temp, $tpl_redir);
-	ob_end_clean();
-	// END SUBST - <!-- forum_redir_main -->
-
-
-	// START SUBST - <!-- forum_debug -->
-	if (defined('FORUM_SHOW_QUERIES'))
-		$tpl_redir = str_replace('<!-- forum_debug -->', get_saved_queries(), $tpl_redir);
-
-	// End the transaction
-	$forum_db->end_transaction();
-	// END SUBST - <!-- forum_debug -->
-
-
-	// START SUBST - <!-- forum_include "*" -->
-	while (preg_match('#<!-- ?forum_include "([^/\\\\]*?)" ?-->#', $tpl_redir, $cur_include))
-	{
-		if (!file_exists(FORUM_ROOT.'include/user/'.$cur_include[1]))
-			error('Unable to process user include &lt;!-- forum_include "'.forum_htmlencode($cur_include[1]).'" --&gt; from template redirect.tpl.<br />There is no such file in folder /include/user/.');
-
-		ob_start();
-		include FORUM_ROOT.'include/user/'.$cur_include[1];
-		$tpl_temp = ob_get_contents();
-		$tpl_redir = str_replace($cur_include[0], $tpl_temp, $tpl_redir);
-		ob_end_clean();
-	}
-	// END SUBST - <!-- forum_include "*" -->
-
-
-	// Close the db connection (and free up any result data)
-	$forum_db->close();
-
-	exit($tpl_redir);
+	forum_send_response($GLOBALS['forum_container']->get(PunBB\Module\Message\Page\RedirectPage::class)->respond((string) $destination_url, new PunBB\Module\Layout\View\Html((string) $message), defined('FORUM_REQUEST_AJAX')));
 }
 
 
@@ -4096,7 +3734,7 @@ function redirect($destination_url, $message)
 // A form that must answer identically whatever it found cannot do the work
 // that differs before it answers: the cost of that work, the errors it raises
 // and the state it writes are all readable from the response. What is queued
-// here runs in footer.php once the visitor has the whole page.
+// here runs in forum_end_page() once the visitor has the whole page.
 //
 function forum_defer($callback)
 {

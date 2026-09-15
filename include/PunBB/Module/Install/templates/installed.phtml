@@ -1,0 +1,60 @@
+<?php /* The last page of an installation: what to look after, and config.php to download where it could not be written. Every variable is escaped unless it is Html. */ ?>
+<!DOCTYPE html>
+<!--[if lt IE 7 ]> <html class="oldie ie6" lang="en" dir="ltr"> <![endif]-->
+<!--[if IE 7 ]>    <html class="oldie ie7" lang="en" dir="ltr"> <![endif]-->
+<!--[if IE 8 ]>    <html class="oldie ie8" lang="en" dir="ltr"> <![endif]-->
+<!--[if gt IE 8]><!--> <html lang="en" dir="ltr"> <!--<![endif]-->
+<head>
+	<meta charset="utf-8" />
+	<title>PunBB Installation</title>
+	<link rel="stylesheet" type="text/css" href="../style/Oxygen/Oxygen.css" />
+</head>
+<body>
+<div id="brd-install" class="brd-page">
+	<div id="brd-wrap" class="brd">
+		<div id="brd-head" class="gen-content">
+			<p id="brd-title"><strong><?= $title ?></strong></p>
+			<p id="brd-desc"><?= $description ?></p>
+		</div>
+		<div id="brd-main" class="main basic">
+			<div class="main-head">
+				<h1 class="hn"><span><?= $s['Final instructions'] ?></span></h1>
+			</div>
+			<div class="main-content main-frm">
+<?php if ($alerts !== array()): ?>
+				<div class="ct-box error-box">
+					<p class="warn"><strong><?= $s['Warning'] ?></strong></p>
+					<ul>
+<?php foreach ($alerts as $alert): ?>
+						<li><span><?= $alert ?></span></li>
+<?php endforeach ?>
+					</ul>
+				</div>
+<?php endif ?>
+<?php if (!$written): ?>
+				<div class="ct-box info-box">
+					<p class="warn"><?= $s['No write info 1'] ?></p>
+					<p class="warn"><?= $noWrite ?></p>
+				</div>
+				<form class="frm-form" method="post" accept-charset="utf-8" action="install.php">
+					<div class="hidden">
+					<input type="hidden" name="generate_config" value="1" />
+<?php foreach ($config as $name => $value): ?>
+					<input type="hidden" name="<?= $name ?>" value="<?= $value ?>" />
+<?php endforeach ?>
+					</div>
+					<div class="frm-buttons">
+						<span class="submit"><input type="submit" value="<?= $s['Download config'] ?>" /></span>
+					</div>
+				</form>
+<?php else: ?>
+				<div class="ct-box info-box">
+					<p class="warn"><?= $installed ?></p>
+				</div>
+<?php endif ?>
+			</div>
+		</div>
+	</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,25 @@
+<?php /* A feed as XML. Every variable is escaped unless it is Html; a CDATA section takes Html escaped for it. */ ?>
+<?= '<?xml version="1.0" encoding="utf-8"?>', "\n" ?>
+<source>
+	<url><?= $link ?></url>
+<?= $info ?>
+<?php $tag = $posts ? 'post' : 'topic' ?>
+<?php foreach ($items as $item): ?>
+	<<?= $tag ?> id="<?= $item['id'] ?>">
+		<title><![CDATA[<?= $item['title'] ?>]]></title>
+		<link><?= $item['link'] ?></link>
+		<content><![CDATA[<?= $item['description'] ?>]]></content>
+		<author>
+			<name><![CDATA[<?= $item['name'] ?>]]></name>
+<?php if ($item['email'] !== null): ?>
+			<email><![CDATA[<?= $item['email'] ?>]]></email>
+<?php endif ?>
+<?php if ($item['uri'] !== null): ?>
+			<uri><?= $item['uri'] ?></uri>
+<?php endif ?>
+		</author>
+		<posted><?= gmdate('r', $item['published']) ?></posted>
+<?= $item['info'] ?>
+	</<?= $tag ?>>
+<?php endforeach ?>
+</source>

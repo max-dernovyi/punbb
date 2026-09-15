@@ -1,0 +1,33 @@
+<?php /* The form splitting the posts selected off into a topic of its own, which asks for its subject. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-head">
+		<h2 class="hn"><span><?= $misc['Confirm post split'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<?= $hiddenFields, "\n" ?>
+			</div>
+<?= $positions['pre_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['group'] ?>">
+				<legend class="group-legend"><strong><?= $misc['Split posts'] ?></strong></legend>
+				<div class="sf-set set<?= $numbers['item'] ?>">
+<?= $positions['pre_subject'] ?>
+					<div class="sf-box text required">
+						<label for="fld<?= $numbers['subject_field'] ?>"><span><?= $misc['New subject'] ?></span></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['subject_field'] ?>" name="new_subject" size="<?= $subjectLength ?>" maxlength="<?= $subjectLength ?>" required /></span>
+					</div>
+<?= $positions['pre_confirm_checkbox'] ?>
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['confirm_field'] ?>" name="req_confirm" value="1" checked="checked" /></span>
+						<label for="fld<?= $numbers['confirm_label'] ?>"><span><?= $common['Please confirm'] ?></span> <?= $misc['Confirm topic split'] ?>.</label>
+					</div>
+				</div>
+<?= $positions['pre_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="split_posts_comply" value="<?= $common['Split'] ?>" /></span>
+				<span class="cancel"><input type="submit" name="cancel" value="<?= $common['Cancel'] ?>" formnovalidate /></span>
+			</div>
+		</form>
+	</div>

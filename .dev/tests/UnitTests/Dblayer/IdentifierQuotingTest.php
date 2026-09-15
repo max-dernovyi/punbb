@@ -174,7 +174,7 @@ class IdentifierQuotingTest extends TestCase {
 	public function testTheApplicationSqlNeverNamesTheReservedColumnBare(): void {
 		$bare = array('\'rank, min_posts\'', '\'id, rank\'', '\'rank = \\\'', '\'rank=\\\'');
 
-		foreach (array('admin/install.php', 'admin/ranks.php', 'admin/db_update.php') as $cur_file)
+		foreach (array('include/PunBB/Module/LegacyBridge/Page/Ranks/RanksPlugin.php') as $cur_file)
 		{
 			$source = (string)file_get_contents(FORUM_ROOT.$cur_file);
 
@@ -182,6 +182,21 @@ class IdentifierQuotingTest extends TestCase {
 
 			foreach ($bare as $cur_fragment)
 				$this->assertStringNotContainsString($cur_fragment, $source, $cur_file.': '.$cur_fragment);
+		}
+
+		// The ranks repository quotes it through the connection's platform
+		$source = (string)file_get_contents(FORUM_ROOT.'include/PunBB/Module/Ranks/Model/Ranks.php');
+
+		$this->assertStringContainsString('quoteIdentifier(\'rank\')', $source);
+		$this->assertDoesNotMatchRegularExpression('/[ .(]rank[ ,=)]/', $source);
+
+		// The installer and the updater quote every column they name through it
+		foreach (array('include/PunBB/Module/Install/Model/BoardInstallation.php', 'include/PunBB/Module/Update/Model/Conversion.php') as $cur_file)
+		{
+			$source = (string)file_get_contents(FORUM_ROOT.$cur_file);
+
+			$this->assertStringContainsString('quoteIdentifier(', $source, $cur_file);
+			$this->assertDoesNotMatchRegularExpression('/[ .(]rank[ ,=)]/', $source, $cur_file);
 		}
 	}
 

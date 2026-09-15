@@ -1,0 +1,105 @@
+<?php /* The users page's search forms: by the users' details, contacts and activity, and by an address. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $aus['Search head'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<form class="frm-form" method="get" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<input type="hidden" name="csrf_token" value="<?= $token ?>" />
+			</div>
+			<div class="content-head">
+				<h3 class="hn"><span><?= $aus['User search head'] ?></span></h3>
+			</div>
+<?php foreach ($fieldsets as $fieldset): ?>
+<?= $fieldset['pre'] ?>
+			<fieldset class="frm-group group<?= $fieldset['group'] ?>">
+				<legend class="group-legend"><strong><?= $fieldset['legend'] ?></strong></legend>
+<?php foreach ($fieldset['fields'] as $field): ?>
+<?= $field['pre'] ?>
+				<div class="sf-set set<?= $field['item'] ?>">
+					<div class="sf-box <?= $field['box'] ?>">
+						<label for="fld<?= $field['field'] ?>"><?= $field['label'] ?></label><br />
+						<span class="fld-input"><input type="<?= $field['type'] ?>" id="fld<?= $field['field'] ?>" name="<?= $field['name'] ?>" size="<?= $field['size'] ?>" maxlength="<?= $field['maxlength'] ?>" /></span>
+					</div>
+				</div>
+<?php endforeach ?>
+<?= $fieldset['preEnd'] ?>
+			</fieldset>
+<?= $fieldset['end'] ?>
+<?php endforeach ?>
+			<div class="content-head">
+				<h3 class="hn"><span><?= $aus['User results head'] ?></span></h3>
+			</div>
+<?= $positions['pre_results_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['results_group'] ?>">
+				<legend class="group-legend"><strong><?= $aus['User results legend'] ?></strong></legend>
+<?= $positions['pre_sort_by'] ?>
+				<div class="sf-set set<?= $numbers['sort_by_item'] ?>">
+					<div class="sf-box select">
+						<label for="fld<?= $numbers['sort_by_field'] ?>"><span><?= $aus['Order by label'] ?></span></label><br />
+						<span class="fld-input"><select id="fld<?= $numbers['sort_by_field'] ?>" name="order_by">
+							<option value="username" selected="selected"><?= $aus['Username'] ?></option>
+							<option value="email"><?= $aus['E-mail'] ?></option>
+							<option value="num_posts"><?= $aus['Posts'] ?></option>
+							<option value="last_post"><?= $aus['Last post'] ?></option>
+							<option value="registered"><?= $aus['Registered'] ?></option>
+<?= $positions['new_sort_by_option'] ?>
+						</select></span>
+					</div>
+				</div>
+<?= $positions['pre_sort_order'] ?>
+				<div class="sf-set set<?= $numbers['sort_order_item'] ?>">
+					<div class="sf-box select">
+						<label for="fld<?= $numbers['sort_order_field'] ?>"><span><?= $aus['Sort order label'] ?></span></label><br />
+						<span class="fld-input"><select id="fld<?= $numbers['sort_order_field'] ?>" name="direction">
+							<option value="ASC" selected="selected"><?= $aus['Ascending'] ?></option>
+							<option value="DESC"><?= $aus['Descending'] ?></option>
+						</select></span>
+					</div>
+				</div>
+<?= $positions['pre_filter_group'] ?>
+				<div class="sf-set set<?= $numbers['filter_group_item'] ?>">
+					<div class="sf-box select">
+						<label for="fld<?= $numbers['filter_group_field'] ?>"><span><?= $aus['User group label'] ?></span></label><br />
+						<span class="fld-input"><select id="fld<?= $numbers['filter_group_field'] ?>" name="user_group">
+							<option value="-1" selected="selected"><?= $aus['All groups'] ?></option>
+							<option value="<?= $unverified ?>"><?= $aus['Unverified users'] ?></option>
+<?php foreach ($groups as $group): ?>
+							<option value="<?= $group['id'] ?>"><?= $group['title'] ?></option>
+<?php endforeach ?>
+<?= $positions['new_filter_group_option'] ?>
+						</select></span>
+					</div>
+				</div>
+<?= $positions['pre_results_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['results_fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="find_user" value="<?= $aus['Submit search'] ?>" /></span>
+			</div>
+		</form>
+	</div>
+
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $aus['IP search head'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<form class="frm-form" method="get" accept-charset="utf-8" action="<?= $action ?>">
+<?= $positions['pre_ip_search_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['ip_group'] ?>">
+				<legend class="group-legend"><strong><?= $aus['IP search legend'] ?></strong></legend>
+<?= $positions['pre_ip_address'] ?>
+				<div class="sf-set set<?= $numbers['ip_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['ip_field'] ?>"><span><?= $aus['IP address label'] ?></span></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['ip_field'] ?>" name="show_users" size="18" maxlength="15" required /></span>
+					</div>
+				</div>
+<?= $positions['pre_ip_search_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['ip_search_fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" value=" <?= $aus['Submit search'] ?> " /></span>
+			</div>
+		</form>
+	</div>

@@ -32,7 +32,7 @@ class UpgradePathTest extends TestCase {
 
 	/** A fixture already at the target version gives db_update.php nothing to do. */
 	public function testTheFixtureIsOlderThanTheUpdateScriptTargets(): void {
-		$target = upgrade_path_target_versions(FORUM_ROOT.'admin/db_update.php');
+		$target = upgrade_path_target_versions(FORUM_ROOT);
 
 		$this->assertSame(-1, version_compare(
 			upgrade_path_fixture_config(self::$fixture, 'o_cur_version'),
@@ -48,7 +48,7 @@ class UpgradePathTest extends TestCase {
 	public function testTheUpdateScriptTargetsThisRelease(): void {
 		$this->assertSame(
 			array('o_cur_version' => FORUM_VERSION, 'o_database_revision' => (string) FORUM_DB_REVISION),
-			upgrade_path_target_versions(FORUM_ROOT.'admin/db_update.php')
+			upgrade_path_target_versions(FORUM_ROOT)
 		);
 	}
 
@@ -124,15 +124,11 @@ class UpgradePathTest extends TestCase {
 
 	/** The run asserts on a message admin/db_update.php has to keep emitting. */
 	public function testItExpectsTheGuardMessageTheUpdateScriptRenders(): void {
-		$source = (string) file_get_contents(FORUM_ROOT.'admin/db_update.php');
+		$source = (string) file_get_contents(FORUM_ROOT.'include/PunBB/Module/Update/Controller/UpdateController.php');
 
-		$this->assertSame(1, preg_match('/exit\(\'(Your config\.php uses.*?)\'\);/', $source, $match));
+		$this->assertSame(1, preg_match('/Html::format\(\'(Your config\.php uses.*?)\', \$type, \$replacement\)/', $source, $match));
 
-		$rendered = str_replace(
-			array('\'.$db_type.\'', '\'.$db_replacement.\'', '\\\''),
-			array('mysql', 'mysqli', '\''),
-			$match[1]
-		);
+		$rendered = sprintf(str_replace('\\\'', '\'', $match[1]), 'mysql', 'mysqli');
 
 		$this->assertSame($rendered, upgrade_path_removed_driver_message('mysql'));
 	}
@@ -141,6 +137,7 @@ class UpgradePathTest extends TestCase {
 		$redirect = '<script type="text/javascript">window.location="db_update.php?stage=conv_posts&start_at=300"</script>';
 
 		$this->assertSame('db_update.php?stage=conv_posts&start_at=300', upgrade_path_next_url($redirect));
+		$this->assertSame('db_update.php?stage=conv_posts&start_at=300', upgrade_path_next_url('<script type="text/javascript">window.location="db_update.php?stage=conv_posts\u0026start_at=300"</script>'));
 		$this->assertSame('', upgrade_path_next_url('<p>Your forum database was updated successfully.</p>'));
 	}
 

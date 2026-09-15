@@ -40,7 +40,7 @@ class FixtureModulesTest extends TestCase {
 			...ModuleRegistry::discover(FORUM_ROOT.'include/PunBB/Module', 'PunBB\\Module\\')->modules()
 		);
 
-		$this->assertSame(array('Framework', 'LegacyBridge', 'Greeting', 'Courtesy'), $registry->names());
+		$this->assertSame(array('Framework', 'Database', 'Layout', 'Setup', 'Site', 'Extern', 'Install', 'Message', 'AdminIndex', 'Bans', 'Categories', 'Censoring', 'Delete', 'Edit', 'Extensions', 'Forums', 'Groups', 'Help', 'Index', 'Login', 'Misc', 'Moderate', 'Post', 'Profile', 'Prune', 'Ranks', 'Register', 'Reindex', 'Reports', 'Search', 'Settings', 'Update', 'Userlist', 'Users', 'Viewforum', 'Viewtopic', 'LegacyBridge', 'Greeting', 'Courtesy'), $registry->names());
 	}
 
 	public function testPluginsOnOneMethodRunInModuleOrderWhateverTheRegistrationOrder(): void {

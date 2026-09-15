@@ -1,0 +1,57 @@
+<?php /* The last page of an update, with config.php to paste where it could not be written. Every variable is escaped unless it is Html. */ ?>
+<!DOCTYPE html>
+<!--[if lt IE 7 ]> <html class="oldie ie6" lang="en" dir="ltr"> <![endif]-->
+<!--[if IE 7 ]>    <html class="oldie ie7" lang="en" dir="ltr"> <![endif]-->
+<!--[if IE 8 ]>    <html class="oldie ie8" lang="en" dir="ltr"> <![endif]-->
+<!--[if gt IE 8]><!--> <html lang="en" dir="ltr"> <!--<![endif]-->
+<head>
+	<meta charset="utf-8" />
+	<title>PunBB Database Update</title>
+	<link rel="stylesheet" type="text/css" href="<?= $baseUrl ?>/style/Oxygen/Oxygen.css" />
+	<script type="text/javascript" src="<?= $baseUrl ?>/include/js/punbb.common.js"></script>
+</head>
+<body>
+<div id="brd-update" class="brd-page">
+<div id="brd-wrap" class="brd">
+
+<div id="brd-head" class="gen-content">
+	<p id="brd-title"><strong>PunBB Database Update</strong></p>
+	<p id="brd-desc">Update database tables of current installation</p>
+</div>
+
+<div id="brd-main" class="main basic">
+
+	<div class="main-head">
+		<h1 class="hn"><span>PunBB Database Update completed!</span></h1>
+	</div>
+
+	<div class="main-content frm">
+		<div class="ct-box info-box">
+			<p>Your forum database was updated successfully.</p>
+<?php if ($config !== null): ?>
+			<p>In order to complete the process, you must now update your config.php script. <strong>Copy and paste the text in the text box below into the file called config.php in the root directory of your PunBB installation</strong>. The file already exists, so you must edit/overwrite the contents of the old file. You may then <a href="<?= $baseUrl ?>/index.php">go to the forum index</a> once config.php has been updated.</p>
+<?php else: ?>
+			<p>You may <a href="<?= $baseUrl ?>/index.php">go to the forum index</a> now.</p>
+<?php endif ?>
+		</div>
+<?php if ($config !== null): ?>
+		<form class="frm-form" action="foo">
+			<fieldset class="frm-group group1">
+				<legend class="group-legend"><span>New config.php contents</span></legend>
+				<div class="txt-set set1">
+					<div class="txt-box textarea">
+						<label for="fld1"><span>Copy contents:</span></label>
+						<div class="txt-input"><span class="frm-input"><textarea id="fld1" readonly="readonly" cols="80" rows="20"><?= $config ?></textarea></span></div>
+					</div>
+				</div>
+			</fieldset>
+		</form>
+<?php endif ?>
+	</div>
+
+</div>
+
+</div>
+</div>
+</body>
+</html>

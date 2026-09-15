@@ -1,0 +1,48 @@
+<?php /* A topic's posts: the options and summary above and below them, and each post with its poster. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-head">
+<?php if ($headOptions !== null): ?>
+		<p class="options"><?= $headOptions ?></p>
+<?php endif ?>
+		<h2 class="hn"><span><?= $itemsInfo ?></span></h2>
+	</div>
+	<div id="forum<?= $forumId ?>" class="main-content main-topic">
+<?php foreach ($posts as $post): ?>
+<?= $post['before'] ?>
+		<div class="<?= $post['status'] ?>">
+			<div id="p<?= $post['id'] ?>" class="posthead">
+				<h3 class="hn post-ident"><?= $post['ident'] ?></h3>
+			</div>
+			<div class="postbody<?= $post['online'] ? ' online' : '' ?>">
+				<div class="post-author">
+					<ul class="author-ident">
+						<?= $post['authorIdent'], "\n" ?>
+					</ul>
+					<ul class="author-info">
+						<?= $post['authorInfo'], "\n" ?>
+					</ul>
+				</div>
+				<div class="post-entry">
+					<h4 id="pc<?= $post['id'] ?>" class="entry-title hn"><?= $post['subject'] ?></h4>
+					<div class="entry-content">
+						<?= $post['message'], "\n" ?>
+					</div>
+<?= $post['entry'] ?>
+				</div>
+			</div>
+<?php if ($post['options'] !== null): ?>
+			<div class="postfoot">
+				<div class="post-options">
+					<?= $post['options'], "\n" ?>
+				</div>
+			</div>
+<?php endif ?>
+		</div>
+<?php endforeach ?>
+	</div>
+
+	<div class="main-foot">
+<?php if ($footOptions !== null): ?>
+
+			<p class="options"><?= $footOptions ?></p><?php endif ?>
+		<h2 class="hn"><span><?= $itemsInfo ?></span></h2>
+	</div>

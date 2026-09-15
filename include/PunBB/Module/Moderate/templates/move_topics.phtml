@@ -1,0 +1,50 @@
+<?php /* The form moving topics to another forum, and whether redirects are left where they were. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-head">
+		<h2 class="hn"><span><?= $heading ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<?= $hiddenFields, "\n" ?>
+			</div>
+<?= $positions['pre_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['group'] ?>">
+				<legend class="group-legend"><strong><?= $misc['Move topic'] ?></strong></legend>
+<?= $positions['pre_move_to_forum'] ?>
+				<div class="sf-set set<?= $numbers['forum_item'] ?>">
+					<div class="sf-box select">
+						<label for="fld<?= $numbers['forum_field'] ?>"><span><?= $misc['Move to'] ?></span></label><br />
+						<span class="fld-input"><select id="fld<?= $numbers['forum_field'] ?>" name="move_to_forum">
+<?php foreach ($forums as $forum): ?>
+<?= $forum['start'] ?>
+<?php if ($forum['closesGroup']): ?>
+				</optgroup>
+<?php endif ?>
+<?php if ($forum['category'] !== null): ?>
+				<optgroup label="<?= $forum['category'] ?>">
+<?php endif ?>
+<?php if ($forum['name'] !== null): ?>
+				<option value="<?= $forum['id'] ?>"><?= $forum['name'] ?></option>
+<?php endif ?>
+<?= $forum['end'] ?>
+<?php endforeach ?>
+						</optgroup>
+						</select></span>
+					</div>
+				</div>
+<?= $positions['pre_redirect_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['redirect_item'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['redirect_field'] ?>" name="with_redirect" value="1"<?php if ($single): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['redirect_field'] ?>"><?= $single ? $misc['Leave redirect'] : $misc['Leave redirects'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="move_topics_to" value="<?= $misc['Move'] ?>" /></span>
+				<span class="cancel"><input type="submit" name="cancel" value="<?= $common['Cancel'] ?>" formnovalidate /></span>
+			</div>
+		</form>
+	</div>

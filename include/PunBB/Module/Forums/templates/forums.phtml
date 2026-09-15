@@ -1,0 +1,93 @@
+<?php /* The forums page: the form adding a forum, and the form updating the stored forums' positions, by category, when there are any. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $afo['Add forum head'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $addAction ?>">
+			<div class="hidden">
+				<input type="hidden" name="csrf_token" value="<?= $addToken ?>" />
+			</div>
+<?= $positions['pre_add_forum_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['add_group'] ?>">
+				<legend class="group-legend"><strong><?= $afo['Add forum legend'] ?></strong></legend>
+<?= $positions['pre_new_forum_name'] ?>
+				<div class="sf-set set<?= $numbers['name_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['name_field'] ?>"><span><?= $afo['Forum name label'] ?></span></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['name_field'] ?>" name="forum_name" size="35" maxlength="80" required /></span>
+					</div>
+				</div>
+<?= $positions['pre_new_forum_position'] ?>
+				<div class="sf-set set<?= $numbers['position_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['position_field'] ?>"><span><?= $afo['Position label'] ?></span></label><br />
+						<span class="fld-input"><input type="number" id="fld<?= $numbers['position_field'] ?>" name="position" size="3" maxlength="3" /></span>
+					</div>
+				</div>
+<?= $positions['pre_new_forum_cat'] ?>
+				<div class="sf-set set<?= $numbers['category_item'] ?>">
+					<div class="sf-box select">
+						<label for="fld<?= $numbers['category_field'] ?>"><span><?= $afo['Add to category label'] ?></span></label><br />
+						<span class="fld-input"><select id="fld<?= $numbers['category_field'] ?>" name="add_to_cat">
+<?php foreach ($addCategories as $category): ?>
+							<option value="<?= $category['id'] ?>"><?= $category['name'] ?></option>
+<?php endforeach ?>
+						</select></span>
+					</div>
+				</div>
+<?= $positions['pre_add_forum_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['add_forum_fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="add_forum" value=" <?= $afo['Add forum'] ?> " /></span>
+			</div>
+		</form>
+	</div>
+
+<?php if ($categories !== array()): ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $afo['Edit forums head'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $editAction ?>">
+			<div class="hidden">
+				<input type="hidden" name="csrf_token" value="<?= $editToken ?>" />
+			</div>
+
+<?php foreach ($categories as $index => $category): ?>
+<?php if ($index > 0): ?>
+			</div>
+<?php endif ?>
+			<div class="content-head">
+				<h3 class="hn"><span><?= $category['heading'] ?></span></h3>
+			</div>
+			<div class="frm-group frm-hdgroup group<?= $category['group'] ?>">
+
+<?php foreach ($category['forums'] as $forum): ?>
+<?= $forum['preFieldset'] ?>
+				<fieldset id="forum<?= $forum['id'] ?>" class="mf-set set<?= $forum['item'] ?><?= $forum['item'] === 1 ? ' mf-head' : ' mf-extra' ?>">
+					<legend><span><?= $forum['legend'] ?></span></legend>
+					<div class="mf-box">
+<?= $forum['preName'] ?>
+						<div class="mf-field mf-field1 forum-field">
+							<span class="aslabel"><?= $afo['Forum name'] ?></span>
+							<span class="fld-input"><?= $forum['name'] ?></span>
+						</div>
+<?= $forum['prePosition'] ?>
+						<div class="mf-field">
+							<label for="fld<?= $forum['positionField'] ?>"><span><?= $afo['Position label'] ?></span></label><br />
+							<span class="fld-input"><input type="number" id="fld<?= $forum['positionField'] ?>" name="position[<?= $forum['id'] ?>]" size="3" maxlength="3" value="<?= $forum['position'] ?>" /></span>
+						</div>
+					</div>
+<?= $forum['preFieldsetEnd'] ?>
+				</fieldset>
+<?= $forum['fieldsetEnd'] ?>
+<?php endforeach ?>
+<?php endforeach ?>
+			</div>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="update_positions" value="<?= $afo['Update positions'] ?>" /></span>
+			</div>
+		</form>
+	</div>
+<?php endif ?>

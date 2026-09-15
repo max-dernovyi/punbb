@@ -18,9 +18,10 @@
 	# forum root in a subdirectory install and cannot match an SEF URL segment.
 	RewriteRule ^(vendor|node_modules|\.dev|include/PunBB)/ - [F,L]
 
+	# Every path that is not a file is a page: index.php routes it
 	RewriteCond %{REQUEST_FILENAME} !-f
 	RewriteCond %{REQUEST_FILENAME} !-d
-	RewriteRule . rewrite.php [L]
+	RewriteRule . index.php [L]
 </IfModule>
 
 
@@ -78,7 +79,8 @@ AddCharset utf-8 .html .css .js .xml .json .rss
 
 # Fallback for hosts without mod_rewrite, where the deny rule above is absent.
 # Not scoped to the forum root, so it can also match an SEF URL segment named
-# "vendor" — acceptable only here, since SEF URLs need mod_rewrite anyway.
+# "vendor" — acceptable only here, since no page but the index is reachable
+# without mod_rewrite anyway.
 <IfModule !mod_rewrite.c>
     <IfModule mod_alias.c>
         RedirectMatch 404 (^|/)(vendor|node_modules|\.dev|include/PunBB)/

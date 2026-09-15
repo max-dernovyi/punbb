@@ -1,7 +1,7 @@
 <?php
 /**
  * A throwaway forum on SQLite3, installed by admin/install.php and driven one
- * request per process through its real entry points, logged in as the admin.
+ * request per process through its front controller, logged in as the admin.
  *
  * The root is a temporary directory of symlinks into the checkout with its own
  * config.php, cache/, extensions/ and database, so nothing touches the forum
@@ -32,15 +32,12 @@ final class ScratchForum {
 	public function __construct() {
 		$this->root = sys_get_temp_dir().'/punbb_scratch_'.bin2hex(random_bytes(6));
 
-		foreach (array('admin', 'cache', 'extensions') as $dir)
+		foreach (array('cache', 'extensions') as $dir)
 			mkdir($this->root.'/'.$dir, 0777, true);
 
 		foreach (glob(FORUM_ROOT.'*.php') as $file)
 			if (basename($file) !== 'config.php')
 				symlink($file, $this->root.'/'.basename($file));
-
-		foreach (glob(FORUM_ROOT.'admin/*.php') as $file)
-			symlink($file, $this->root.'/admin/'.basename($file));
 
 		foreach (self::LINKED_DIRS as $dir)
 			symlink(FORUM_ROOT.$dir, $this->root.'/'.$dir);
@@ -101,7 +98,20 @@ final class ScratchForum {
 		file_put_contents($this->root.'/extensions/'.$id.'/manifest.xml', $manifest);
 	}
 
-	/** Serves a script from outside the checkout's root as an entry point of the scratch root. */
+	/** Makes a fixture style under .dev/tests/fixtures/style/ available to choose. */
+	public function addStyle(string $name): void {
+		$this->detach('style');
+		symlink(FORUM_ROOT.'.dev/tests/fixtures/style/'.$name, $this->root.'/style/'.$name);
+	}
+
+	/** Writes include/user/$file, which a template pulls in with <!-- forum_include "$file" -->. */
+	public function writeUserInclude(string $file, string $source): void {
+		$this->detach('include');
+		$this->detach('include/user');
+		file_put_contents($this->root.'/include/user/'.$file, $source);
+	}
+
+	/** Serves a script from outside the checkout's root as a file in the scratch root, beside the front controller. */
 	public function addScript(string $file): void {
 		symlink($file, $this->root.'/'.basename($file));
 	}
@@ -117,6 +127,19 @@ final class ScratchForum {
 		return (string) shell_exec(escapeshellarg(PHP_BINARY).$ini.' '.
 			escapeshellarg(__DIR__.'/forum_request_harness.php').' '.escapeshellarg($this->root).' '.
 			escapeshellarg($script).' '.escapeshellarg($request).' 2>&1');
+	}
+
+	/** @return string what the script printed to a visitor who is not logged in */
+	public function requestAsGuest(string $script, array $get = array(), array $post = array()): string {
+		$cookie = $this->cookie;
+		$this->cookie = array();
+
+		try {
+			return $this->request($script, $get, $post);
+		}
+		finally {
+			$this->cookie = $cookie;
+		}
 	}
 
 	/** Loads the form, then posts it with the CSRF token that page issued. */
@@ -157,6 +180,20 @@ final class ScratchForum {
 			$this->db->close();
 
 		self::removeTree($this->root);
+	}
+
+	/** Turns the link to the checkout's $dir into a directory of links to its entries, which can take files of its own. */
+	private function detach(string $dir): void {
+		$path = $this->root.'/'.$dir;
+		if (!is_link($path))
+			return;
+
+		unlink($path);
+		mkdir($path);
+
+		foreach (scandir(FORUM_ROOT.$dir) as $entry)
+			if ($entry !== '.' && $entry !== '..')
+				symlink(FORUM_ROOT.$dir.'/'.$entry, $path.'/'.$entry);
 	}
 
 	private function logInAsAdmin(): void {

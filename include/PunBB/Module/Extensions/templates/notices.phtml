@@ -1,0 +1,15 @@
+<?php /* What an extension's install or uninstall code asked the administrator to read. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $heading ?> "<?= $title ?>"</span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<div class="ct-box info-box">
+			<p><?= $info ?></p>
+			<ul class="<?= $listClass ?>">
+<?php foreach ($notices as $notice): ?>
+				<li><span><?= $notice ?></span></li>
+<?php endforeach ?>
+			</ul>
+			<p><a href="<?= $manage ?>"><?= $admin['Manage extensions'] ?></a></p>
+		</div>
+	</div>

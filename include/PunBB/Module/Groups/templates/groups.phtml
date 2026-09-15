@@ -1,0 +1,81 @@
+<?php /* The groups page: the forms adding a group and choosing the default one, and the list of groups. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $agr['Add group heading'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<input type="hidden" name="csrf_token" value="<?= $token ?>" />
+			</div>
+<?= $positions['pre_add_group_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['add_group'] ?>">
+				<legend class="group-legend"><span><?= $agr['Add group legend'] ?></span></legend>
+<?= $positions['pre_add_base_group'] ?>
+				<div class="sf-set set<?= $numbers['base_item'] ?>">
+					<div class="sf-box select">
+						<label for="fld<?= $numbers['base_field'] ?>"><span><?= $agr['Base new group label'] ?></span></label><br />
+						<span class="fld-input"><select id="fld<?= $numbers['base_field'] ?>" name="base_group">
+<?php foreach ($baseGroups as $group): ?>
+							<option value="<?= $group['id'] ?>"<?php if ($group['default']): ?> selected="selected"<?php endif ?>><?= $group['title'] ?></option>
+<?php endforeach ?>
+						</select></span>
+					</div>
+				</div>
+<?= $positions['pre_add_group_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['add_group_fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="add_group" value="<?= $agr['Add group'] ?> " /></span>
+			</div>
+		</form>
+	</div>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $agr['Default group heading'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<input type="hidden" name="csrf_token" value="<?= $token ?>" />
+			</div>
+<?= $positions['pre_default_group_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['default_group'] ?>">
+				<legend class="group-legend"><span><?= $agr['Default group legend'] ?></span></legend>
+<?= $positions['pre_default_group'] ?>
+				<div class="sf-set set<?= $numbers['default_item'] ?>">
+					<div class="sf-box select">
+						<label for="fld<?= $numbers['default_field'] ?>"><span><?= $agr['Default group label'] ?></span></label><br />
+						<span class="fld-input"><select id="fld<?= $numbers['default_field'] ?>" name="default_group">
+<?php foreach ($defaultCandidates as $group): ?>
+							<option value="<?= $group['id'] ?>"<?php if ($group['default']): ?> selected="selected"<?php endif ?>><?= $group['title'] ?></option>
+<?php endforeach ?>
+						</select></span>
+					</div>
+				</div>
+<?= $positions['pre_default_group_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['default_group_fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="set_default_group" value="<?= $agr['Set default'] ?>" /></span>
+			</div>
+		</form>
+	</div>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $agr['Existing groups heading'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<div class="ct-box">
+			<p><?= $agr['Existing groups intro'] ?></p>
+		</div>
+		<div class="ct-group">
+<?php foreach ($groups as $group): ?>
+<?= $group['preOutput'] ?>
+			<div class="ct-set set<?= $group['item'] ?>">
+				<div class="ct-box">
+					<h3 class="ct-legend hn"><span><?= $group['title'] ?> <?php if ($group['default']): ?><?= $agr['default'] ?><?php endif ?></span></h3>
+					<p class="options"><?= $group['options'] ?></p>
+				</div>
+			</div>
+<?= $group['postOutput'] ?>
+<?php endforeach ?>
+		</div>
+	</div>

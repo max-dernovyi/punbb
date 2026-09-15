@@ -1,6 +1,6 @@
 <?php
 /**
- * The utf8_encode() replacement in admin/db_update.php.
+ * The utf8_encode() replacement in the updater's conversion to UTF-8.
  *
  * utf8_encode() mapped every ISO-8859-1 byte to the codepoint of the same
  * value; mb_convert_encoding($str, 'UTF-8', 'ISO-8859-1') does exactly that
@@ -41,16 +41,15 @@ class Latin1ConversionTest extends TestCase {
 	}
 
 	public function testDbUpdateConvertsThroughMbstring(): void {
-		$source = (string)file_get_contents(FORUM_ROOT.'admin/db_update.php');
+		$source = (string)file_get_contents(FORUM_ROOT.'include/PunBB/Module/Update/Charset/Utf8Text.php');
 
-		$this->assertStringContainsString("mb_convert_encoding(\$str, 'UTF-8', \$old_charset)", $source);
+		$this->assertStringContainsString("mb_convert_encoding(\$str, 'UTF-8', \$charset)", $source);
 	}
 
 	/** @return list<string> every PHP file the forum serves, minus the vendored libraries */
 	public static function sources(): array {
 		$files = array_merge(
 			(array)glob(FORUM_ROOT.'*.php'),
-			(array)glob(FORUM_ROOT.'admin/*.php'),
 			(array)glob(FORUM_ROOT.'include/*.php')
 		);
 

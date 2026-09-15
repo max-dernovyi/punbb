@@ -25,10 +25,12 @@ class AuthenticationGuardTest extends TestCase
 	//
 	public function testLoginAndLogoutRollTheSessionId(): void
 	{
-		$source = (string) file_get_contents(FORUM_ROOT.'login.php');
+		$source = (string) file_get_contents(FORUM_ROOT.'include/PunBB/Module/Login/Controller/LoginController.php');
 
-		$this->assertSame(2, substr_count($source, 'forum_session_regenerate();'),
-			'login.php must roll the session id at both privilege changes');
+		$this->assertSame(2, substr_count($source, '$this->signIn->regenerateSession();'),
+			'LoginController must roll the session id at both privilege changes');
+		$this->assertStringContainsString("public function regenerateSession(): void {\n\t\t\\forum_session_regenerate();",
+			(string) file_get_contents(FORUM_ROOT.'include/PunBB/Module/LegacyBridge/Site/LegacySignIn.php'));
 	}
 
 	public function testTheHelperOnlyActsOnARunningSession(): void
@@ -108,13 +110,16 @@ class AuthenticationGuardTest extends TestCase
 	//
 	public function testTheInstallerDerivesCookieSecureFromTheBaseUrl(): void
 	{
-		$source = (string) file_get_contents(FORUM_ROOT.'admin/install.php');
-		$body = substr($source, (int) strpos($source, 'function generate_config_file('));
-		$body = substr($body, 0, (int) strpos($body, "\n}\n"));
+		$this->assertStringContainsString("stripos(\$baseUrl, 'https://') === 0", (string) file_get_contents(FORUM_ROOT.'include/PunBB/Module/Setup/Config/ConfigFile.php'));
+		$this->assertStringContainsString('cookieSecure: ConfigFile::isSecureAddress($submission->baseUrl)', (string) file_get_contents(FORUM_ROOT.'include/PunBB/Module/Install/Controller/InstallController.php'),
+			'the installer no longer derives the flag from the base URL');
 
-		$this->assertStringContainsString("stripos(\$base_url, 'https://') === 0", $body);
-		$this->assertStringNotContainsString('$cookie_secure = 0;', $body,
-			'the installer still hardcodes an insecure cookie');
+		$database = new PunBB\Module\Setup\Database\DatabaseSettings('sqlite3', '', 'forum.sqlite', '', '', '');
+		foreach (array('https://forum.test' => 1, 'http://forum.test' => 0) as $address => $secure)
+		{
+			$configuration = new PunBB\Module\Setup\Config\BoardConfiguration($database, $address, 'forum_cookie', cookieSecure: PunBB\Module\Setup\Config\ConfigFile::isSecureAddress($address));
+			$this->assertStringContainsString("\n\$cookie_secure = ".$secure.";\n", PunBB\Module\Setup\Config\ConfigFile::installed($configuration));
+		}
 	}
 
 	//
@@ -123,7 +128,9 @@ class AuthenticationGuardTest extends TestCase
 	//
 	public function testTheUpgradeScriptPreservesTheFlag(): void
 	{
-		$this->assertStringContainsString('\\$cookie_secure = $cookie_secure;',
-			(string) file_get_contents(FORUM_ROOT.'admin/db_update.php'));
+		$this->assertStringContainsString('$configuration->cookieSecure));',
+			(string) file_get_contents(FORUM_ROOT.'include/PunBB/Module/Update/Controller/Update.php'));
+		$this->assertStringContainsString('!empty($config[\'cookie_secure\'])',
+			(string) file_get_contents(FORUM_ROOT.'include/PunBB/Module/LegacyBridge/Setup/LegacyConfiguration.php'));
 	}
 }

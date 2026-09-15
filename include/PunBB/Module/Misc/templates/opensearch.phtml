@@ -1,0 +1,14 @@
+<?php /* The board's OpenSearch description. Every variable is escaped unless it is Html. */ ?>
+<?= '<?xml version="1.0" encoding="utf-8"?>', "\n" ?>
+<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/" xmlns:moz="http://www.mozilla.org/2006/browser/search/">
+	<ShortName><?= $title ?></ShortName>
+	<Description><?= $description ?></Description>
+	<InputEncoding>utf-8</InputEncoding>
+	<OutputEncoding>utf-8</OutputEncoding>
+	<Image width="16" height="16" type="image/x-icon"><?= $base ?>/favicon.ico</Image>
+	<Url type="text/html" method="get" template="<?= $base ?>/search.php?action=search&amp;source=opensearch&amp;keywords={searchTerms}"/>
+	<Url type="application/opensearchdescription+xml" rel="self" template="<?= $self ?>"/>
+	<Contact><?= $contact ?></Contact>
+	<Attribution><?= $attribution ?></Attribution>
+	<moz:SearchForm><?= $search ?></moz:SearchForm>
+</OpenSearchDescription>

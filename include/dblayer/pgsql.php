@@ -187,6 +187,7 @@ class DBLayer
 		}
 	}
 
+	#[\Deprecated(since: '2.0', message: 'use a repository method behind the Api contract of a module, over prepared statements')]
 	public function query_build($query, $return_query_string = false, $unbuffered = false)
 	{
 		$sql = '';

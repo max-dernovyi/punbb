@@ -1,0 +1,22 @@
+<?php /* The confirmation of a prune: how many topics of which forums it takes. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $details ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>?action=foo">
+			<div class="hidden">
+				<input type="hidden" name="csrf_token" value="<?= $token ?>" />
+				<input type="hidden" name="prune_days" value="<?= $days ?>" />
+				<input type="hidden" name="prune_sticky" value="<?= $sticky ?>" />
+				<input type="hidden" name="prune_from" value="<?= $from ?>" />
+			</div>
+			<div class="ct-box">
+				<p class="warn"><span><?= $count ?></span></p>
+				<p class="warn"><span><?= $age ?></span></p>
+			</div>
+<?= $positions['comply_pre_buttons'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="prune_comply" value="<?= $apr['Prune topics'] ?>" /></span>
+			</div>
+		</form>
+	</div>

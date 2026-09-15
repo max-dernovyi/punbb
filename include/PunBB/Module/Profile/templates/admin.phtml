@@ -1,0 +1,61 @@
+<?php /* The administration section of a member's profile: banning or deleting them, their group, and the forums they moderate. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $profile['User management'] ?></span></h2>
+	</div>
+	<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+		<div class="hidden">
+			<?= $hidden, "\n" ?>
+		</div>
+		<div class="main-content main-frm">
+			<div class="frm-group group<?= $numbers['group'] ?>">
+<?= $positions['pre_user_management'] ?>
+<?php if ($management !== null): ?>
+			<?= $management, "\n" ?>
+<?= $positions['pre_membership'] ?>
+<?php if ($groups !== null): ?>
+<?= $positions['pre_group_membership'] ?>
+			<div class="sf-set set<?= $numbers['group_item'] ?>">
+				<div class="sf-box select">
+					<label for="fld<?= $numbers['group_field'] ?>"><span><?= $profile['User group'] ?></span></label><br />
+					<span class="fld-input"><select id="fld<?= $numbers['group_field'] ?>" name="group_id">
+<?php foreach ($groups as $group): ?>
+						<option value="<?= $group['id'] ?>"<?php if ($group['selected']): ?> selected="selected"<?php endif ?>><?= $group['title'] ?></option>
+<?php endforeach ?>
+					</select></span>
+				</div>
+			</div>
+<?= $positions['pre_group_membership_submit'] ?>
+			<div class="sf-set button-set set<?= $numbers['group_submit_item'] ?>">
+				<div class="sf-box text">
+					<span class="submit primary"><input type="submit" name="update_group_membership" value="<?= $profile['Update groups'] ?>" /></span>
+				</div>
+			</div>
+<?php endif ?>
+<?php endif ?>
+<?= $positions['pre_mod_assignment'] ?>
+<?php if ($checklist !== null): ?>
+<?= $positions['pre_mod_assignment_fieldset'] ?>
+			<fieldset class="mf-set set<?= $numbers['moderator_item'] ?>">
+				<legend><span><?= $profile['Moderator assignment'] ?></span></legend>
+<?= $positions['pre_forum_checklist'] ?>
+				<div class="mf-box">
+					<div class="checklist">
+<?= $checklist ?>
+					</div>
+				</div>
+<?= $positions['pre_mod_assignment_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['mod_assignment_fieldset_end'] ?>
+			<div class="mf-set button-set set<?= $numbers['moderator_submit_item'] ?>">
+				<div class="mf-box text">
+					<span class="submit primary"><input type="submit" name="update_forums" value="<?= $profile['Update forums'] ?>" /></span>
+				</div>
+			</div>
+<?= $positions['form_end'] ?>
+<?php endif ?>
+		</div>
+		<div class="frm-buttons">
+			<span class="submit primary"><?= $profile['Instructions'] ?></span>
+		</div>
+	</div>
+	</form>

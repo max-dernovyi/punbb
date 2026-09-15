@@ -1,0 +1,42 @@
+<?php /* The announcements section: whether the announcement is shown, its heading and its message. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-content main-frm">
+		<div class="content-head">
+			<h2 class="hn"><span><?= $aop['Announcements head'] ?></span></h2>
+		</div>
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<input type="hidden" name="csrf_token" value="<?= $token ?>" />
+				<input type="hidden" name="form_sent" value="1" />
+			</div>
+<?= $positions['pre_announcement_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['g1'] ?>">
+				<legend class="group-legend"><strong><?= $aop['Announcements legend'] ?></strong></legend>
+<?= $positions['pre_enable_announcement_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['i1'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['announcement'] ?>" name="form[announcement]" value="1"<?php if ($config['o_announcement'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['announcement'] ?>"><span><?= $aop['Enable announcement'] ?></span> <?= $aop['Enable announcement label'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_announcement_heading'] ?>
+				<div class="sf-set set<?= $numbers['i2'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['announcement_heading'] ?>"><span><?= $aop['Announcement heading label'] ?></span></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['announcement_heading'] ?>" name="form[announcement_heading]" size="50" maxlength="255" value="<?= $config['o_announcement_heading'] ?>" /></span>
+					</div>
+				</div>
+<?= $positions['pre_announcement_message'] ?>
+				<div class="txt-set set<?= $numbers['i3'] ?>">
+					<div class="txt-box textarea">
+						<label for="fld<?= $numbers['announcement_message'] ?>"><span><?= $aop['Announcement message label'] ?></span><small><?= $aop['Announcement message help'] ?></small></label>
+						<div class="txt-input"><span class="fld-input"><textarea id="fld<?= $numbers['announcement_message'] ?>" name="form[announcement_message]" rows="5" cols="55"><?= $config['o_announcement_message'] ?></textarea></span></div>
+					</div>
+				</div>
+<?= $positions['pre_announcement_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['announcement_fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="save" value="<?= $common['Save changes'] ?>" /></span>
+			</div>
+		</form>
+	</div>

@@ -1,0 +1,74 @@
+<?php /* The administration's index: the alerts, then a box each for the version, the community, the server load, the environment and the database. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $ain['Information head'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+<?php if ($alerts !== array()): ?>
+		<div id="admin-alerts" class="ct-set warn-set">
+			<div class="ct-box warn-box">
+				<h3 class="ct-legend hn warn"><span><?= $ain['Alerts'] ?></span></h3>
+				<?= implode(' ', $alerts), "\n" ?>
+			</div>
+		</div>
+<?php endif ?>
+		<div class="ct-group">
+<?= $positions['pre_version'] ?>
+			<div class="ct-set group-item<?= $numbers['version'] ?>">
+				<div class="ct-box">
+					<h3 class="ct-legend hn"><span><?= $ain['PunBB version'] ?></span></h3>
+					<ul class="data-list">
+						<li><span>PunBB <?= $version ?></span></li>
+						<li><span><?= $ain['Copyright message'] ?></span></li>
+<?php if ($updates !== null): ?>
+						<li><span><?= $updates ?></span></li>
+<?php endif ?>
+					</ul>
+				</div>
+			</div>
+<?= $positions['pre_community'] ?>
+			<div class="ct-set group-item<?= $numbers['community'] ?>">
+				<div class="ct-box">
+					<h3 class="ct-legend hn"><span><?= $ain['PunBB community'] ?></span></h3>
+					<ul class="data-list">
+						<li><span><?= $ain['Forums'] ?>: <a href="https://punbb.informer.com/forums/">Forums</a></span></li>
+						<li><span><?= $ain['Twitter'] ?>: <a href="https://twitter.com/punbb_forum">@punbb_forum</a></span></li>
+						<li><span><?= $ain['Development'] ?>: <a href="https://github.com/punbb/punbb">https://github.com/punbb</a></span></li>
+					</ul>
+				</div>
+			</div>
+<?= $positions['pre_server_load'] ?>
+			<div class="ct-set group-item<?= $numbers['server_load'] ?>">
+				<div class="ct-box">
+					<h3 class="ct-legend hn"><span><?= $ain['Server load'] ?></span></h3>
+					<p><span><?= $load ?> (<?= $online ?> <?= $ain['users online'] ?>)</span></p>
+				</div>
+			</div>
+<?= $positions['pre_environment'] ?>
+<?php if ($administrator): ?>
+			<div class="ct-set group-item<?= $numbers['environment'] ?>">
+				<div class="ct-box">
+					<h3 class="ct-legend hn"><span><?= $ain['Environment'] ?></span></h3>
+					<ul class="data-list">
+						<li><span><?= $ain['Operating system'] ?>: <?= $os ?></span></li>
+						<li><span>PHP: <?= $php ?> - <a href="<?= $phpinfo ?>?action=phpinfo"><?= $ain['Show info'] ?></a></span></li>
+						<li><span><?= $ain['Accelerator'] ?>: <?= $accelerator ?></span></li>
+					</ul>
+				</div>
+			</div>
+<?= $positions['pre_database'] ?>
+			<div class="ct-set group-item<?= $numbers['database'] ?>">
+				<div class="ct-box">
+					<h3 class="ct-legend hn"><span><?= $ain['Database'] ?></span></h3>
+					<ul class="data-list">
+						<li><span><?= $database ?></span></li>
+<?php if ($rows !== null && $size !== null): ?>
+						<li><span><?= $ain['Rows'] ?>: <?= $rows ?></span></li>
+						<li><span><?= $ain['Size'] ?>: <?= $size ?></span></li>
+<?php endif ?>
+					</ul>
+				</div>
+			</div>
+<?php endif ?>
+<?= $positions['items_end'] ?>
+		</div>
+	</div>

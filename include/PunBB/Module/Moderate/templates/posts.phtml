@@ -1,0 +1,54 @@
+<?php /* A topic's posts to moderate, each selectable but the first, with the buttons changing those selected. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-head">
+<?php if ($headOptions !== null): ?>
+
+		<p class="options"><?= $headOptions ?></p><?php endif ?>
+		<h2 class="hn"><span><?= $itemsInfo ?></span></h2>
+	</div>
+	<form id="mr-post-actions-form" class="newform" method="post" accept-charset="utf-8" action="<?= $action ?>">
+	<div class="main-content main-topic">
+		<div class="hidden">
+			<input type="hidden" name="csrf_token" value="<?= $token ?>" />
+		</div>
+
+<?php foreach ($posts as $post): ?>
+<?= $post['before'] ?>
+			<div class="<?= $post['status'] ?>">
+				<div id="p<?= $post['id'] ?>" class="posthead">
+					<h3 class="hn post-ident"><?= $post['ident'] ?></h3>
+<?= $post['preSelect'] ?>
+<?php if ($post['select'] !== null): ?>
+				<?= $post['select'], "\n" ?>
+<?php endif ?>
+<?= $post['headOption'] ?>
+				</div>
+				<div class="postbody">
+					<div class="post-author">
+						<ul class="author-ident">
+							<?= $post['authorIdent'], "\n" ?>
+						</ul>
+<?= $post['userIdent'] ?>
+					</div>
+					<div class="post-entry">
+						<h4 class="entry-title"><?= $post['subject'] ?></h4>
+						<div class="entry-content">
+							<?= $post['message'], "\n" ?>
+						</div>
+<?= $post['entry'] ?>
+					</div>
+				</div>
+			</div>
+<?php endforeach ?>
+	</div>
+<?= $beforeModOptions ?>
+
+	<div class="main-options mod-options gen-content">
+		<p class="options"><?= $modOptions ?></p>
+	</div>
+	</form>
+	<div class="main-foot">
+<?php if ($footOptions !== null): ?>
+
+		<p class="options"><?= $footOptions ?></p><?php endif ?>
+		<h2 class="hn"><span><?= $itemsInfo ?></span></h2>
+	</div>

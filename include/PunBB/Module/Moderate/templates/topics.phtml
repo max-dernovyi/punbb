@@ -1,0 +1,40 @@
+<?php /* A forum's topics to moderate, each selectable, with the buttons changing those selected. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-head">
+<?php if ($headOptions !== null): ?>
+
+		<p class="options"><?= $headOptions ?></p><?php endif ?>
+		<h2 class="hn"><span><?= $itemsInfo ?></span></h2>
+	</div>
+	<form id="mr-topic-actions-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+	<div class="main-subhead">
+		<p class="item-summary<?= $viewsClass ?>"><span><?= $summary ?></span></p>
+	</div>
+	<div id="forum<?= $forumId ?>" class="main-content main-forum<?= $viewsClass ?>">
+		<div class="hidden">
+			<input type="hidden" name="csrf_token" value="<?= $token ?>" />
+		</div>
+<?php foreach ($rows as $row): ?>
+<?= $row['before'] ?>
+			<div id="topic<?= $row['id'] ?>" class="main-item<?= $row['style'] ?>">
+				<span class="icon <?= $row['status'] ?>"><!-- --></span>
+				<div class="item-subject">
+					<?= $row['subject'], "\n" ?>
+				</div>
+				<ul class="item-info">
+					<?= $row['info'], "\n" ?>
+				</ul>
+			</div>
+<?php endforeach ?>
+	</div>
+<?= $afterList ?>
+	<div class="main-options mod-options gen-content">
+		<p class="options"><?= $modOptions ?></p>
+	</div>
+	</form>
+	<div class="main-foot">
+<?php if ($footOptions !== null): ?>
+
+		<p class="options"><?= $footOptions ?></p><?php endif ?>
+		<h2 class="hn"><span><?= $itemsInfo ?></span></h2>
+	</div>
+

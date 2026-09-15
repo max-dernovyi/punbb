@@ -1,0 +1,38 @@
+<?php /* The board index's forums, a heading for each category, or the message that there are none. Every variable is escaped unless it is Html. */ ?>
+<?php foreach ($items as $item): ?>
+<?php if ($item['category']): ?>
+<?= $item['start'] ?>
+<?php if ($item['closes']): ?>
+	</div>
+<?php endif ?>
+<?= $item['before'] ?>
+	<div class="main-head">
+		<h2 class="hn"><span><?= $item['name'] ?></span></h2>
+	</div>
+	<div class="main-subhead">
+		<p class="item-summary"><span><?= $item['summary'] ?></span></p>
+	</div>
+	<div id="category<?= $item['number'] ?>" class="main-content main-category">
+<?php else: ?>
+<?= $item['before'] ?>
+		<div id="forum<?= $item['id'] ?>" class="main-item<?= $item['style'] ?>">
+			<span class="icon <?= $item['status'] ?>"><!-- --></span>
+			<div class="item-subject">
+				<?= $item['subject'], "\n" ?>
+			</div>
+			<ul class="item-info">
+				<?= $item['info'], "\n" ?>
+			</ul>
+		</div>
+<?php endif ?>
+<?php endforeach ?>
+<?php if ($items !== array()): ?>
+	</div>
+<?php else: ?>
+	<div class="main-head">
+		<h2 class="hn"><span><?= $message ?></span></h2>
+	</div>
+	<div class="main-content main-message">
+		<p><?= $empty ?></p>
+	</div>
+<?php endif ?>

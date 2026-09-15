@@ -26,10 +26,8 @@ class InstallMatrixTest extends TestCase {
 
 	/** A table the installer creates but the matrix never looks for is unverified. */
 	public function testItExpectsExactlyTheTablesTheInstallerCreates(): void {
-		$this->assertSame(
-			install_matrix_expected_tables(),
-			install_matrix_installer_tables(FORUM_ROOT.'admin/install.php')
-		);
+		foreach (forum_supported_db_types() as $db_type)
+			$this->assertSame(install_matrix_expected_tables(), install_matrix_installer_tables($db_type), $db_type);
 	}
 
 	/** Sharing a prefix would make one driver's teardown drop another's tables. */

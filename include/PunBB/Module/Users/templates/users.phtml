@@ -1,0 +1,41 @@
+<?php /* The users a search found, with the buttons changing those selected. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-head">
+<?php if ($headOptions !== null): ?>
+
+		<p class="options"><?= $headOptions ?></p><?php endif ?>
+		<h2 class="hn"><span><?= $heading ?></span></h2>
+	</div>
+	<form id="<?= $formId ?>" class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+	<div class="main-content <?= $contentClass ?>">
+		<div class="hidden">
+			<input type="hidden" name="csrf_token" value="<?= $token ?>" />
+		</div>
+		<table>
+			<thead>
+				<tr>
+					<?= $header, "\n" ?>
+				</tr>
+			</thead>
+			<tbody>
+<?php foreach ($rows as $row): ?>
+<?= $row['before'] ?>
+				<tr class="<?= $row['style'] ?>">
+					<?= $row['cells'], "\n" ?>
+				</tr>
+<?php endforeach ?>
+			</tbody>
+		</table>
+	</div>
+<?= $beforeButtons ?>
+<?php if ($buttons !== null): ?>
+	<div class="main-options gen-content">
+		<p class="options"><?= $buttons ?></p>
+	</div>
+<?php endif ?>
+	</form>
+	<div class="main-foot">
+<?php if ($footOptions !== null): ?>
+
+		<p class="options"><?= $footOptions ?></p><?php endif ?>
+		<h2 class="hn"><span><?= $heading ?></span></h2>
+	</div>

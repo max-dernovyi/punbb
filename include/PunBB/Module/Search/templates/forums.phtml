@@ -1,0 +1,36 @@
+<?php /* Forums subscribed to: a heading for each category, a row for each forum, and the links and summary below them. Every variable is escaped unless it is Html. */ ?>
+<?= $start ?>
+<?php foreach ($rows as $row): ?>
+<?= $row['before'] ?>
+<?php if ($row['opens']): ?>
+<?php if ($row['closes']): ?>
+	</div>
+<?php endif ?>
+<?= $row['headBefore'] ?>
+				<div class="main-head">
+					<h2 class="hn"><span><?= $row['category'] ?></span></h2>
+				</div>
+				<div class="main-subhead">
+					<p class="item-summary"><span><?= $row['summary'] ?></span></p>
+				</div>
+				<div id="category<?= $row['categoryNumber'] ?>" class="main-content main-category">
+<?php endif ?>
+<?= $row['rowBefore'] ?>
+			<div id="forum<?= $row['id'] ?>" class="main-item<?= $row['style'] ?>">
+				<span class="icon <?= $row['status'] ?>"><!-- --></span>
+				<div class="item-subject">
+					<?= $row['subject'], "\n" ?>
+				</div>
+				<ul class="item-info">
+					<?= $row['info'], "\n" ?>
+				</ul>
+			</div>
+<?php endforeach ?>
+	</div>
+
+	<div class="main-foot">
+<?php if ($footOptions !== null): ?>
+
+			<p class="options"><?= $footOptions ?></p><?php endif ?>
+		<h2 class="hn"><span><?= $itemsInfo ?></span></h2>
+	</div>

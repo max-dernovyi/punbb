@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace PunBB\Module\Framework;
 
+use PunBB\Module\Framework\Container\Container;
 use PunBB\Module\Framework\Modules\ModuleInterface;
 use PunBB\Module\Framework\Modules\Wiring;
+use PunBB\Module\Framework\Routing\FrontController;
 
 /**
- * The container and the module registry every other module is built on.
+ * The container, the module registry and the routing every other module is built on.
  */
 final class Module implements ModuleInterface {
 	public function name(): string {
@@ -23,5 +25,7 @@ final class Module implements ModuleInterface {
 		return array();
 	}
 
-	public function wire(Wiring $wiring): void {}
+	public function wire(Wiring $wiring): void {
+		$wiring->service(FrontController::class, fn (Container $c): object => new FrontController($c));
+	}
 }

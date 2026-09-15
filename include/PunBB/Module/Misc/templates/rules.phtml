@@ -1,0 +1,10 @@
+<?php /* The board's rules, as the administrator wrote them. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-head">
+		<h2 class="hn"><span><?= $heading ?></span></h2>
+	</div>
+
+	<div class="main-content main-frm">
+		<div id="rules-content" class="ct-box user-box">
+			<?= $rules, "\n" ?>
+		</div>
+	</div>

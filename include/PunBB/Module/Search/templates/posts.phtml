@@ -1,0 +1,39 @@
+<?php /* Posts found: the links and summary above and below them, and each post with its topic and forum. Every variable is escaped unless it is Html. */ ?>
+<?= $start ?>
+	<div class="main-head">
+<?php if ($headOptions !== null): ?>
+
+		<p class="options"><?= $headOptions ?></p><?php endif ?>
+		<h2 class="hn"><span><?= $itemsInfo ?></span></h2>
+	</div>
+	<div class="main-content main-topic">
+<?php foreach ($rows as $row): ?>
+<?= $row['before'] ?>
+	<div class="<?= $row['status'] ?> resultpost">
+		<div class="posthead">
+			<h3 class="hn post-ident"><?= $row['ident'] ?></h3>
+			<h4 class="hn post-title"><span><?= $row['subject'] ?></span></h4>
+		</div>
+		<div class="postbody">
+			<div class="post-entry">
+				<div class="entry-content">
+					<?= $row['message'] ?>
+				</div>
+<?= $row['entry'] ?>
+			</div>
+		</div>
+		<div class="postfoot">
+			<div class="post-options">
+				<p class="post-actions"><?= $row['actions'] ?></p>
+			</div>
+		</div>
+	</div>
+<?php endforeach ?>
+	</div>
+
+	<div class="main-foot">
+<?php if ($footOptions !== null): ?>
+
+			<p class="options"><?= $footOptions ?></p><?php endif ?>
+		<h2 class="hn"><span><?= $itemsInfo ?></span></h2>
+	</div>

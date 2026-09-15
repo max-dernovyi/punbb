@@ -1,0 +1,11 @@
+<?php /* A forum message: its heading with the options beside it, then the message and its link. Every variable is Html. */ ?>
+	<div class="main-head">
+<?php if ($options->html !== ''): ?>
+
+		<p class="options"><?= $options ?></p><?php endif ?>
+		<h2 class="hn"><span><?= $heading ?></span></h2>
+	</div>
+
+	<div class="main-content main-message">
+		<p><?= $message ?><?php if ($link->html !== ''): ?> <span><?= $link ?></span><?php endif ?></p>
+	</div>

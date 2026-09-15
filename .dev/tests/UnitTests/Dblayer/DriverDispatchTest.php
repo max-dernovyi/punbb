@@ -90,12 +90,14 @@ class DriverDispatchTest extends TestCase {
 	}
 
 	public function testDbUpdateGuardsRemovedDriversBeforeLoadingTheDblayer(): void {
-		$db_update = file_get_contents(FORUM_ROOT.'admin/db_update.php');
+		$db_update = (string) file_get_contents(FORUM_ROOT.'include/PunBB/Module/Update/Controller/UpdateController.php');
 
-		$guard = strpos($db_update, 'forum_removed_db_type_replacement($db_type)');
-		$dblayer = strpos($db_update, 'include/dblayer/common_db.php');
+		$guard = strpos($db_update, '$this->environment->removedDatabaseReplacement($type)');
+		$dblayer = strpos($db_update, '$this->database->openUnencoded(');
 
 		$this->assertNotFalse($guard, 'admin/db_update.php has no removed-driver guard');
+		$this->assertNotFalse($dblayer);
 		$this->assertLessThan($dblayer, $guard, 'the guard must run before the dblayer is loaded');
+		$this->assertStringContainsString('\\forum_removed_db_type_replacement($type)', (string) file_get_contents(FORUM_ROOT.'include/PunBB/Module/LegacyBridge/Setup/LegacyEnvironment.php'));
 	}
 }

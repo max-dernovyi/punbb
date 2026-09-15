@@ -9,6 +9,7 @@ use PunBB\Module\Framework\Event\EventDispatcher;
 use PunBB\Module\Framework\Modules\ModuleInterface;
 use PunBB\Module\Framework\Modules\Wiring;
 use PunBBFixture\Module\Greeting\Api\GreeterInterface;
+use PunBBFixture\Module\Greeting\Controller\GreetingController;
 use PunBBFixture\Module\Greeting\Event\GreetingSending;
 use PunBBFixture\Module\Greeting\Interceptor\GreeterInterceptor;
 use PunBBFixture\Module\Greeting\Model\Greeter;
@@ -18,8 +19,8 @@ use PunBBFixture\Module\Greeting\Observer\SignatureObserver;
 use PunBBFixture\Module\Greeting\Plugin\CapitalisePlugin;
 
 /**
- * Fixture: owns the greeter contract and the sending event, and plugs and
- * observes them first.
+ * Fixture: owns the greeter contract, the sending event and a route, and plugs
+ * and observes them first.
  */
 final class Module implements ModuleInterface {
 	public function name(): string {
@@ -40,5 +41,6 @@ final class Module implements ModuleInterface {
 		$wiring->plugin(GreeterInterface::class, CapitalisePlugin::class, fn (Container $c): object => new CapitalisePlugin($c->get(Journal::class)));
 		$wiring->service(Postman::class, fn (Container $c): object => new Postman($c->get(EventDispatcher::class)));
 		$wiring->observer(GreetingSending::class, SignatureObserver::class, fn (Container $c): object => new SignatureObserver($c->get(Journal::class)));
+		$wiring->route(array('greeting.php', 'greeting/'), GreetingController::class, fn (Container $c): object => new GreetingController($c->get(GreeterInterface::class)));
 	}
 }

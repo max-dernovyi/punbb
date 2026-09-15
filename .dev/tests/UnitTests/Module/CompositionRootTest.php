@@ -28,6 +28,23 @@ class CompositionRootTest extends TestCase {
 		$this->assertMatchesRegularExpression('/^\$forum_container = PunBB\\\\Module\\\\Framework\\\\Modules\\\\'.preg_quote(self::ROOT, '/').'/m', $common);
 	}
 
+	/** The installer and the updater compose it in include/setup.php, which boots no board. */
+	public function testASetupRouteComposesTheRootInSetupPhp(): void {
+		$setup = self::source('include/setup.php');
+
+		$this->assertSame(1, substr_count($setup, self::ROOT));
+		$this->assertMatchesRegularExpression('/^\$forum_container = PunBB\\\\Module\\\\Framework\\\\Modules\\\\'.preg_quote(self::ROOT, '/').'/m', $setup);
+		$this->assertStringNotContainsString('include/essentials.php', $setup);
+		$this->assertStringNotContainsString('include/common.php', $setup);
+	}
+
+	/** The upgrade instructions delete the installer's and the updater's modules; the board must still boot and route without them. */
+	public function testTheBoardRoutesWithTheInstallerAndTheUpdaterDeleted(): void {
+		$output = (string) shell_exec(escapeshellarg(PHP_BINARY).' -d display_errors=1 -d error_reporting=-1 '.escapeshellarg(__DIR__.'/deleted_setup_modules_harness.php').' 2>&1');
+
+		$this->assertSame('bridge index no updater no installer events', $output);
+	}
+
 	public function testEssentialsDoesNotReachTheNewCore(): void {
 		$this->assertStringNotContainsString('PunBB\\', self::source('include/essentials.php'));
 	}

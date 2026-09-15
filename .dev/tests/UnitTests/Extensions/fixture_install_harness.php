@@ -19,20 +19,21 @@ define('FORUM_DEBUG', 1);
 
 require FORUM_ROOT.'include/autoload.php';
 require FORUM_ROOT.'.dev/tests/UnitTests/bootstrap_no_db.php';
+
+// The install code reaches query_build(); its notice goes to the log, as essentials.php routes it
+set_error_handler('forum_log_deprecation', E_USER_DEPRECATED);
 require FORUM_ROOT.'include/common_admin.php';
 require FORUM_ROOT.'include/xml.php';
 
 const FIXTURE_DIR = FORUM_ROOT.'.dev/tests/fixtures/extensions/punbb_fixture';
 
 
-/** A core table's schema array, read out of admin/install.php so it cannot drift. */
+/** A core table's schema array, as the installer creates it on $db_type, so it cannot drift. */
 function fixture_installer_schema($table)
 {
-	$source = (string) file_get_contents(FORUM_ROOT.'admin/install.php');
-	$end = strpos($source, '$forum_db->create_table(\''.$table.'\', $schema);');
-	$start = strrpos(substr($source, 0, $end), '$schema = array(') + strlen('$schema = ');
+	global $db_type;
 
-	return eval('return '.rtrim(trim(substr($source, $start, $end - $start)), ';').';');
+	return PunBB\Module\LegacyBridge\Database\LegacySchema::definition(PunBB\Module\Setup\Schema\BoardSchema::table($table, $db_type));
 }
 
 

@@ -8,12 +8,16 @@
  * inventory at .dev/tests/fixtures/hook_points.txt lists every point; a removal
  * keeps its line with a note, and the listed count never falls.
  *
+ * A point is offered by a get_hook('<id>') site, by the bridge running it by
+ * name, or by the event the bridge's mapping table says covers it.
+ *
  * @copyright (C) 2008-2012 PunBB, partially based on code (C) 2008-2009 FluxBB.org
  * @license http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  * @package PunBB
  */
 
 use PHPUnit\Framework\TestCase;
+use PunBB\Module\LegacyBridge\Hook\HookMap;
 
 class HookPointInventoryTest extends TestCase {
 	private const INVENTORY = FORUM_ROOT.'.dev/tests/fixtures/hook_points.txt';
@@ -25,6 +29,11 @@ class HookPointInventoryTest extends TestCase {
 	private const NOT_SCANNED = array('vendor', 'cache', 'extensions', 'docs', 'img');
 
 	private const SITE_PATTERN = '/get_hook\(\'([A-Za-z0-9_]+)\'\)/';
+
+	/** Where the bridge runs a point by name, through a runner. */
+	private const BRIDGE = 'include/PunBB/Module/LegacyBridge/';
+
+	private const BRIDGE_SITE_PATTERN = '/->(?:run|render)\(\'([A-Za-z0-9_]+)\'/';
 
 	/** @var array<string, true>|null */
 	private static ?array $tree = null;
@@ -46,11 +55,19 @@ class HookPointInventoryTest extends TestCase {
 			}
 		));
 
-		self::$tree = array();
+		self::$tree = array_fill_keys(array_keys(HookMap::COVERED), true);
 		foreach ($files as $file)
 		{
-			preg_match_all(self::SITE_PATTERN, (string) file_get_contents($file->getPathname()), $matches);
+			$source = (string) file_get_contents($file->getPathname());
+
+			preg_match_all(self::SITE_PATTERN, $source, $matches);
 			self::$tree += array_fill_keys($matches[1], true);
+
+			if (str_starts_with(substr($file->getPathname(), strlen(FORUM_ROOT)), self::BRIDGE))
+			{
+				preg_match_all(self::BRIDGE_SITE_PATTERN, $source, $matches);
+				self::$tree += array_fill_keys($matches[1], true);
+			}
 		}
 
 		return self::$tree;
@@ -106,7 +123,9 @@ class HookPointInventoryTest extends TestCase {
 
 	/** The one point built at runtime, which the literal scan cannot see. */
 	public function testTheDynamicRepositoryPointIsStillOffered(): void {
-		$this->assertStringContainsString("get_hook('aex_add_repository_for_'.\$id)", (string) file_get_contents(FORUM_ROOT.'admin/extensions.php'));
+		$source = (string) file_get_contents(FORUM_ROOT.'include/PunBB/Module/LegacyBridge/Page/Extensions/LegacyUpdates.php');
+
+		$this->assertStringContainsString("\$point = 'aex_add_repository_for_'.\$id;\n\t\t\t\$this->scope->run(\$point,", $source);
 	}
 
 	/** The scan is worth nothing if it misses a site shape the tree uses. */
@@ -116,6 +135,8 @@ class HookPointInventoryTest extends TestCase {
 		$this->assertArrayHasKey('es_essentials', $tree);
 		$this->assertArrayHasKey('fn_get_remote_address_start', $tree);
 		$this->assertArrayHasKey('vt_row_new_post_entry_data', $tree);
+		$this->assertArrayHasKey('hd_template_loaded', $tree, 'a point the bridge runs by name');
+		$this->assertArrayHasKey('ft_about_end', $tree, 'a point an event covers');
 		$this->assertArrayNotHasKey('punbb_fixture_banner_pre_output', $tree, 'the scan must not reach the test fixtures');
 	}
 }

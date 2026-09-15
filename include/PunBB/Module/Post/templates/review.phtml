@@ -1,0 +1,23 @@
+<?php /* The newest posts of the topic replied to, below the form. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $heading ?></span></h2>
+	</div>
+	<div id="topic-review" class="main-content main-frm">
+<?php foreach ($posts as $post): ?>
+<?= $post['before'] ?>
+		<div class="post<?php if ($post['first']): ?> firstpost<?php endif ?><?php if ($post['last']): ?> lastpost<?php endif ?>">
+			<div class="posthead">
+				<h3 class="hn post-ident"><?= $post['ident'] ?></h3>
+<?= $post['head'] ?>
+			</div>
+			<div class="postbody">
+				<div class="post-entry">
+					<div class="entry-content">
+						<?= $post['message'], "\n" ?>
+<?= $post['entry'] ?>
+					</div>
+				</div>
+			</div>
+		</div>
+<?php endforeach ?>
+	</div>

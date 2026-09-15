@@ -33,6 +33,9 @@ function forum_microtime()
 	return microtime(true);
 }
 
+// The builders are what this harness exercises, deprecated as they are
+set_error_handler(static fn (int $errno, string $errstr): bool => str_contains($errstr, 'query_build() is deprecated'), E_USER_DEPRECATED);
+
 $db_host = getenv('PUNBB_TEST_MYSQL_HOST');
 if ($db_host === false || $db_host === '')
 	exit('NO_SERVER');

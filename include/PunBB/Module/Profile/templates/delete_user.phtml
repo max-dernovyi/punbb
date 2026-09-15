@@ -1,0 +1,34 @@
+<?php /* The form an administrator confirms deleting a member with. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-head">
+		<h2 class="hn"><span><?= $heading ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<div class="ct-box warn-box">
+			<ul class="info-list">
+				<li class="warn"><span><?= $profile['Delete warning'] ?></span></li>
+				<li class="warn"><span><?= $profile['Delete posts info'] ?></span></li>
+			</ul>
+		</div>
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<input type="hidden" name="csrf_token" value="<?= $token ?>" />
+			</div>
+<?= $positions['pre_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['group'] ?>">
+				<legend class="group-legend"><strong><?= $common['Required information'] ?></strong></legend>
+<?= $positions['pre_confirm_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['posts_item'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['posts'] ?>" name="delete_posts" value="1" checked="checked" /></span>
+						<label for="fld<?= $numbers['posts'] ?>"><span><?= $profile['Delete posts'] ?></span> <?= $label ?></label>
+					</div>
+				</div>
+<?= $positions['pre_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary caution"><input type="submit" name="delete_user_comply" value="<?= $profile['Delete user'] ?>" /></span>
+				<span class="cancel"><input type="submit" name="cancel" value="<?= $common['Cancel'] ?>" formnovalidate /></span>
+			</div>
+		</form>
+	</div>

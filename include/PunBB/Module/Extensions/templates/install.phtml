@@ -1,0 +1,43 @@
+<?php /* The form confirming an install, with the errors that stop it. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $heading ?> "<?= $title ?>"</span></h2>
+	</div>
+	<div class="main-content main-frm">
+<?php if ($errors !== null): ?>
+<?= $preErrors ?>
+		<div class="ct-box error-box">
+			<h2 class="warn hn"><?= $ext['Install ext errors'] ?></h2>
+			<ul class="error-list">
+				<?= $errors, "\n" ?>
+			</ul>
+		</div>
+<?php endif ?>
+	
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<input type="hidden" name="csrf_token" value="<?= $token ?>" />
+			</div>
+			<div class="ct-group data-group">
+				<div class="ct-set data-set set1">
+					<div class="ct-box data-box">
+						<h3 class="ct-legend hn"><span><?= $title ?></span></h3>
+						<p><?= $version ?></p>
+						<p><?= $author ?></p>
+						<p><?= $description ?></p>
+					</div>
+				</div>
+			</div>
+<?php if ($warnings !== null): ?>
+			<div class="ct-box warn-box">
+				<p class="important"><strong><?= $ext['Install note'] ?></strong></p>
+				<ol class="info-list">
+<?= $warnings, "\n" ?>
+				</ol>
+			</div>
+<?php endif ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="install_comply" value="<?= $submit ?>" /></span>
+				<span class="cancel"><input type="submit" name="install_cancel" value="<?= $admin['Cancel'] ?>" /></span>
+			</div>
+		</form>
+	</div>

@@ -33,13 +33,19 @@ class RequestKeyGuardTest extends TestCase {
 	/** How far back a guard for the same key may sit. */
 	private const GUARD_WINDOW = 10;
 
-	/** @return list<string> every PHP file the forum serves */
+	/** A request key, read from a superglobal or from the front controller's request. */
+	private const READ = '(\\$_(?:POST|GET|COOKIE|REQUEST)\\[[^\\]]+\\]|\\$request->(?:post|query|cookies)\\[[^\\]]+\\])';
+
+	/** @return list<string> every PHP file and template the forum serves */
 	private function sources(): array {
 		$files = array_merge(
 			(array)glob(FORUM_ROOT.'*.php'),
-			(array)glob(FORUM_ROOT.'admin/*.php'),
 			(array)glob(FORUM_ROOT.'include/*.php')
 		);
+
+		foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(FORUM_ROOT.'include/PunBB', FilesystemIterator::SKIP_DOTS)) as $file)
+			if (in_array($file->getExtension(), array('php', 'phtml'), true))
+				$files[] = $file->getPathname();
 
 		return array_values(array_filter($files, 'is_string'));
 	}
@@ -56,7 +62,7 @@ class RequestKeyGuardTest extends TestCase {
 	}
 
 	public function testNoEntryPointHandsAnUnguardedRequestKeyToAStringHelper(): void {
-		$pattern = '/\b(?:'.implode('|', self::CONSUMERS).')\s*\(\s*(\$_(?:POST|GET|COOKIE|REQUEST)\[[^\]]+\])/';
+		$pattern = '/\b(?:'.implode('|', self::CONSUMERS).')\s*\(\s*'.self::READ.'/';
 		$offenders = array();
 
 		foreach ($this->sources() as $file)
@@ -89,7 +95,7 @@ class RequestKeyGuardTest extends TestCase {
 	 * so these consumers need a type check, not just a presence check.
 	 */
 	public function testNoEntryPointHandsAnUntypedRequestKeyToAnInternalFunction(): void {
-		$pattern = '/\b(?:'.implode('|', self::INTERNAL_CONSUMERS).')\s*\(\s*(?:[^()]*,\s*)?(\$_(?:POST|GET|COOKIE|REQUEST)\[[^\]]+\])/';
+		$pattern = '/\b(?:'.implode('|', self::INTERNAL_CONSUMERS).')\s*\(\s*(?:[^()]*,\s*)?'.self::READ.'/';
 		$offenders = array();
 
 		foreach ($this->sources() as $file)
@@ -125,9 +131,10 @@ class RequestKeyGuardTest extends TestCase {
 
 	/** The scanner is worthless if its pattern cannot see an offender. */
 	public function testTheScannerRecognisesAnUnguardedRead(): void {
-		$pattern = '/\b(?:'.implode('|', self::CONSUMERS).')\s*\(\s*(\$_(?:POST|GET|COOKIE|REQUEST)\[[^\]]+\])/';
+		$pattern = '/\b(?:'.implode('|', self::CONSUMERS).')\s*\(\s*'.self::READ.'/';
 
 		$this->assertSame(1, preg_match($pattern, '	$name = forum_trim($_POST[\'req_username\']);'));
+		$this->assertSame(1, preg_match($pattern, '	$name = forum_trim($request->post[\'req_username\']);'));
 		$this->assertSame(0, preg_match($pattern, '	$name = forum_trim($username);'));
 	}
 
@@ -136,10 +143,10 @@ class RequestKeyGuardTest extends TestCase {
 	 * defaulted prune_from to 'all', so a truncated POST pruned every forum.
 	 */
 	public function testPruneRejectsAnAbsentTargetInsteadOfDefaultingToEveryForum(): void {
-		$source = (string)file_get_contents(FORUM_ROOT.'admin/prune.php');
+		$source = (string)file_get_contents(FORUM_ROOT.'include/PunBB/Module/Prune/Controller/PruneController.php');
 
-		$this->assertStringNotContainsString('$_POST[\'prune_from\'] ?? \'all\'', $source);
-		$this->assertStringContainsString('if (!isset($_POST[\'prune_from\'])', $source);
+		$this->assertStringNotContainsString('$request->post[\'prune_from\'] ?? \'all\'', $source);
+		$this->assertStringContainsString('if (!isset($request->post[\'prune_from\']) || !is_string($request->post[\'prune_from\']))', $source);
 	}
 
 	/**

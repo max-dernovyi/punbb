@@ -1,0 +1,39 @@
+<?php /* The hotfixes available for install and those installed. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $ext['Hotfixes available'] ?></span></h2>
+	</div>
+	<div class="main-content main-hotfixes">
+<?= $preAvailable ?>
+<?php if ($available !== null): ?>
+		<?= $available, "\n" ?>
+<?php else: ?>
+		<div class="ct-box info-box">
+			<p><?= $ext['No available hotfixes'] ?></p>
+		</div>
+<?php endif ?>
+	</div>
+<?= $preInstalled ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $ext['Installed hotfixes'] ?></span></h2>
+	</div>
+	<div class="main-content main-hotfixes">
+<?php foreach ($installed as $item): ?>
+<?= $item['before'] ?>
+		<div class="ct-box info-box hotfix <?= $item['status'] ?>">
+			<h3 class="ct-legend hn"><span><?= $item['title'] ?><?= $item['disabled'] ?></span></h3>
+			<ul class="data-list">
+				<li><span><?= $ext['Hotfix'] ?></span></li>
+				<li><span><?= $item['author'] ?></span></li>
+				<?php if ($item['hasDescription']): ?>
+					<li><span><?= $item['description'] ?></span></li>
+				<?php endif ?>
+			</ul>
+			<p class="options"><?= $item['actions'] ?></p>
+		</div>
+<?php endforeach ?>
+<?php if ($installed === array()): ?>
+		<div class="ct-box info-box">
+			<p><?= $ext['No installed hotfixes'] ?></p>
+		</div>
+<?php endif ?>
+	</div>

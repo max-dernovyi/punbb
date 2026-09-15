@@ -38,7 +38,7 @@ const INSTALL_MATRIX_EMAIL = 'matrix-admin@example.invalid';
 
 
 // The tables a fresh install creates, unprefixed. install_matrix_installer_tables()
-// reads the same list back out of the installer, so drift fails the unit suite.
+// reads the same list back out of the installer's schema, so drift fails the unit suite.
 function install_matrix_expected_tables()
 {
 	return array(
@@ -50,16 +50,13 @@ function install_matrix_expected_tables()
 }
 
 
-/** The tables admin/install.php actually creates, read out of its source. */
-function install_matrix_installer_tables($installer)
+/** The tables admin/install.php actually creates for $db_type, from the schema it installs. */
+function install_matrix_installer_tables($db_type)
 {
-	if (!preg_match_all('/create_table\(\s*\'([a-z_]+)\'/', (string) @file_get_contents($installer), $matches))
-		return array();
-
-	$tables = array_unique($matches[1]);
+	$tables = array_map(static fn ($table) => $table->name, PunBB\Module\Setup\Schema\BoardSchema::tables($db_type));
 	sort($tables);
 
-	return array_values($tables);
+	return $tables;
 }
 
 

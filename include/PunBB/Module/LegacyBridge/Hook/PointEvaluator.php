@@ -5,17 +5,23 @@ declare(strict_types=1);
 namespace PunBB\Module\LegacyBridge\Hook;
 
 use Closure;
+use PunBB\Module\Framework\Event\EventInterface;
 use ReflectionReference;
+use Throwable;
 
 /**
  * Runs the code stored at a legacy point as `$return = ($hook = get_hook('<id>')) ? eval($hook) : null;`
- * does at its site, for both runners. Not wired: outside the bridge a point is
- * reached through a runner, whose marker fires.
+ * does at its site, for both runners, and for the bridge's own observers and
+ * template protocol, which run points where the layout reaches them. Outside
+ * the bridge a point is reached through a runner, whose marker fires.
  *
  * The point exposes its variables by reference. The stored code sees each as a
  * local holding a plain PHP value, and whatever it changed is written back to
  * the caller, also when it returns or throws. A return ends the point: later
  * extensions there never run and the returning one's ext_info_stack pop is skipped.
+ *
+ * A point the map covers runs only where the event covering it is dispatched,
+ * from that event's observer.
  */
 final class PointEvaluator {
 	/** Names a hook cannot receive: evaluate()'s own locals and what PHP refuses to extract. */
@@ -29,13 +35,65 @@ final class PointEvaluator {
 
 	/**
 	 * @param array<mixed> $exposed variable name => reference to the caller's variable
+	 * @param ?EventInterface $event the event being observed, when the point runs where its covering event is dispatched
+	 * @param ?Closure(array<string, mixed>): void $created receives the variables the stored code created, by name
 	 * @return mixed what the stored code returned, null when it did not return
 	 */
-	public function run(string $point, array $exposed): mixed {
-		$covering = $this->map->coveredBy($point);
-		if ($covering !== null)
-			throw new HookException(sprintf('Legacy point %s is covered by %s, where its stored code runs', $point, $covering));
+	public function run(string $point, array $exposed, ?EventInterface $event = null, ?Closure $created = null): mixed {
+		$covering = $this->map->covering($point);
+		if ($covering !== array() && ($event === null || !in_array($event::class, $covering, true)))
+			throw new HookException(sprintf('Legacy point %s is covered by %s, where its stored code runs', $point, implode(' and ', $covering)));
 
+		if ($covering === array() && $event !== null)
+			throw new HookException(sprintf('Legacy point %s is not covered by %s, so its stored code does not run there', $point, $event::class));
+
+		return $this->evaluatePoint($point, $exposed, $created);
+	}
+
+	/**
+	 * Runs a point a plugin on a contract method covers, from that plugin.
+	 *
+	 * @param array<mixed> $exposed variable name => reference to the caller's variable
+	 * @param string $method the covering <Api contract>::<method>
+	 * @param ?Closure(array<string, mixed>): void $created receives the variables the stored code created, by name
+	 * @return mixed what the stored code returned, null when it did not return
+	 */
+	public function runPlugged(string $point, array $exposed, string $method, ?Closure $created = null): mixed {
+		$covering = $this->map->covering($point);
+		if (!in_array($method, $covering, true))
+			throw new HookException(sprintf('Legacy point %s is covered by %s, not by %s', $point, $covering !== array() ? implode(' and ', $covering) : 'nothing', $method));
+
+		return $this->evaluatePoint($point, $exposed, $created);
+	}
+
+	/**
+	 * Runs a markup point in an output buffer of its own and hands back what it
+	 * emitted; a return is discarded, a throw flushes the partial output.
+	 *
+	 * @param array<mixed> $exposed variable name => reference to the template's variable
+	 * @param ?EventInterface $event the event being observed, when the point runs where its covering event is dispatched
+	 * @param ?Closure(array<string, mixed>): void $created receives the variables the stored code created, by name
+	 */
+	public function render(string $point, array $exposed, ?EventInterface $event = null, ?Closure $created = null): string {
+		ob_start();
+
+		try {
+			$this->run($point, $exposed, $event, $created);
+		}
+		catch (Throwable $e) {
+			// What was emitted before the throw stays where the legacy site would have left it.
+			ob_end_flush();
+			throw $e;
+		}
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * @param array<mixed> $exposed
+	 * @param ?Closure(array<string, mixed>): void $created
+	 */
+	private function evaluatePoint(string $point, array $exposed, ?Closure $created): mixed {
 		$values = self::values($point, $exposed);
 
 		$code = ($this->storedCode)($point);
@@ -60,6 +118,9 @@ final class PointEvaluator {
 				else if ($after[$name] !== $value)
 					$exposed[$name] = $after[$name];
 			}
+
+			if ($created !== null)
+				$created(array_diff_key($after, $before, array_flip(self::RESERVED)));
 		}
 
 		return $returned;

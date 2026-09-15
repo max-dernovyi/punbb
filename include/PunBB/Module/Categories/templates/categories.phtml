@@ -1,0 +1,107 @@
+<?php /* The categories page: the form adding a category, and the forms deleting and editing the stored ones when there are any. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $acg['Add category head'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<?= $hidden, "\n" ?>
+			</div>
+<?= $positions['pre_add_cat_fieldset'] ?>
+			<div class="ct-box">
+				<p><?= $addInfo ?></p>
+			</div>
+			<fieldset class="frm-group group<?= $numbers['add_group'] ?>">
+				<legend class="group-legend"><span><?= $acg['Add category legend'] ?></span></legend>
+<?= $positions['pre_new_category_name'] ?>
+				<div class="sf-set set<?= $numbers['name_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['name_field'] ?>"><span><?= $acg['New category label'] ?></span></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['name_field'] ?>" name="new_cat_name" size="35" maxlength="80" required /></span>
+					</div>
+				</div>
+<?= $positions['pre_new_category_position'] ?>
+				<div class="sf-set set<?= $numbers['position_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['position_field'] ?>"><span><?= $acg['Position label'] ?></span></label><br />
+						<span class="fld-input"><input type="number" id="fld<?= $numbers['position_field'] ?>" name="position" size="3" maxlength="3" /></span>
+					</div>
+				</div>
+<?= $positions['pre_add_cat_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['add_cat_fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="add_cat" value="<?= $acg['Add category'] ?>" /></span>
+			</div>
+		</form>
+	</div>
+<?= $positions['post_add_cat_form'] ?>
+<?php if ($categories !== array()): ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $acg['Del category head'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<?= $hidden, "\n" ?>
+			</div>
+<?= $positions['pre_del_cat_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['delete_group'] ?>">
+				<legend class="group-legend"><strong><?= $acg['Delete category'] ?></strong></legend>
+<?= $positions['pre_del_category_select'] ?>
+				<div class="sf-set set<?= $numbers['select_item'] ?>">
+					<div class="sf-box select">
+						<label for="fld<?= $numbers['select_field'] ?>"><span><?= $acg['Select category label'] ?></span> <small><?= $common['Delete help'] ?></small></label><br />
+						<span class="fld-input"><select id="fld<?= $numbers['select_field'] ?>" name="cat_to_delete">
+<?php foreach ($categories as $category): ?>
+							<option value="<?= $category['id'] ?>"><?= $category['name'] ?></option>
+<?php endforeach ?>
+						</select></span>
+					</div>
+				</div>
+<?= $positions['pre_del_cat_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['del_cat_fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="del_cat" value="<?= $acg['Delete category'] ?>" /></span>
+			</div>
+		</form>
+	</div>
+<?= $positions['post_del_cat_form'] ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $acg['Edit categories head'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<?= $hidden, "\n" ?>
+			</div>
+<?= $positions['edit_cat_fieldsets_start'] ?>
+<?php foreach ($categories as $category): ?>
+<?= $category['preFieldset'] ?>
+			<fieldset class="frm-group group<?= $category['group'] ?>">
+				<legend class="group-legend"><span><?= $acg['Edit category legend'] ?></span></legend>
+				<div class="sf-set set<?= $category['item'] ?>">
+<?= $category['preName'] ?>
+					<div class="sf-box text">
+						<label for="fld<?= $category['nameField'] ?>"><span><?= $acg['Category name label'] ?></span></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $category['nameField'] ?>" name="cat_name[<?= $category['id'] ?>]" value="<?= $category['name'] ?>" size="35" maxlength="80" required /></span>
+					</div>
+<?= $category['prePosition'] ?>
+					<div class="sf-box text">
+						<label for="fld<?= $category['positionField'] ?>"><span><?= $acg['Position label'] ?></span></label><br />
+						<span class="fld-input"><input type="number" id="fld<?= $category['positionField'] ?>" name="cat_order[<?= $category['id'] ?>]" value="<?= $category['position'] ?>" size="3" maxlength="3" /></span>
+					</div>
+				</div>
+<?= $category['preFieldsetEnd'] ?>
+			</fieldset>
+<?= $category['fieldsetEnd'] ?>
+<?php endforeach ?>
+<?= $positions['edit_cat_fieldsets_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="update" value="<?= $acg['Update all categories'] ?>" /></span>
+			</div>
+		</form>
+	</div>
+<?= $positions['post_edit_cat_form'] ?>
+<?php endif ?>

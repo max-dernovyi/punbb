@@ -72,7 +72,7 @@ function smoke_request($url, $jar, $post = null, $resolve = array(), $headers = 
 		curl_setopt_array($ch, array(CURLOPT_POST => true, CURLOPT_POSTFIELDS => $post));
 
 	// Response headers are captured because not every redirect in the forum
-	// renders a page: search_functions.php sends a bare Location and no body.
+	// renders a page: a search answers with a bare Location and no body.
 	$response_headers = array();
 	curl_setopt($ch, CURLOPT_HEADERFUNCTION, static function ($handle, $line) use (&$response_headers): int {
 		if (strpos($line, ':') !== false)

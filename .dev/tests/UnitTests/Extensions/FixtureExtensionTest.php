@@ -16,6 +16,7 @@
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use PunBB\Module\LegacyBridge\Hook\HookMap;
 
 class FixtureExtensionTest extends TestCase {
 	private const FIXTURES = FORUM_ROOT.'.dev/tests/fixtures/extensions/';
@@ -100,10 +101,10 @@ class FixtureExtensionTest extends TestCase {
 		$this->addToAssertionCount(1);
 	}
 
-	/** A misspelt point is accepted at install and then never fires. */
+	/** A misspelt point is accepted at install and then never fires. A point an event or a plugin covers is offered where it is dispatched. */
 	public function testEveryPointTheFixturesAttachToIsOffered(): void {
-		$offered = array();
-		$files = array_merge((array) glob(FORUM_ROOT.'*.php'), (array) glob(FORUM_ROOT.'admin/*.php'), (array) glob(FORUM_ROOT.'include/*.php'), array(self::FIXTURES.'punbb_fixture/functions.php'));
+		$offered = array_keys(HookMap::COVERED);
+		$files = array_merge((array) glob(FORUM_ROOT.'*.php'), (array) glob(FORUM_ROOT.'include/*.php'), array(self::FIXTURES.'punbb_fixture/functions.php'));
 
 		foreach ($files as $file)
 		{

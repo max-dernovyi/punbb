@@ -9,6 +9,10 @@
          failOnDeprecation="true"
          failOnNotice="true">
 
+    <php>
+        <ini name="memory_limit" value="512M"/>
+    </php>
+
     <testsuites>
         <testsuite name="UnitTests">
             <directory>.dev/tests/UnitTests</directory>

@@ -22,6 +22,9 @@ class ComposerManifestTest extends TestCase {
 
 	private const FIXTURE_ROOT = '.dev/tests/fixtures/modules/';
 
+	/** A template of a module, relative to either tree: lower case, so no namespace directory can share its name. */
+	private const TEMPLATE = '#^(?:Module/)?[A-Z][A-Za-z0-9]*/templates/(?:[a-z0-9_-]+/)*[a-z0-9_-]+\.phtml$#';
+
 	// "8.4" and "8.4.0" describe the same release; compare them padded.
 	private function normalise(string $version): string {
 		return implode('.', array_pad(explode('.', $version), 3, '0'));
@@ -206,6 +209,10 @@ class ComposerManifestTest extends TestCase {
 		$problems = array();
 		foreach ($files as $file)
 		{
+			// A module's templates live beside its classes, in its templates/ directory
+			if (preg_match(self::TEMPLATE, $file) === 1)
+				continue;
+
 			if (!str_ends_with($file, '.php'))
 			{
 				$problems[] = $file.': not a PHP class file';

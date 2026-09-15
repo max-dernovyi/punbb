@@ -1,0 +1,63 @@
+<?php /* The form choosing what to prune: the forum, the age of the topics and whether sticky ones go too. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $apr['Prune settings head'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<div class="ct-box">
+			<p><?= $apr['Prune intro'] ?></p>
+			<p class="important"><?= $apr['Prune caution'] ?></p>
+		</div>
+		<div id="req-msg" class="req-warn ct-box error-box">
+			<p class="important"><?= $required ?></p>
+		</div>
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>?action=foo">
+			<div class="hidden">
+				<input type="hidden" name="csrf_token" value="<?= $token ?>" />
+				<input type="hidden" name="form_sent" value="1" />
+			</div>
+<?= $positions['pre_prune_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['group'] ?>">
+				<legend class="group-legend"><span><?= $apr['Prune legend'] ?></span></legend>
+<?= $positions['pre_prune_from'] ?>
+				<div class="sf-set set<?= $numbers['from_item'] ?>">
+					<div class="sf-box select">
+					<label for="fld<?= $numbers['from_field'] ?>"><span class="fld-label"><?= $apr['Prune from'] ?></span></label><br />
+						<span class="fld-input"><select id="fld<?= $numbers['from_field'] ?>" name="prune_from">
+							<option value="all"><?= $apr['All forums'] ?></option>
+<?php foreach ($forums as $forum): ?>
+<?= $forum['start'] ?>
+<?php if ($forum['closes']): ?>
+								</optgroup>
+<?php endif ?>
+<?php if ($forum['opens'] !== null): ?>
+								<optgroup label="<?= $forum['opens'] ?>">
+<?php endif ?>
+									<option value="<?= $forum['id'] ?>"><?= $forum['name'] ?></option>
+<?= $forum['end'] ?>
+<?php endforeach ?>
+						</optgroup>
+						</select></span>
+					</div>
+				</div>
+<?= $positions['pre_prune_days'] ?>
+				<div class="sf-set set<?= $numbers['days_item'] ?>">
+					<div class="sf-box text required">
+						<label for="fld<?= $numbers['days_field'] ?>"><span><?= $apr['Days old'] ?></span></label><br />
+						<span class="fld-input"><input type="number" id="fld<?= $numbers['days_field'] ?>" name="req_prune_days" size="4" maxlength="4" required /></span>
+					</div>
+				</div>
+<?= $positions['pre_prune_sticky'] ?>
+				<div class="sf-set set<?= $numbers['sticky_item'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['sticky_field'] ?>" name="prune_sticky" value="1" checked="checked" /></span>
+						<label for="fld<?= $numbers['sticky_field'] ?>"><?= $apr['Prune sticky enable'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_prune_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['prune_fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="prune" value="<?= $apr['Prune topics'] ?>" /></span>
+			</div>
+		</form>
+	</div>

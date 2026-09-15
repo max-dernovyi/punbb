@@ -1,0 +1,62 @@
+<?php /* The introduction of a member's profile, shown to a visitor who may edit it. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $heading ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<p class="content-options options"><?= $options ?></p>
+<?= $positions['pre_user_info'] ?>
+		<div class="profile ct-group data-group vcard">
+<?= $positions['pre_user_ident_info'] ?>
+			<div class="ct-set data-set set<?= $numbers['ident'] ?>">
+				<div class="ct-box data-box">
+					<ul class="user-ident ct-legend">
+						<?= $ident ?>
+					</ul>
+					<ul class="data-list">
+						<?= $info, "\n" ?>
+					</ul>
+				</div>
+			</div>
+<?= $positions['pre_user_contact_info'] ?>
+<?php if ($contact !== null): ?>
+			<div class="ct-set data-set set<?= $numbers['contact'] ?>">
+				<div class="ct-box data-box">
+					<h4 class="ct-legend hn"><span><?= $profile['Contact info'] ?></span></h4>
+					<ul class="data-box">
+						<?= $contact, "\n" ?>
+					</ul>
+				</div>
+			</div>
+<?= $positions['pre_user_activity_info'] ?>
+<?php endif; if ($activity !== null): ?>
+			<div class="ct-set data-set set<?= $numbers['activity'] ?>">
+				<div class="ct-box data-box">
+					<h4 class="ct-legend hn"><span><?= $profile['Posts and topics'] ?></span></h4>
+					<ul class="data-box">
+						<?= $activity ?>
+					</ul>
+				</div>
+			</div>
+<?= $positions['pre_user_sig_info'] ?>
+<?php endif; if ($signature !== null): ?>
+			<div class="ct-set data-set set<?= $numbers['signature'] ?>">
+				<div class="ct-box data-box">
+					<h4 class="ct-legend hn"><span><?= $profile['Current signature'] ?></span></h4>
+					<div class="sig-demo"><?= $signature ?></div>
+				</div>
+			</div>
+<?php endif ?>
+<?= $positions['pre_user_private_info'] ?>
+<?php if ($private !== null): ?>
+			<div id="private-profile" class="ct-set data-set set<?= $numbers['private'] ?>">
+				<div class="ct-box data-box">
+					<h3 class="ct-legend hn"><span><?= $profile['Private info'] ?></span></h3>
+					<ul class="data-list">
+						<?= $private, "\n" ?>
+					</ul>
+				</div>
+			</div>
+<?php endif ?>
+		</div>
+<?= $positions['user_info_end'] ?>
+	</div>

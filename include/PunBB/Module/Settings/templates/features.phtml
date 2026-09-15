@@ -1,0 +1,362 @@
+<?php /* The features section: what the board offers, how posts and signatures are written, avatars, update checks, masked passwords and compressed pages. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-content main-frm">
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<input type="hidden" name="csrf_token" value="<?= $token ?>" />
+				<input type="hidden" name="form_sent" value="1" />
+			</div>
+			<div class="content-head">
+				<h2 class="hn"><span><?= $aop['Features general'] ?></span></h2>
+			</div>
+<?= $positions['pre_general_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['g1'] ?>">
+				<legend class="group-legend"><strong><?= $aop['Features general legend'] ?></strong></legend>
+<?= $positions['pre_search_all_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['i1'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['search_all_forums'] ?>" name="form[search_all_forums]" value="1"<?php if ($config['o_search_all_forums'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['search_all_forums'] ?>"><span><?= $aop['Searching'] ?></span> <?= $aop['Search all label'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_ranks_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['i2'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['ranks'] ?>" name="form[ranks]" value="1"<?php if ($config['o_ranks'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['ranks'] ?>"><span><?= $aop['User ranks'] ?></span> <?= $aop['User ranks label'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_censoring_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['i3'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['censoring'] ?>" name="form[censoring]" value="1"<?php if ($config['o_censoring'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['censoring'] ?>"><span><?= $aop['Censor words'] ?></span> <?= $aop['Censor words label'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_quickjump_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['i4'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['quickjump'] ?>" name="form[quickjump]" value="1"<?php if ($config['o_quickjump'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['quickjump'] ?>"><span><?= $aop['Quick jump'] ?></span> <?= $aop['Quick jump label'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_show_version_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['i5'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['show_version'] ?>" name="form[show_version]" value="1"<?php if ($config['o_show_version'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['show_version'] ?>"><span><?= $aop['Show version'] ?></span> <?= $aop['Show version label'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_show_moderators_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['i6'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['show_moderators'] ?>" name="form[show_moderators]" value="1"<?php if ($config['o_show_moderators'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['show_moderators'] ?>"><span><?= $aop['Show moderators'] ?></span> <?= $aop['Show moderators label'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_users_online_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['i7'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['users_online'] ?>" name="form[users_online]" value="1"<?php if ($config['o_users_online'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['users_online'] ?>"><span><?= $aop['Online list'] ?></span> <?= $aop['Users online label'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_general_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['general_fieldset_end'] ?>
+			<div class="content-head">
+				<h2 class="hn"><span><?= $aop['Features posting'] ?></span></h2>
+			</div>
+<?= $positions['pre_posting_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['g2'] ?>">
+				<legend class="group-legend"><span><?= $aop['Features posting legend'] ?></span></legend>
+<?= $positions['pre_quickpost_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['i8'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['quickpost'] ?>" name="form[quickpost]" value="1"<?php if ($config['o_quickpost'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['quickpost'] ?>"><span><?= $aop['Quick post'] ?></span> <?= $aop['Quick post label'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_subscriptions_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['i9'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['subscriptions'] ?>" name="form[subscriptions]" value="1"<?php if ($config['o_subscriptions'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['subscriptions'] ?>"><span><?= $aop['Subscriptions'] ?></span> <?= $aop['Subscriptions label'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_force_guest_email_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['i10'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['force_guest_email'] ?>" name="form[force_guest_email]" value="1"<?php if ($config['p_force_guest_email'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['force_guest_email'] ?>"><span><?= $aop['Guest posting'] ?></span> <?= $aop['Guest posting label'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_show_dot_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['i11'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['show_dot'] ?>" name="form[show_dot]" value="1"<?php if ($config['o_show_dot'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['show_dot'] ?>"><span><?= $aop['User has posted'] ?></span> <?= $aop['User has posted label'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_topic_views_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['i12'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['topic_views'] ?>" name="form[topic_views]" value="1"<?php if ($config['o_topic_views'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['topic_views'] ?>"><span><?= $aop['Topic views'] ?></span> <?= $aop['Topic views label'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_show_post_count_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['i13'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['show_post_count'] ?>" name="form[show_post_count]" value="1"<?php if ($config['o_show_post_count'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['show_post_count'] ?>"><span><?= $aop['User post count'] ?></span> <?= $aop['User post count label'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_show_user_info_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['i14'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['show_user_info'] ?>" name="form[show_user_info]" value="1"<?php if ($config['o_show_user_info'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['show_user_info'] ?>"><span><?= $aop['User info'] ?></span> <?= $aop['User info label'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_posting_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['posting_fieldset_end'] ?>
+			<div class="content-head">
+				<h2 class="hn"><span><?= $aop['Features posts'] ?></span></h2>
+			</div>
+<?= $positions['pre_message_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['g3'] ?>">
+				<legend class="group-legend"><span><?= $aop['Features posts legend'] ?></span></legend>
+<?= $positions['pre_message_content_fieldset'] ?>
+				<fieldset class="mf-set set<?= $numbers['i15'] ?>">
+					<legend><span><?= $aop['Post content group'] ?></span></legend>
+					<div class="mf-box">
+						<div class="mf-item">
+							<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['message_bbcode'] ?>" name="form[message_bbcode]" value="1"<?php if ($config['p_message_bbcode'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+							<label for="fld<?= $numbers['message_bbcode'] ?>"><?= $aop['Allow BBCode label'] ?></label>
+						</div>
+						<div class="mf-item">
+							<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['message_img_tag'] ?>" name="form[message_img_tag]" value="1"<?php if ($config['p_message_img_tag'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+							<label for="fld<?= $numbers['message_img_tag'] ?>"><?= $aop['Allow img label'] ?></label>
+						</div>
+						<div class="mf-item">
+							<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['smilies'] ?>" name="form[smilies]" value="1"<?php if ($config['o_smilies'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+							<label for="fld<?= $numbers['smilies'] ?>"><?= $aop['Smilies in posts label'] ?></label>
+						</div>
+						<div class="mf-item">
+							<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['make_links'] ?>" name="form[make_links]" value="1"<?php if ($config['o_make_links'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+							<label for="fld<?= $numbers['make_links'] ?>"><?= $aop['Make clickable links label'] ?></label>
+						</div>
+<?= $positions['new_message_content_option'] ?>
+					</div>
+<?= $positions['pre_message_content_fieldset_end'] ?>
+				</fieldset>
+<?= $positions['message_content_fieldset_end'] ?>
+				<fieldset class="mf-set set<?= $numbers['i16'] ?>">
+					<legend><span><?= $aop['Allow capitals group'] ?></span></legend>
+					<div class="mf-box">
+						<div class="mf-item">
+							<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['message_all_caps'] ?>" name="form[message_all_caps]" value="1"<?php if ($config['p_message_all_caps'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+							<label for="fld<?= $numbers['message_all_caps'] ?>"><?= $aop['All caps message label'] ?></label>
+						</div>
+						<div class="mf-item">
+							<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['subject_all_caps'] ?>" name="form[subject_all_caps]" value="1"<?php if ($config['p_subject_all_caps'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+							<label for="fld<?= $numbers['subject_all_caps'] ?>"><?= $aop['All caps subject label'] ?></label>
+						</div>
+<?= $positions['new_message_caps_option'] ?>
+					</div>
+<?= $positions['pre_message_caps_fieldset_end'] ?>
+				</fieldset>
+<?= $positions['message_caps_fieldset_end'] ?>
+				<div class="sf-set set<?= $numbers['i17'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['indent_num_spaces'] ?>"><span><?= $aop['Indent size label'] ?></span><small><?= $aop['Indent size help'] ?></small></label><br />
+						<span class="fld-input"><input type="number" id="fld<?= $numbers['indent_num_spaces'] ?>" name="form[indent_num_spaces]" size="5" maxlength="3" value="<?= $config['o_indent_num_spaces'] ?>" /></span>
+					</div>
+				</div>
+<?= $positions['pre_quote_depth'] ?>
+				<div class="sf-set set<?= $numbers['i18'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['quote_depth'] ?>"><span><?= $aop['Quote depth label'] ?></span><small><?= $aop['Quote depth help'] ?></small></label><br />
+						<span class="fld-input"><input type="number" id="fld<?= $numbers['quote_depth'] ?>" name="form[quote_depth]" size="5" maxlength="3" value="<?= $config['o_quote_depth'] ?>" /></span>
+					</div>
+				</div>
+<?= $positions['pre_message_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['message_fieldset_end'] ?>
+			<div class="content-head">
+				<h2 class="hn"><span><?= $aop['Features sigs'] ?></span></h2>
+			</div>
+<?= $positions['pre_sig_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['g4'] ?>">
+				<legend class="group-legend"><span><?= $aop['Features sigs legend'] ?></span></legend>
+<?= $positions['pre_signature_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['i19'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['signatures'] ?>" name="form[signatures]" value="1"<?php if ($config['o_signatures'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['signatures'] ?>"><span><?= $aop['Allow signatures'] ?></span> <?= $aop['Allow signatures label'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_sig_content_fieldset'] ?>
+				<fieldset class="mf-set set<?= $numbers['i20'] ?>">
+					<legend><span><?= $aop['Signature content group'] ?></span></legend>
+					<div class="mf-box">
+						<div class="mf-item">
+							<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['sig_bbcode'] ?>" name="form[sig_bbcode]" value="1"<?php if ($config['p_sig_bbcode'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+							<label for="fld<?= $numbers['sig_bbcode'] ?>"><?= $aop['BBCode in sigs label'] ?></label>
+						</div>
+						<div class="mf-item">
+							<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['sig_img_tag'] ?>" name="form[sig_img_tag]" value="1"<?php if ($config['p_sig_img_tag'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+							<label for="fld<?= $numbers['sig_img_tag'] ?>"><?= $aop['Img in sigs label'] ?></label>
+						</div>
+						<div class="mf-item">
+							<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['smilies_sig'] ?>" name="form[smilies_sig]" value="1"<?php if ($config['o_smilies_sig'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+							<label for="fld<?= $numbers['smilies_sig'] ?>"><?= $aop['Smilies in sigs label'] ?></label>
+						</div>
+<?= $positions['new_sig_content_option'] ?>
+					</div>
+<?= $positions['pre_sig_content_fieldset_end'] ?>
+				</fieldset>
+<?= $positions['sig_content_fieldset_end'] ?>
+				<div class="sf-set set<?= $numbers['i21'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['sig_all_caps'] ?>" name="form[sig_all_caps]" value="1"<?php if ($config['p_sig_all_caps'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['sig_all_caps'] ?>"><span><?= $aop['Allow capitals group'] ?></span> <?= $aop['All caps sigs label'] ?></label>
+					</div>
+				</div>
+				<div class="sf-set set<?= $numbers['i22'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['sig_length'] ?>"><span><?= $aop['Max sig length label'] ?></span></label><br />
+						<span class="fld-input"><input type="number" id="fld<?= $numbers['sig_length'] ?>" name="form[sig_length]" size="5" maxlength="5" value="<?= $config['p_sig_length'] ?>" /></span>
+					</div>
+				</div>
+<?= $positions['pre_max_sig_lines'] ?>
+				<div class="sf-set set<?= $numbers['i23'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['sig_lines'] ?>"><span><?= $aop['Max sig lines label'] ?></span></label><br />
+						<span class="fld-input"><input type="number" id="fld<?= $numbers['sig_lines'] ?>" name="form[sig_lines]" size="5" maxlength="3" value="<?= $config['p_sig_lines'] ?>" /></span>
+					</div>
+				</div>
+<?= $positions['pre_sig_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['sig_fieldset_end'] ?>
+			<div class="content-head">
+				<h2 class="hn"><span><?= $aop['Features Avatars'] ?></span></h2>
+			</div>
+<?= $positions['pre_avatars_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['g5'] ?>">
+				<legend class="group-legend"><span><?= $aop['Features Avatars legend'] ?></span></legend>
+<?= $positions['pre_avatar_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['i24'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['avatars'] ?>" name="form[avatars]" value="1"<?php if ($config['o_avatars'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['avatars'] ?>"><span><?= $aop['Allow avatars'] ?></span> <?= $aop['Allow avatars label'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_avatar_directory'] ?>
+				<div class="sf-set set<?= $numbers['i25'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['avatars_dir'] ?>"><span><?= $aop['Avatar directory label'] ?></span><small><?= $aop['Avatar directory help'] ?></small></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['avatars_dir'] ?>" name="form[avatars_dir]" size="35" maxlength="50" value="<?= $config['o_avatars_dir'] ?>" /></span>
+					</div>
+				</div>
+<?= $positions['pre_avatar_max_width'] ?>
+				<div class="sf-set set<?= $numbers['i26'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['avatars_width'] ?>"><span><?= $aop['Avatar Max width label'] ?></span><small><?= $aop['Avatar Max width help'] ?></small></label><br />
+						<span class="fld-input"><input type="number" id="fld<?= $numbers['avatars_width'] ?>" name="form[avatars_width]" size="6" maxlength="5" value="<?= $config['o_avatars_width'] ?>" /></span>
+					</div>
+				</div>
+<?= $positions['pre_avatar_max_height'] ?>
+				<div class="sf-set set<?= $numbers['i27'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['avatars_height'] ?>"><span><?= $aop['Avatar Max height label'] ?></span><small><?= $aop['Avatar Max height help'] ?></small></label><br />
+						<span class="fld-input"><input type="number" id="fld<?= $numbers['avatars_height'] ?>" name="form[avatars_height]" size="6" maxlength="5" value="<?= $config['o_avatars_height'] ?>" /></span>
+					</div>
+				</div>
+<?= $positions['pre_avatar_max_size'] ?>
+				<div class="sf-set set<?= $numbers['i28'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['avatars_size'] ?>"><span><?= $aop['Avatar Max size label'] ?></span><small><?= $aop['Avatar Max size help'] ?></small></label><br />
+						<span class="fld-input"><input type="number" id="fld<?= $numbers['avatars_size'] ?>" name="form[avatars_size]" size="6" maxlength="6" value="<?= $config['o_avatars_size'] ?>" /></span>
+					</div>
+				</div>
+<?= $positions['pre_avatars_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['avatars_fieldset_end'] ?>
+			<div class="content-head">
+				<h2 class="hn"><span><?= $aop['Features update'] ?></span></h2>
+			</div>
+<?php if ($checksUpdates): ?>
+			<div class="ct-box">
+				<p><?= $aop['Features update info'] ?></p>
+			</div>
+<?= $positions['pre_updates_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['g6'] ?>">
+				<legend class="group-legend"><strong><?= $aop['Features update legend'] ?></strong></legend>
+<?= $positions['pre_updates_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['i29'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['check_for_updates'] ?>" name="form[check_for_updates]" value="1"<?php if ($config['o_check_for_updates'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['check_for_updates'] ?>"><span><?= $aop['Update check'] ?></span> <?= $aop['Update check label'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_version_updates_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['i30'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['check_for_versions'] ?>" name="form[check_for_versions]" value="1"<?php if ($config['o_check_for_versions'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['check_for_versions'] ?>"><span><?= $aop['Check for versions'] ?></span> <?= $aop['Auto check for versions'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_updates_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['updates_fieldset_end'] ?>
+<?php else: ?>
+			<div class="ct-box">
+				<p><?= $aop['Features update disabled info'] ?></p>
+			</div>
+<?= $positions['post_updates_disabled_box'] ?>
+<?php endif ?>
+			<div class="content-head">
+				<h2 class="hn"><span><?= $aop['Features mask passwords'] ?></span></h2>
+			</div>
+			<div class="ct-box">
+				<p><?= $aop['Features mask passwords info'] ?></p>
+			</div>
+<?= $positions['pre_mask_passwords_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['g7'] ?>">
+				<legend class="group-legend"><strong><?= $aop['Features mask passwords legend'] ?></strong></legend>
+<?= $positions['pre_mask_passwords_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['i31'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['mask_passwords'] ?>" name="form[mask_passwords]" value="1"<?php if ($config['o_mask_passwords'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['mask_passwords'] ?>"><span><?= $aop['Enable mask passwords'] ?></span> <?= $aop['Enable mask passwords label'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_mask_passwords_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['mask_passwords_fieldset_end'] ?>
+			<div class="content-head">
+				<h2 class="hn"><span><?= $aop['Features gzip'] ?></span></h2>
+			</div>
+			<div class="ct-box">
+				<p><?= $aop['Features gzip info'] ?></p>
+			</div>
+<?= $positions['pre_gzip_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['g8'] ?>">
+				<legend class="group-legend"><strong><?= $aop['Features gzip legend'] ?></strong></legend>
+<?= $positions['pre_gzip_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['i32'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['gzip'] ?>" name="form[gzip]" value="1"<?php if ($config['o_gzip'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['gzip'] ?>"><span><?= $aop['Enable gzip'] ?></span> <?= $aop['Enable gzip label'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_gzip_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['gzip_fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="save" value="<?= $common['Save changes'] ?>" /></span>
+			</div>
+		</form>
+	</div>

@@ -1,6 +1,6 @@
 <?php
 /**
- * The sqlite3 driver on PHP 8.4: close() is called explicitly by footer.php
+ * The sqlite3 driver on PHP 8.4: close() is called explicitly by forum_end_page()
  * and again by __destruct(), and SQLite3 throws on an already-closed object.
  *
  * @copyright (C) 2008-2012 PunBB, partially based on code (C) 2008-2009 FluxBB.org

@@ -16,6 +16,7 @@
  */
 
 use PHPUnit\Framework\TestCase;
+use PunBB\Module\Framework\Modules\ModuleRegistry;
 
 class ExtensionCorpusTest extends TestCase {
 	private const FIXTURES = FORUM_ROOT.'.dev/tests/fixtures/extensions';
@@ -304,7 +305,7 @@ class ExtensionCorpusTest extends TestCase {
 	}
 
 	public function testItSwitchesOnTheLinesTheInstallerWrites(): void {
-		$installer = (string) file_get_contents(FORUM_ROOT.'admin/install.php');
+		$installer = PunBB\Module\Setup\Config\ConfigFile::installed(new PunBB\Module\Setup\Config\BoardConfiguration(new PunBB\Module\Setup\Database\DatabaseSettings('mysqli', '', '', '', '', ''), '', 'forum_cookie'));
 		$body = "<?php\n\$db_type = 'mysqli';\n";
 
 		foreach (array('FORUM_DISABLE_EXTENSIONS_VERSION_CHECK', 'FORUM_DEBUG') as $constant)
@@ -354,11 +355,13 @@ class ExtensionCorpusTest extends TestCase {
 		$this->assertSame('\'it\'\'s a \\ path\'', extension_corpus_sql_string(array('backend' => 'sqlite3'), 'it\'s a \\ path'));
 	}
 
-	public function testEveryStopOfTheWalkIsAnEntryPoint(): void {
+	public function testEveryStopOfTheWalkIsARoutedPage(): void {
+		$router = ModuleRegistry::discover(FORUM_ROOT.'include/PunBB/Module', 'PunBB\\Module\\')->router();
+
 		foreach (extension_corpus_walk() as $entry)
 		{
 			$this->assertContains($entry[0], array('admin', 'guest'));
-			$this->assertFileExists(FORUM_ROOT.strtok($entry[1], '?'));
+			$this->assertNotNull($router->match((string) strtok($entry[1], '?')), $entry[1].' is not routed');
 
 			if (isset($entry[2]))
 				$this->assertIsArray($entry[3]);

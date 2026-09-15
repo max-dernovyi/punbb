@@ -1,0 +1,126 @@
+<?php /* The form adding or editing a group: its titles, and for every group but the administrators its permissions and flood intervals. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $agr['Group settings heading'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<div id="req-msg" class="req-warn ct-box error-box">
+			<p class="important"><?= $common['Required warn'] ?></p>
+		</div>
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<input type="hidden" name="csrf_token" value="<?= $token ?>" />
+				<input type="hidden" name="mode" value="<?= $adding ? 'add' : 'edit' ?>" />
+<?php if ($adding): ?>
+				<input type="hidden" name="base_group" value="<?= $id ?>" />
+<?php else: ?>
+				<input type="hidden" name="group_id" value="<?= $id ?>" />
+<?php endif ?>
+			</div>
+			<div class="content-head">
+				<h3 class="hn"><span><?= $agr['Group title head'] ?></span></h3>
+			</div>
+<?= $positions['pre_basic_details_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['titles_group'] ?>">
+				<legend class="group-legend"><span><?= $agr['Group title legend'] ?></span></legend>
+<?= $positions['pre_group_title'] ?>
+				<div class="sf-set set<?= $numbers['title_item'] ?>">
+					<div class="sf-box text required">
+						<label for="fld<?= $numbers['title_field'] ?>"><span><?= $agr['Group title label'] ?></span></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['title_field'] ?>" name="req_title" size="25" maxlength="50" value="<?= $title ?>" required /></span>
+					</div>
+				</div>
+<?= $positions['pre_user_title'] ?>
+				<div class="sf-set set<?= $numbers['user_title_item'] ?>">
+					<div class="sf-box text required">
+						<label for="fld<?= $numbers['user_title_field'] ?>"><span><?= $agr['User title label'] ?></span> <small><?= $agr['User title help'] ?></small></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['user_title_field'] ?>" name="user_title" size="25" maxlength="50" value="<?= $userTitle ?>" /></span>
+					</div>
+				</div>
+<?= $positions['pre_basic_details_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['basic_details_fieldset_end'] ?>
+<?php if (!$administrators): ?>
+			<div class="content-head">
+				<h3 class="hn"><span><?= $agr['Group perms head'] ?></span></h3>
+			</div>
+<?php if ($defaultGroup): ?>
+				<div class="ct-box">
+					<p class="warn"><?= $agr['Moderator default group'] ?></p>
+				</div>
+<?php endif ?>
+<?= $positions['pre_permissions_fieldset'] ?>
+				<fieldset class="frm-group group<?= $numbers['permissions_group'] ?>">
+					<legend class="group-legend"><strong><?= $agr['Permissions'] ?></strong></legend>
+<?= $positions['pre_mod_permissions_fieldset'] ?>
+<?php if ($moderation): ?>
+					<fieldset class="mf-set set<?= $numbers['moderation_item'] ?>">
+						<legend><span><?= $agr['Mod permissions'] ?></span></legend>
+						<div class="mf-box">
+<?php foreach ($moderatorPermissions as $permission): ?>
+<?= $permission['pre'] ?>
+							<div class="mf-item">
+								<span class="fld-input"><input type="checkbox" id="fld<?= $permission['field'] ?>" name="<?= $permission['name'] ?>" value="1"<?php if ($permission['checked']): ?> checked="checked"<?php endif ?> /></span>
+								<label for="fld<?= $permission['field'] ?>"><?= $permission['label'] ?></label>
+							</div>
+<?php endforeach ?>
+<?= $positions['pre_mod_permissions_fieldset_end'] ?>
+						</div>
+					</fieldset>
+<?= $positions['mod_permissions_fieldset_end'] ?>
+<?php endif ?>
+					<fieldset class="mf-set set<?= $numbers['user_item'] ?>">
+						<legend><span><?= $agr['User permissions'] ?></span></legend>
+						<div class="mf-box">
+<?php foreach ($userPermissions as $permission): ?>
+<?= $permission['pre'] ?>
+<?php if ($permission['field'] !== null): ?>
+							<div class="mf-item">
+								<span class="fld-input"><input type="checkbox" id="fld<?= $permission['field'] ?>" name="<?= $permission['name'] ?>" value="1"<?php if ($permission['checked']): ?> checked="checked"<?php endif ?> /></span>
+								<label for="fld<?= $permission['field'] ?>"><?= $permission['label'] ?></label>
+							</div>
+<?php endif ?>
+<?php endforeach ?>
+<?= $positions['pre_user_permissions_fieldset_end'] ?>
+						</div>
+					</fieldset>
+<?= $positions['user_permissions_fieldset_end'] ?>
+				</fieldset>
+			<div class="content-head">
+				<h3 class="hn"><span><?= $agr['Group flood head'] ?></span></h3>
+			</div>
+<?= $positions['pre_flood_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['flood_group'] ?>">
+				<legend class="group-legend"><span><?= $agr['Restrictions'] ?></span></legend>
+<?= $positions['pre_post_interval'] ?>
+				<div class="sf-set set<?= $numbers['post_flood_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['post_flood_field'] ?>"><span><?= $agr['Flood interval label'] ?></span> <small><?= $agr['Flood interval help'] ?></small></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['post_flood_field'] ?>" name="post_flood" size="5" maxlength="4" value="<?= $postFlood ?>" /></span>
+					</div>
+				</div>
+<?= $positions['pre_search_interval'] ?>
+				<div class="sf-set set<?= $numbers['search_flood_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['search_flood_field'] ?>"><span><?= $agr['Search interval label'] ?></span> <small><?= $agr['Search interval help'] ?></small></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['search_flood_field'] ?>" name="search_flood" size="5" maxlength="4" value="<?= $searchFlood ?>" /></span>
+					</div>
+				</div>
+<?= $positions['pre_email_interval'] ?>
+<?php if (!$guests): ?>
+				<?= $positions['pre_email_interval_field'] ?>
+				<div class="sf-set set<?= $numbers['email_flood_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['email_flood_field'] ?>"><span><?= $agr['Email flood interval label'] ?></span> <small><?= $agr['Email flood interval help'] ?></small></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['email_flood_field'] ?>" name="email_flood" size="5" maxlength="4" value="<?= $emailFlood ?>" /></span>
+					</div>
+				</div>
+<?php endif ?>
+<?= $positions['pre_flood_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['flood_fieldset_end'] ?>
+<?php endif ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="add_edit_group" value=" <?= $agr['Update group'] ?> " /></span>
+			</div>
+		</form>
+	</div>

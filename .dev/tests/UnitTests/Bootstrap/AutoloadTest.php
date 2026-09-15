@@ -9,7 +9,7 @@ class AutoloadTest extends TestCase {
 
 	public function testEveryBootstrapEntryPointRequiresTheAutoloader(): void {
 		$root = dirname(__FILE__).'/../../../../';
-		$entry_points = array('include/essentials.php', 'admin/install.php', 'admin/db_update.php');
+		$entry_points = array('index.php', 'include/essentials.php', 'include/setup.php');
 
 		foreach ($entry_points as $entry_point)
 			$this->assertStringContainsString(

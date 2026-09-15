@@ -1,0 +1,21 @@
+<?php /* The board's statistics and the visitors online, below the forums. Every variable is escaped unless it is Html. */ ?>
+<?= $before ?>
+<div id="brd-stats" class="gen-content">
+	<h2 class="hn"><span><?= $statistics ?></span></h2>
+	<ul>
+		<?= $lines, "\n" ?>
+	</ul>
+</div>
+<?= $between ?>
+<?php if ($online): ?>
+<div id="brd-online" class="gen-content">
+	<h3 class="hn"><span><?= $counts ?></span></h3>
+<?php if ($members !== null): ?>
+	<p><?= $members ?></p>
+<?php endif ?>
+<?= $newOnlineData ?>
+</div>
+<?= $after ?>
+<?php else: ?>
+<?= $after ?>
+<?php endif ?>

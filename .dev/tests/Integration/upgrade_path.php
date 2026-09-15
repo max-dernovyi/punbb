@@ -168,12 +168,12 @@ function upgrade_path_fixture_config($sql, $name)
 }
 
 
-/** The version and revision admin/db_update.php upgrades a database to. */
-function upgrade_path_target_versions($script)
+/** The version and revision admin/db_update.php upgrades a database to: the release's, as include/constants.php of $root defines them. */
+function upgrade_path_target_versions($root)
 {
-	$source = (string) @file_get_contents($script);
-	$version = preg_match('/define\(\'UPDATE_TO\',\s*\'([^\']+)\'\)/', $source, $match) ? $match[1] : '';
-	$revision = preg_match('/define\(\'UPDATE_TO_DB_REVISION\',\s*(\d+)\)/', $source, $match) ? $match[1] : '';
+	$source = (string) @file_get_contents($root.'include/constants.php');
+	$version = preg_match('/define\(\'FORUM_VERSION\',\s*\'([^\']+)\'\)/', $source, $match) ? $match[1] : '';
+	$revision = preg_match('/define\(\'FORUM_DB_REVISION\',\s*(\d+)\)/', $source, $match) ? $match[1] : '';
 
 	return array('o_cur_version' => $version, 'o_database_revision' => $revision);
 }
@@ -189,10 +189,15 @@ function upgrade_path_removed_driver_message($db_type)
 }
 
 
-/** The URL db_update.php sends the browser to next, or '' when it is done. */
+/** The URL db_update.php sends the browser to next, or '' when it is done. The script escapes it as a string literal. */
 function upgrade_path_next_url($body)
 {
-	return preg_match('/window\.location\s*=\s*"(db_update\.php[^"]*)"/', (string) $body, $match) ? $match[1] : '';
+	if (!preg_match('/window\.location\s*=\s*"(db_update\.php[^"]*)"/', (string) $body, $match))
+		return '';
+
+	$url = json_decode('"'.$match[1].'"');
+
+	return is_string($url) ? $url : '';
 }
 
 
@@ -561,7 +566,7 @@ function upgrade_path_run($base_url, $log)
 
 	if (!$failures)
 	{
-		foreach (upgrade_path_target_versions(UPGRADE_PATH_ROOT.'admin/db_update.php') as $name => $expected_value)
+		foreach (upgrade_path_target_versions(UPGRADE_PATH_ROOT) as $name => $expected_value)
 		{
 			$value = (string) upgrade_path_config_value($spec, $name);
 			if ($value !== $expected_value)

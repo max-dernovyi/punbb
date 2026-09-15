@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace PunBB\Module\LegacyBridge\Hook;
 
 use Deprecated;
-use Throwable;
 
 /**
  * Runs the code stored at a legacy markup point, as `<?php ($hook = get_hook('<id>')) ? eval($hook) : null; ?>`
@@ -22,17 +21,6 @@ final class MarkupHookRunner {
 	 */
 	#[Deprecated(since: '2.0', message: 'use the event that replaces the point, rendered by the layout')]
 	public function render(string $point, array $exposed): string {
-		ob_start();
-
-		try {
-			$this->points->run($point, $exposed);
-		}
-		catch (Throwable $e) {
-			// What was emitted before the throw stays where the legacy site would have left it.
-			ob_end_flush();
-			throw $e;
-		}
-
-		return (string) ob_get_clean();
+		return $this->points->render($point, $exposed);
 	}
 }

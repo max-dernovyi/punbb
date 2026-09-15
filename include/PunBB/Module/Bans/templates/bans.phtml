@@ -1,0 +1,55 @@
+<?php /* The bans page: the form starting a ban for a username, and the bans stored or the note that there are none. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $aba['New ban heading'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<div class="ct-box">
+			<p><?= $aba['Advanced ban info'] ?></p>
+		</div>
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<?= $hidden, "\n" ?>
+			</div>
+			<fieldset class="frm-group group<?= $group ?>">
+				<legend class="group-legend"><strong><?= $aba['New ban legend'] ?></strong></legend>
+				<div class="sf-set set<?= $item ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $field ?>"><span><?= $aba['Username to ban label'] ?></span></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $field ?>" name="new_ban_user" size="25" maxlength="25" /></span>
+					</div>
+				</div>
+			</fieldset>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="add_ban" value=" <?= $aba['Add ban'] ?> " /></span>
+			</div>
+		</form>
+	</div>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $aba['Existing bans heading'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+<?php if ($listed): ?>
+		<div class="ct-group">
+<?php foreach ($bans as $ban): ?>
+<?= $ban['before'] ?>
+			<div class="ct-set set<?= $ban['number'] ?>">
+				<div class="ct-box">
+					<div class="ct-legend">
+						<h3><span><?= $ban['head'] ?></span></h3>
+						<p><?= $ban['links'] ?></p>
+					</div>
+<?php if ($ban['info'] !== null): ?>
+				<ul>
+					<?= $ban['info'], "\n" ?>
+					</ul>
+<?php endif ?>
+				</div>
+			</div>
+<?php endforeach ?>
+		</div>
+<?php else: ?>
+		<div class="ct-box">
+			<p><?= $aba['No bans'] ?></p>
+		</div>
+<?php endif ?>
+	</div>

@@ -1,0 +1,39 @@
+<?php /* The maintenance section: whether the board is closed to all but the administrators, and the message it shows meanwhile. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $aop['Maintenance head'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<input type="hidden" name="csrf_token" value="<?= $token ?>" />
+				<input type="hidden" name="form_sent" value="1" />
+			</div>
+			<div class="ct-box warn-box">
+				<p class="important"><?= $aop['Maintenance mode info'] ?></p>
+				<p class="warn"><?= $aop['Maintenance mode warn'] ?></p>
+			</div>
+<?= $positions['pre_maintenance_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['g1'] ?>">
+				<legend class="group-legend"><strong><?= $aop['Maintenance legend'] ?></strong></legend>
+<?= $positions['pre_maintenance_checkbox'] ?>
+				<div class="sf-set set<?= $numbers['i1'] ?>">
+					<div class="sf-box checkbox">
+						<span class="fld-input"><input type="checkbox" id="fld<?= $numbers['maintenance'] ?>" name="form[maintenance]" value="1"<?php if ($config['o_maintenance'] == '1'): ?> checked="checked"<?php endif ?> /></span>
+						<label for="fld<?= $numbers['maintenance'] ?>"><?= $aop['Maintenance mode label'] ?></label>
+					</div>
+				</div>
+<?= $positions['pre_maintenance_message'] ?>
+				<div class="txt-set set<?= $numbers['i2'] ?>">
+					<div class="txt-box textarea">
+						<label for="fld<?= $numbers['maintenance_message'] ?>"><span><?= $aop['Maintenance message label'] ?></span><small><?= $aop['Maintenance message help'] ?></small></label>
+						<div class="txt-input"><span class="fld-input"><textarea id="fld<?= $numbers['maintenance_message'] ?>" name="form[maintenance_message]" rows="5" cols="55"><?= $config['o_maintenance_message'] ?></textarea></span></div>
+					</div>
+				</div>
+<?= $positions['pre_maintenance_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['maintenance_fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="save" value="<?= $common['Save changes'] ?>" /></span>
+			</div>
+		</form>
+	</div>

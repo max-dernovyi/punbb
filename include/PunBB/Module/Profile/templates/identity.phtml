@@ -1,0 +1,172 @@
+<?php /* The identity section of a member's profile: their name, address and title for the board's staff, their details and their contacts. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $heading ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+<?php if ($errors !== null): ?>
+		<div class="ct-box error-box">
+			<h2 class="warn hn"><?= $profile['Profile update errors'] ?></h2>
+			<ul class="error-list">
+				<?= $errors, "\n" ?>
+			</ul>
+		</div>
+<?php endif ?>
+<?php if ($hasRequired): ?>
+		<div id="req-msg" class="req-warn ct-box error-box">
+			<p class="important"><?= $common['Required warn'] ?></p>
+		</div>
+<?php endif ?>
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<?= $hidden, "\n" ?>
+			</div>
+<?php if ($hasRequired): ?><?= $positions['pre_req_info_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['required_group'] ?>">
+				<legend class="group-legend"><strong><?= $common['Required information'] ?></strong></legend>
+<?= $positions['pre_username'] ?>
+<?php if ($renames): ?>
+				<div class="sf-set set<?= $numbers['username_item'] ?>">
+					<div class="sf-box text required">
+						<label for="fld<?= $numbers['username'] ?>"><span><?= $profile['Username'] ?></span> <small><?= $profile['Username help'] ?></small></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['username'] ?>" name="req_username" value="<?= $username ?>" size="35" maxlength="25" required /></span>
+					</div>
+				</div>
+<?php endif ?><?= $positions['pre_email'] ?>
+<?php if ($staff): ?>
+				<div class="sf-set set<?= $numbers['email_item'] ?>">
+					<div class="sf-box text required">
+						<label for="fld<?= $numbers['email'] ?>"><span><?= $profile['E-mail'] ?></span> <small><?= $profile['E-mail help'] ?></small></label><br />
+						<span class="fld-input"><input type="email" id="fld<?= $numbers['email'] ?>" name="req_email" value="<?= $email ?>" size="35" maxlength="80" required /></span>
+					</div>
+				</div>
+<?php endif ?><?= $positions['pre_req_info_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['req_info_fieldset_end'] ?>
+<?php endif ?><?= $positions['pre_personal_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['personal_group'] ?>">
+				<legend class="group-legend"><strong><?= $profile['Personal legend'] ?></strong></legend>
+<?= $positions['pre_realname'] ?>
+				<div class="sf-set set<?= $numbers['realname_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['realname'] ?>"><span><?= $profile['Realname'] ?></span></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['realname'] ?>" name="form[realname]" value="<?= $fields['realname'] ?>" size="35" maxlength="40" /></span>
+					</div>
+				</div>
+<?= $positions['pre_title'] ?>
+<?php if ($setsTitle): ?>
+				<div class="sf-set set<?= $numbers['title_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['title'] ?>"><span><?= $profile['Title'] ?></span><small><?= $profile['Leave blank'] ?></small></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['title'] ?>" name="title" value="<?= $title ?>" size="35" maxlength="50" /></span><br />
+					</div>
+				</div>
+<?php endif ?>
+<?= $positions['pre_location'] ?>
+				<div class="sf-set set<?= $numbers['location_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['location'] ?>"><span><?= $profile['Location'] ?></span></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['location'] ?>" name="form[location]" value="<?= $fields['location'] ?>" size="35" maxlength="30" /></span>
+					</div>
+				</div>
+<?= $positions['pre_admin_note'] ?>
+<?php if ($staff): ?>
+				<div class="sf-set set<?= $numbers['admin_note_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['admin_note'] ?>"><span><?= $profile['Admin note'] ?></span></label><br />
+						<span class="fld-input"><input id="fld<?= $numbers['admin_note'] ?>" type="text" name="admin_note" value="<?= $adminNote ?>" size="35" maxlength="30" /></span>
+					</div>
+				</div>
+<?php endif ?><?= $positions['pre_num_posts'] ?>
+<?php if ($administrator): ?>
+				<div class="sf-set set<?= $numbers['num_posts_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['num_posts'] ?>"><span><?= $profile['Edit count'] ?></span></label><br />
+						<span class="fld-input"><input type="number" id="fld<?= $numbers['num_posts'] ?>" name="num_posts" value="<?= $posts ?>" size="8" maxlength="8" /></span>
+					</div>
+				</div>
+<?php endif ?><?= $positions['pre_personal_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['personal_fieldset_end'] ?>
+			<fieldset class="frm-group group<?= $numbers['contact_group'] ?>">
+				<legend class="group-legend"><strong><?= $profile['Contact legend'] ?></strong></legend>
+<?= $positions['pre_url'] ?>
+				<div class="sf-set set<?= $numbers['url_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['url'] ?>"><span><?= $profile['Website'] ?></span></label><br />
+						<span class="fld-input"><input type="url" id="fld<?= $numbers['url'] ?>" name="form[url]" value="<?= $fields['url'] ?>" size="35" maxlength="80" /></span>
+					</div>
+				</div>
+<?= $positions['pre_facebook'] ?>
+				<div class="sf-set set<?= $numbers['facebook_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['facebook'] ?>"><span><?= $profile['Facebook'] ?></span></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['facebook'] ?>" name="form[facebook]" placeholder="<?= $profile['Name or Url'] ?>" value="<?= $fields['facebook'] ?>" size="35" maxlength="80" /></span>
+					</div>
+				</div>
+<?= $positions['pre_twitter'] ?>
+				<div class="sf-set set<?= $numbers['twitter_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['twitter'] ?>"><span><?= $profile['Twitter'] ?></span></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['twitter'] ?>" name="form[twitter]" placeholder="<?= $profile['Name or Url'] ?>" value="<?= $fields['twitter'] ?>" size="35" maxlength="80" /></span>
+					</div>
+				</div>
+<?= $positions['pre_linkedin'] ?>
+				<div class="sf-set set<?= $numbers['linkedin_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['linkedin'] ?>"><span><?= $profile['LinkedIn'] ?></span></label><br />
+						<span class="fld-input"><input type="url" id="fld<?= $numbers['linkedin'] ?>" name="form[linkedin]" value="<?= $fields['linkedin'] ?>" size="35" maxlength="80" /></span>
+					</div>
+				</div>
+			</fieldset>
+			<fieldset class="frm-group group<?= $numbers['messengers_group'] ?>">
+				<legend class="group-legend"><strong><?= $profile['Contact messengers legend'] ?></strong></legend>
+<?= $positions['pre_jabber'] ?>
+				<div class="sf-set set<?= $numbers['jabber_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['jabber'] ?>"><span><?= $profile['Jabber'] ?></span></label><br />
+						<span class="fld-input"><input id="fld<?= $numbers['jabber'] ?>" type="email" name="form[jabber]" value="<?= $fields['jabber'] ?>" size="35" maxlength="80" /></span>
+					</div>
+				</div>
+<?= $positions['pre_skype'] ?>
+				<div class="sf-set set<?= $numbers['skype_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['skype'] ?>"><span><?= $profile['Skype'] ?></span></label><br />
+						<span class="fld-input"><input id="fld<?= $numbers['skype'] ?>" type="text" name="form[skype]" value="<?= $fields['skype'] ?>" size="35" maxlength="80" /></span>
+					</div>
+				</div>
+<?= $positions['pre_msn'] ?>
+				<div class="sf-set set<?= $numbers['msn_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['msn'] ?>"><span><?= $profile['MSN'] ?></span></label><br />
+						<span class="fld-input"><input id="fld<?= $numbers['msn'] ?>" type="text" name="form[msn]" value="<?= $fields['msn'] ?>" size="35" maxlength="80" /></span>
+					</div>
+				</div>
+<?= $positions['pre_icq'] ?>
+				<div class="sf-set set<?= $numbers['icq_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['icq'] ?>"><span><?= $profile['ICQ'] ?></span></label><br />
+						<span class="fld-input"><input id="fld<?= $numbers['icq'] ?>" type="text" name="form[icq]" value="<?= $fields['icq'] ?>" size="20" maxlength="12" /></span>
+					</div>
+				</div>
+<?= $positions['pre_aim'] ?>
+				<div class="sf-set set<?= $numbers['aim_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['aim'] ?>"><span><?= $profile['AOL IM'] ?></span></label><br />
+						<span class="fld-input"><input id="fld<?= $numbers['aim'] ?>" type="text" name="form[aim]" value="<?= $fields['aim'] ?>" size="20" maxlength="30" /></span>
+					</div>
+				</div>
+<?= $positions['pre_yahoo'] ?>
+				<div class="sf-set set<?= $numbers['yahoo_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['yahoo'] ?>"><span><?= $profile['Yahoo'] ?></span></label><br />
+						<span class="fld-input"><input id="fld<?= $numbers['yahoo'] ?>" type="text" name="form[yahoo]" value="<?= $fields['yahoo'] ?>" size="20" maxlength="30" /></span>
+					</div>
+				</div>
+<?= $positions['pre_contact_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['contact_fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="update" value="<?= $profile['Update profile'] ?>" /></span>
+			</div>
+		</form>
+	</div>

@@ -1,0 +1,102 @@
+<?php /* The member list: its search form and the members found. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-head">
+<?php if ($options !== array()): ?>
+		<p class="options"><?= implode(' ', $options) ?></p>
+<?php endif ?>
+		<h2 class="hn"><span><?= $itemsInfo ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<form id="afocus" method="get" accept-charset="utf-8" action="<?= $formAction ?>">
+		<div class="frm-form">
+<?= $positions['search_fieldset_start'] ?>
+			<fieldset class="frm-group group<?= $numbers['group'] ?>">
+				<legend class="group-legend"><strong><?= $ul['User find legend'] ?></strong></legend>
+<?= $positions['pre_username'] ?>
+<?php if ($searchesUsernames): ?>
+				<div class="sf-set set<?= $numbers['username_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['username_field'] ?>"><span><?= $ul['Search for username'] ?></span> <small><?= $ul['Username help'] ?></small></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['username_field'] ?>" name="username" value="<?= $username ?>" size="35" maxlength="25" /></span>
+					</div>
+				</div>
+<?php endif ?>
+<?= $positions['pre_group_select'] ?>
+				<div class="sf-set set<?= $numbers['group_item'] ?>">
+					<div class="sf-box select">
+						<label for="fld<?= $numbers['group_field'] ?>"><span><?= $ul['User group'] ?></span></label><br />
+						<span class="fld-input"><select id="fld<?= $numbers['group_field'] ?>" name="show_group">
+						<option value="-1"<?php if ($groupId === -1): ?> selected="selected"<?php endif ?>><?= $ul['All users'] ?></option>
+<?= $positions['search_new_group_option'] ?>
+<?php foreach ($groups as $group): ?>
+						<option value="<?= $group['id'] ?>"<?php if ($group['id'] === $groupId): ?> selected="selected"<?php endif ?>><?= $group['title'] ?></option>
+<?php endforeach ?>
+						</select></span>
+					</div>
+				</div>
+<?= $positions['pre_sort_by'] ?>
+				<div class="sf-set set<?= $numbers['sort_item'] ?>">
+					<div class="sf-box select">
+						<label for="fld<?= $numbers['sort_field'] ?>"><span><?= $ul['Sort users by'] ?></span></label><br />
+						<span class="fld-input"><select id="fld<?= $numbers['sort_field'] ?>" name="sort_by">
+						<option value="username"<?php if ($sortBy->html === 'username'): ?> selected="selected"<?php endif ?>><?= $ul['Username'] ?></option>
+						<option value="registered"<?php if ($sortBy->html === 'registered'): ?> selected="selected"<?php endif ?>><?= $ul['Registered'] ?></option>
+<?php if ($showsPostCount): ?>
+						<option value="num_posts"<?php if ($sortBy->html === 'num_posts'): ?> selected="selected"<?php endif ?>><?= $ul['No of posts'] ?></option>
+<?php endif ?>
+<?= $positions['new_sort_by_option'] ?>
+						</select></span>
+					</div>
+				</div>
+<?= $positions['pre_sort_order_fieldset'] ?>
+				<fieldset class="mf-set set<?= $numbers['order_item'] ?>">
+					<legend><span><?= $ul['User sort order'] ?></span></legend>
+<?= $positions['pre_sort_order'] ?>
+					<div class="mf-box mf-yesno">
+						<div class="mf-item">
+							<span class="fld-input"><input type="radio" id="fld<?= $numbers['ascending_field'] ?>" name="sort_dir" value="ASC"<?php if (!$descending): ?> checked="checked"<?php endif ?> /></span>
+							<label for="fld<?= $numbers['ascending_field'] ?>"><?= $ul['Ascending'] ?></label>
+						</div>
+						<div class="mf-item">
+							<span class="fld-input"><input type="radio" id="fld<?= $numbers['descending_field'] ?>" name="sort_dir" value="DESC"<?php if ($descending): ?> checked="checked"<?php endif ?> /></span>
+							<label for="fld<?= $numbers['descending_field'] ?>"><?= $ul['Descending'] ?></label>
+						</div>
+					</div>
+<?= $positions['pre_sort_order_fieldset_end'] ?>
+				</fieldset>
+<?= $positions['pre_search_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['search_fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="search" value="<?= $ul['Submit user search'] ?>" /></span>
+			</div>
+		</div>
+		</form>
+<?php if ($rows !== array()): ?>
+<?= $table ?>
+		<div class="ct-group">
+			<table>
+				<caption><?= $ul['Table summary'] ?></caption>
+				<thead>
+					<tr>
+						<?= $headers, "\n" ?>
+					</tr>
+				</thead>
+				<tbody>
+<?php foreach ($rows as $row): ?>
+<?= $row['before'] ?>
+				<tr class="<?= $row['class'] ?>">
+					<?= $row['cells'], "\n" ?>
+				</tr>
+<?php endforeach ?>
+				</tbody>
+			</table>
+		</div>
+<?php else: ?>
+		<div class="ct-box">
+			<p><strong><?= $ul['No users found'] ?></strong></p>
+		</div>
+<?php endif ?>
+	</div>
+	<div class="main-foot">
+		<h2 class="hn"><span><?= $itemsInfo ?></span></h2>
+	</div>

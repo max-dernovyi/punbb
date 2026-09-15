@@ -117,7 +117,7 @@ class ExtensionFlowsTest extends TestCase {
 	}
 
 	public function testItSwitchesOnTheLineTheInstallerWrites(): void {
-		$this->assertStringContainsString("//define('FORUM_DISABLE_HOOKS', 1);", (string) file_get_contents(FORUM_ROOT.'admin/install.php'));
+		$this->assertStringContainsString("//define('FORUM_DISABLE_HOOKS', 1);", PunBB\Module\Setup\Config\ConfigFile::installed(new PunBB\Module\Setup\Config\BoardConfiguration(new PunBB\Module\Setup\Database\DatabaseSettings('sqlite3', '', '', '', '', ''), '', 'forum_cookie')));
 
 		$body = "<?php\n\$db_type = 'sqlite3';\n\n// Disable forum hooks (extensions) by removing // from the following line\n//define('FORUM_DISABLE_HOOKS', 1);\n";
 

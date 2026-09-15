@@ -1,9 +1,9 @@
 <?php
 /**
- * forum_js_escape() — the escaper for a value that lands inside a JavaScript
- * string literal in an inline <script>.
+ * forum_js_escape() and the layout's Html::script() — the escaper for a value
+ * that lands inside a JavaScript string literal in an inline <script>.
  *
- * The board title reached `label: "<!-- forum_board_title -->"` in main.tpl
+ * The board title reached the responsive-nav label of the main template
  * through forum_htmlencode(), and the admin settings form accepts any string.
  * htmlspecialchars() is the wrong tool there: a <script> element is raw text,
  * so the entities it emits never decode, while the one character that does
@@ -18,6 +18,7 @@
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use PunBB\Module\Layout\View\Html;
 
 class JsEscapeTest extends TestCase
 {
@@ -59,6 +60,13 @@ class JsEscapeTest extends TestCase
 		foreach (array('"', "'", '<', '>', '&', "\n", "\r") as $forbidden)
 			$this->assertStringNotContainsString($forbidden, $escaped,
 				'forum_js_escape() left '.json_encode($forbidden).' in the string literal');
+	}
+
+	/** The layout escapes a script value with the same function extension code calls. */
+	#[DataProvider('hostileValues')]
+	public function testTheLayoutEscapesAScriptValueTheSameWay(string $value): void
+	{
+		$this->assertSame(forum_js_escape($value), Html::script($value)->html);
 	}
 
 	public function testABackslashCannotEscapeTheClosingQuote(): void

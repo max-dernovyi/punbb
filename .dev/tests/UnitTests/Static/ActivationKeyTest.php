@@ -59,38 +59,41 @@ class ActivationKeyTest extends TestCase
 	}
 
 	//
-	// Both branches that check a mailed key.
+	// Both branches that check a mailed key, each in its controller.
 	//
 	public static function keyChecks(): array
 	{
 		return array(
-			'password reset' => array('$lang_profile[\'Pass key bad\']'),
-			'e-mail change'	 => array('$lang_profile[\'E-mail key bad\']'),
+			'password reset' => array('include/PunBB/Module/Profile/Controller/PasswordChange.php', '\'Pass key bad\''),
+			'e-mail change'	 => array('include/PunBB/Module/Profile/Controller/EmailChange.php', '\'E-mail key bad\''),
 		);
 	}
 
-	#[DataProvider('keyChecks')]
-	public function testTheBranchComparesInConstantTime(string $message): void
+	/** @return string the source of the branch that ends refusing the key with $message */
+	private static function branch(string $file, string $message): string
 	{
-		$source = (string) file_get_contents(FORUM_ROOT.'profile.php');
+		$source = (string) file_get_contents(FORUM_ROOT.$file);
 		$branch = substr($source, 0, (int) strpos($source, $message));
-		$branch = substr($branch, (int) strrpos($branch, "if (isset(\$_GET['key']))"));
 
-		$this->assertStringContainsString('hash_equals((string) $user[\'activate_key\'], $key)', $branch);
-		$this->assertStringNotContainsString('$key != $user[\'activate_key\']', $branch,
-			'the branch is back on the loose comparison');
+		return substr($branch, (int) strrpos($branch, '$key = '));
 	}
 
 	#[DataProvider('keyChecks')]
-	public function testTheKeyIsReadAsAString(string $message): void
+	public function testTheBranchComparesInConstantTime(string $file, string $message): void
 	{
-		$source = (string) file_get_contents(FORUM_ROOT.'profile.php');
-		$branch = substr($source, 0, (int) strpos($source, $message));
-		$branch = substr($branch, (int) strrpos($branch, "if (isset(\$_GET['key']))"));
+		$branch = self::branch($file, $message);
 
+		$this->assertStringContainsString('!hash_equals($user->activateKey(), $key)', $branch);
+		$this->assertDoesNotMatchRegularExpression('#\$key\s*!==?\s*\$user->activateKey\(\)|activateKey\(\)\s*!==?\s*\$key#', $branch,
+			'the branch is back on a plain comparison');
+	}
+
+	#[DataProvider('keyChecks')]
+	public function testTheKeyIsReadAsAString(string $file, string $message): void
+	{
 		// hash_equals() raises a TypeError on ?key[]=, which the loose
 		// comparison merely returned true for.
-		$this->assertStringContainsString('is_string($_GET[\'key\'])', $branch);
+		$this->assertStringContainsString('$key = is_string($request->query[\'key\']) ? $request->query[\'key\'] : \'\';', self::branch($file, $message));
 	}
 
 	//
@@ -99,9 +102,9 @@ class ActivationKeyTest extends TestCase
 	//
 	public function testTheResetKeyExpires(): void
 	{
-		$source = (string) file_get_contents(FORUM_ROOT.'profile.php');
+		$branch = self::branch('include/PunBB/Module/Profile/Controller/PasswordChange.php', '\'Pass key bad\'');
 
-		$this->assertStringContainsString('$key_expired', $source);
+		$this->assertStringContainsString('|| $expired)', $branch);
 		$this->assertStringContainsString('FORUM_PASSWORD_RESET_TTL',
 			(string) file_get_contents(FORUM_ROOT.'include/functions.php'));
 	}
@@ -109,9 +112,12 @@ class ActivationKeyTest extends TestCase
 	public function testTheWindowMatchesTheOneTheResendIsRefusedFor(): void
 	{
 		$this->assertSame(3600, FORUM_PASSWORD_RESET_TTL);
-		$this->assertStringContainsString('$forgot_pass_timeout = FORUM_PASSWORD_RESET_TTL;',
-			(string) file_get_contents(FORUM_ROOT.'login.php'),
+		$this->assertStringContainsString('return (int) Markers::markup(\\FORUM_PASSWORD_RESET_TTL);',
+			(string) file_get_contents(FORUM_ROOT.'include/PunBB/Module/LegacyBridge/Site/LegacyPasswords.php'),
 			'a key that expired could not be replaced immediately');
+		$this->assertStringContainsString('$this->passwords->resetKeyLifetime()',
+			(string) file_get_contents(FORUM_ROOT.'include/PunBB/Module/Login/Controller/LoginController.php'),
+			'the resend window is no longer the key\'s lifetime');
 	}
 
 	//
@@ -137,13 +143,17 @@ class ActivationKeyTest extends TestCase
 		$this->assertSame($expected, forum_reset_key_expired($last_email_sent));
 	}
 
-	/** profile.php has to reach the decision through the function, not a copy of it. */
-	public function testProfileAsksTheFunction(): void
+	/**
+	 * The profile decides as the function does, over the lifetime the site
+	 * reports: a key mailed at a known time expires once the window has passed.
+	 */
+	public function testTheProfileDecidesAsTheFunction(): void
 	{
 		$this->assertStringContainsString(
-			'$key_expired = forum_reset_key_expired(',
-			(string) file_get_contents(FORUM_ROOT.'profile.php'),
-			'the expiry condition is inlined again, so nothing tests what runs'
+			'$expired = $sent > 0 && time() - $sent >= $this->passwords->resetKeyLifetime();',
+			(string) file_get_contents(FORUM_ROOT.'include/PunBB/Module/Profile/Controller/PasswordChange.php'),
+			'the expiry condition is no longer the one forum_reset_key_expired() pins'
 		);
 	}
+
 }

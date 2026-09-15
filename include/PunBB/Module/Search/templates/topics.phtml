@@ -1,0 +1,34 @@
+<?php /* Topics found: the links and summary above and below them, and a row for each topic. Every variable is escaped unless it is Html. */ ?>
+<?= $start ?>
+<?= $headBefore ?>
+
+	<div class="main-head">
+<?php if ($headOptions !== null): ?>
+
+		<p class="options"><?= $headOptions ?></p><?php endif ?>
+		<h2 class="hn"><span><?= $itemsInfo ?></span></h2>
+	</div>
+	<div class="main-subhead">
+		<p class="item-summary forum-noview"><span><?= $summary ?></span></p>
+	</div>
+	<div class="main-content main-forum forum-forums">
+<?php foreach ($rows as $row): ?>
+<?= $row['before'] ?>
+		<div class="main-item<?= $row['style'] ?>">
+			<span class="icon <?= $row['status'] ?>"><!-- --></span>
+			<div class="item-subject">
+				<?= $row['subject'], "\n" ?>
+			</div>
+			<ul class="item-info">
+				<?= $row['info'], "\n" ?>
+			</ul>
+		</div>
+<?php endforeach ?>
+	</div>
+
+	<div class="main-foot">
+<?php if ($footOptions !== null): ?>
+
+			<p class="options"><?= $footOptions ?></p><?php endif ?>
+		<h2 class="hn"><span><?= $itemsInfo ?></span></h2>
+	</div>

@@ -1,0 +1,82 @@
+<?php /* The edit page: the preview of what was submitted, the errors that stop it, and the form editing the post. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-head">
+		<h2 class="hn"><span><?= $heading ?></span></h2>
+	</div>
+<?php if ($preview !== null): ?>
+<?= $preview['before'] ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $preview['heading'] ?></span></h2>
+	</div>
+	<div id="post-preview" class="main-content main-frm">
+		<div class="post singlepost">
+			<div class="posthead">
+				<h3 class="hn"><?= $preview['ident'] ?></h3>
+<?= $positions['preview_new_post_head_option'] ?>
+			</div>
+			<div class="postbody">
+				<div class="post-entry">
+					<div class="entry-content">
+						<?= $preview['message'], "\n" ?>
+					</div>
+<?= $positions['preview_new_post_entry_data'] ?>
+				</div>
+			</div>
+		</div>
+	</div>
+<?php endif ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $compose ?></span></h2>
+	</div>
+	<div id="post-form" class="main-content main-frm">
+<?php if ($textOptions !== null): ?>
+		<p class="ct-options options"><?= $textOptions ?></p>
+<?php endif ?>
+<?php if ($errors !== null): ?>
+		<div class="ct-box error-box">
+			<h2 class="warn hn"><span><?= $post['Post errors'] ?></span></h2>
+			<ul class="error-list">
+				<?= $errors, "\n" ?>
+			</ul>
+		</div>
+<?php endif ?>
+		<div id="req-msg" class="req-warn ct-box error-box">
+			<p class="important"><?= $common['Required warn'] ?></p>
+		</div>
+		<form id="afocus" class="frm-form frm-ctrl-submit" method="post" accept-charset="utf-8" action="<?= $action ?>"<?= $attributes ?>>
+			<div class="hidden">
+				<?= $hidden, "\n" ?>
+			</div>
+<?= $positions['pre_main_fieldset'] ?>
+			<fieldset class="frm-group group<?= $numbers['group'] ?>">
+				<legend class="group-legend"><strong><?= $post['Edit post legend'] ?></strong></legend>
+<?= $positions['pre_subject'] ?>
+<?php if ($canEditSubject): ?>				<div class="sf-set set<?= $numbers['subject_item'] ?>">
+					<div class="sf-box text required">
+						<label for="fld<?= $numbers['subject_field'] ?>"><span><?= $post['Topic subject'] ?></span></label><br />
+						<span class="fld-input"><input id="fld<?= $numbers['subject_field'] ?>" type="text" name="req_subject" size="<?= $subjectLength ?>" maxlength="<?= $subjectLength ?>" value="<?= $subject ?>" required /></span>
+					</div>
+				</div>
+<?php endif ?><?= $positions['pre_message_box'] ?>				<div class="txt-set set<?= $numbers['message_item'] ?>">
+					<div class="txt-box textarea required">
+						<label for="fld<?= $numbers['message_field'] ?>"><span><?= $post['Write message'] ?></span></label>
+						<div class="txt-input"><span class="fld-input"><textarea id="fld<?= $numbers['message_field'] ?>" name="req_message" rows="15" cols="95" required spellcheck="true"><?= $message ?></textarea></span></div>
+					</div>
+				</div>
+<?= $checkboxesBefore ?>
+<?php if ($checkboxes !== null): ?>
+				<fieldset class="mf-set set<?= $numbers['checkboxes_item'] ?>">
+					<div class="mf-box checkbox">
+						<?= $checkboxes, "\n" ?>
+					</div>
+<?= $positions['pre_checkbox_fieldset_end'] ?>
+				</fieldset>
+<?php endif ?>
+<?= $positions['pre_main_fieldset_end'] ?>
+			</fieldset>
+<?= $positions['main_fieldset_end'] ?>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="submit_button" value="<?= $submit ?>" /></span>
+				<span class="submit"><input type="submit" name="preview" value="<?= $previewLabel ?>" /></span>
+			</div>
+		</form>
+	</div>

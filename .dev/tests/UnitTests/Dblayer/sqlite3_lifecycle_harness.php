@@ -2,7 +2,7 @@
 /**
  * Drives include/dblayer/sqlite3.php end to end in a fresh process.
  *
- * close() is called explicitly by footer.php and again by __destruct(), and
+ * close() is called explicitly by forum_end_page() and again by __destruct(), and
  * shutdown-time fatals are only observable out of process.
  *
  * @copyright (C) 2008-2012 PunBB, partially based on code (C) 2008-2009 FluxBB.org

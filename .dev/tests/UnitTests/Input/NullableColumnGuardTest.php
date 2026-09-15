@@ -3,7 +3,7 @@
  * Regression guard for nullable columns reaching the parser during an upgrade.
  *
  * `posts.message` and `users.signature` are declared `allow_null`, so the rows
- * db_update.php preparses can hand `preparse_bbcode()` a null — deprecated in
+ * the updater preparses can hand `preparse_bbcode()` a null — deprecated in
  * PHP 8.1 and only reachable on the 1.2/1.3 conversion path, which no request
  * sweep visits. The reads are normalised where they happen, per the "fix nulls
  * at the source" rule; this pins both the read and the parser's contract.
@@ -17,19 +17,19 @@ use PHPUnit\Framework\TestCase;
 
 class NullableColumnGuardTest extends TestCase
 {
-	/** Every `preparse_bbcode($cur_item[...]` read, with whatever follows the key. */
-	private const READ_PATTERN = '/preparse_bbcode\s*\(\s*(\$cur_item\[[^\]]+\])\s*(\?\?)?/';
+	/** Every `preparse($row->value(...)` read, with whatever follows the value. */
+	private const READ_PATTERN = '/preparse\s*\(\s*(\$row->value\([^)]+\))\s*(\?\?)?/';
 
 	private function updateScript(): string
 	{
-		return (string) file_get_contents(FORUM_ROOT.'admin/db_update.php');
+		return (string) file_get_contents(FORUM_ROOT.'include/PunBB/Module/Update/Controller/Stages.php');
 	}
 
 	public function testUpgradeReadsOfNullableColumnsCarryADefault(): void
 	{
 		preg_match_all(self::READ_PATTERN, $this->updateScript(), $matches, PREG_SET_ORDER);
 
-		$this->assertNotEmpty($matches, 'db_update.php no longer preparses rows: retarget this guard');
+		$this->assertNotEmpty($matches, 'the updater no longer preparses rows: retarget this guard');
 
 		foreach ($matches as $match)
 			$this->assertSame('??', $match[2] ?? '',
@@ -42,7 +42,7 @@ class NullableColumnGuardTest extends TestCase
 	//
 	public function testTheGuardSeesAnUnguardedRead(): void
 	{
-		$sample = '$x = preparse_bbcode($cur_item[\'signature\'], $errors, true);';
+		$sample = '$x = $this->preparser->preparse($row->value($column), true);';
 
 		$this->assertSame(1, preg_match(self::READ_PATTERN, $sample, $match));
 		$this->assertArrayNotHasKey(2, $match, 'an unguarded read must not report a default');

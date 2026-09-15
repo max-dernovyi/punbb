@@ -3,9 +3,11 @@
  * Regression guard for the dependency list an extension manifest supplies.
  *
  * `extensions.dependencies` holds the manifest's `<dependency>` ids as one
- * pipe-delimited string, so the value is assembled in admin/extensions.php
- * rather than handed to the query builder as a column of its own — and it was
- * interpolated into the INSERT and the UPDATE without going through escape().
+ * pipe-delimited string. The repository binds it as a parameter; the bridge
+ * still builds the query arrays admin/extensions.php handed its query points,
+ * where the value is assembled rather than handed to the query builder as a
+ * column of its own — and it was interpolated into the INSERT and the UPDATE
+ * without going through escape().
  * Nothing reaches it from a request (the manifest is admin-installed, and the
  * install refuses a dependency that is not already an installed extension id),
  * but it is the one string the two statements build by hand.
@@ -27,14 +29,14 @@ class ExtensionDependencyEscapeTest extends TestCase
 
 	private function extensionsScript(): string
 	{
-		return (string) file_get_contents(FORUM_ROOT.'admin/extensions.php');
+		return (string) file_get_contents(FORUM_ROOT.'include/PunBB/Module/LegacyBridge/Page/Extensions/ExtensionsPlugin.php');
 	}
 
 	public function testBothWritersUseTheEscapedDependencyList(): void
 	{
 		preg_match_all(self::WRITE_PATTERN, $this->extensionsScript(), $matches, PREG_SET_ORDER);
 
-		$this->assertCount(2, $matches, 'extensions.php no longer writes the dependency list twice: retarget this guard');
+		$this->assertCount(2, $matches, 'ExtensionsPlugin no longer writes the dependency list twice: retarget this guard');
 
 		foreach ($matches as $match)
 			$this->assertSame('$dependencies', $match[1],
@@ -44,7 +46,7 @@ class ExtensionDependencyEscapeTest extends TestCase
 	public function testTheEscapedListIsBuiltThroughEscape(): void
 	{
 		$this->assertMatchesRegularExpression(
-			'/\$dependencies\[\] = \$forum_db->escape\(/',
+			'/\$dependencies\[\] = self::escape\(/',
 			$this->extensionsScript(),
 			'$dependencies is no longer built through escape()'
 		);

@@ -71,11 +71,13 @@ class SuppressionHackTest extends TestCase {
 
 	/** The two upload sites now check the return value instead of suppressing. */
 	public function testAvatarCallersUseTheCheckedHelper(): void {
-		foreach (array('profile.php', 'admin/db_update.php') as $file) {
-			$source = file_get_contents(self::ROOT.$file);
+		$source = file_get_contents(self::ROOT.'include/PunBB/Module/LegacyBridge/Setup/LegacyBoardFiles.php');
 
-			$this->assertSame(0, preg_match('/(?<![\\w$>-])getimagesize\\s*\\(/', $source), $file.' still calls getimagesize() directly');
-			$this->assertTrue(strpos($source, 'forum_avatar_size(') !== false, $file.' does not use the checked helper');
-		}
+		$this->assertSame(0, preg_match('/(?<![\\w$>-])getimagesize\\s*\\(/', $source), 'the updater still calls getimagesize() directly');
+		$this->assertTrue(strpos($source, 'forum_avatar_size(') !== false, 'the updater does not use the checked helper');
+
+		// The profile's upload measures through its files, whose answer is checked
+		$this->assertStringContainsString('$image = $this->files->imageSize($temporary);', file_get_contents(self::ROOT.'include/PunBB/Module/Profile/Controller/AvatarUpload.php'));
+		$this->assertStringContainsString("if (!is_array(\$info) || \$info[0] <= 0 || \$info[1] <= 0)\n\t\t\treturn null;", file_get_contents(self::ROOT.'include/PunBB/Module/Profile/Model/UploadedFiles.php'));
 	}
 }

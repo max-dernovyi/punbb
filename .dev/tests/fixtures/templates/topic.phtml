@@ -1,0 +1,8 @@
+<?php /* A page template: a topic's subject and its posts, every value as the renderer hands it over. */ ?>
+<div class="main-head">
+	<h2 class="hn"><span><?= $subject ?></span></h2>
+</div>
+<?php foreach ($posts as $post): ?>
+<p class="post" data-id="<?= $post['id'] ?>"><?= $post['message'] ?></p>
+<?php endforeach; ?>
+<?php if ($closed): ?><p class="closed"><?= $notice ?></p><?php endif; ?>

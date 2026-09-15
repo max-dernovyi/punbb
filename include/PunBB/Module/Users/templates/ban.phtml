@@ -1,0 +1,33 @@
+<?php /* The form banning the users selected: the message they are told and when the bans end. Every variable is escaped unless it is Html. */ ?>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $aus['Ban users'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<div class="ct-box">
+			<p><?= $aus['Mass ban info'] ?></p>
+		</div>
+		<form class="frm-form" method="post" accept-charset="utf-8" action="<?= $action ?>">
+			<div class="hidden">
+				<input type="hidden" name="csrf_token" value="<?= $token ?>" />
+				<input type="hidden" name="users" value="<?= $users ?>" />
+			</div>
+			<fieldset class="frm-group group<?= $numbers['group'] ?>">
+				<legend class="group-legend"><span><?= $aus['Ban settings legend'] ?></span></legend>
+				<div class="sf-set set<?= $numbers['message_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['message_field'] ?>"><span><?= $aba['Ban message label'] ?></span> <small><?= $aba['Ban message help'] ?></small></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['message_field'] ?>" name="ban_message" size="50" maxlength="255" /></span>
+					</div>
+				</div>
+				<div class="sf-set set<?= $numbers['expire_item'] ?>">
+					<div class="sf-box text">
+						<label for="fld<?= $numbers['expire_field'] ?>"><span><?= $aba['Expire date label'] ?></span> <small><?= $aba['Expire date help'] ?></small></label><br />
+						<span class="fld-input"><input type="text" id="fld<?= $numbers['expire_field'] ?>" name="ban_expire" size="17" maxlength="10" /></span>
+					</div>
+				</div>
+			</fieldset>
+			<div class="frm-buttons">
+				<span class="submit primary"><input type="submit" name="ban_users_comply" value="<?= $aus['Ban'] ?>" /></span>
+			</div>
+		</form>
+	</div>

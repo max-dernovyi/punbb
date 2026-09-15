@@ -1,0 +1,20 @@
+<?php /* A cycle of the rebuild: the posts it indexed, and the script sending the browser on to the next cycle, or back to the form. Every variable is escaped unless it is Html. */ ?>
+<?= $started ?>
+<!DOCTYPE html>
+<html lang="<?= $identifier ?>" dir="<?= $direction ?>">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title><?= $title ?></title>
+<style type="text/css">
+body {
+	font: 68.75% Verdana, Arial, Helvetica, sans-serif;
+	color: #333333;
+	background-color: #FFFFFF
+}
+</style>
+</head>
+<body>
+<p><?= $rebuilding ?></p>
+
+<p><?php foreach ($lines as $line): ?><?= $line ?><br />
+<?php endforeach ?></p><?= $ended ?><script type="text/javascript">window.location="<?= $script ?>"</script><br /><?= $redirect ?> <a href="<?= $url ?>"><?= $continue ?></a>.

@@ -4,7 +4,18 @@ parameters:
 	level: max
 	paths:
 		- include/PunBB
-	# The legacy functions the bridge calls, declared but not analysed.
+	# The legacy functions, classes and constants the bridge calls, declared but not analysed.
+	# One driver stands for DBLayer: the four declare the same class.
 	scanFiles:
 		- include/functions.php
+		- include/parser.php
+		- include/search_idx.php
+		- include/common_admin.php
+		- include/cache.php
+		- include/email.php
+		- include/xml.php
+		- include/constants.php
+		- include/loader.php
+		- include/flash_messenger.php
+		- include/dblayer/sqlite3.php
 	tmpDir: .dev/tmp/phpstan-core

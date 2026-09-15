@@ -90,8 +90,8 @@ class DeprecationNoticeTest extends TestCase {
 			$this->assertStringContainsString('<p id="punbb-fixture-banner">', $page, 'the extension\'s code did not run');
 			$this->assertNothingOnThePage($page);
 			$this->assertOnlyNotices($lines);
-			$this->assertContains(self::logged(sprintf(self::HOOK_NOTICE, 'in_qr_get_cats_and_forums'), 'index.php', "get_hook('in_qr_get_cats_and_forums')"), $lines);
-			$this->assertContains(self::logged(sprintf(self::HOOK_NOTICE, 'in_main_output_start'), 'index.php', "get_hook('in_main_output_start')"), $lines);
+			$this->assertContains(self::logged(sprintf(self::HOOK_NOTICE, 'in_qr_get_cats_and_forums'), 'include/PunBB/Module/LegacyBridge/Module.php', '\\get_hook($point)'), $lines);
+			$this->assertContains(self::logged(sprintf(self::HOOK_NOTICE, 'in_main_output_start'), 'include/PunBB/Module/LegacyBridge/Module.php', '\\get_hook($point)'), $lines);
 		}
 	}
 
@@ -122,8 +122,9 @@ class DeprecationNoticeTest extends TestCase {
 		$this->assertSame(array(
 			self::logged($hook, $harness, '// hook: first'),
 			self::logged($hook, $harness, '// hook: second'),
-			self::logged($hook, 'include/PunBB/Module/LegacyBridge/Module.php', '\\get_hook($point)'),
 		), array_values(preg_grep('/'.preg_quote($hook, '/').'/', $lines)));
+		$this->assertContains(self::logged(sprintf(self::HOOK_NOTICE, 'fn_get_remote_address_start'), 'include/PunBB/Module/LegacyBridge/Module.php', '\\get_hook($point)'), $lines,
+			'the runner reads the stored code through get_hook(), whose call site is logged too');
 
 		$this->assertSame(array(
 			self::logged(self::RUN_NOTICE, $harness, '// run: first'),

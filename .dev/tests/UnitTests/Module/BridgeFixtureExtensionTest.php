@@ -1,9 +1,10 @@
 <?php
 /**
  * The fixture extensions from plan 08, installed on a scratch forum, driven
- * through the bridge's runners at their own points: the caller receives what
- * the legacy site hands it — the array, the short-circuit, the firing order,
- * the ext_info_stack depth and the output — and each concrete value is pinned.
+ * through the bridge at their own points — its runners, or the plugin and the
+ * event covering a point of a page that moved: the caller receives what the
+ * legacy site hands it — the array, the short-circuit, the firing order, the
+ * ext_info_stack depth and the output — and each concrete value is pinned.
  *
  * @copyright (C) 2008-2012 PunBB, partially based on code (C) 2008-2009 FluxBB.org
  * @license http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
@@ -91,11 +92,9 @@ class BridgeFixtureExtensionTest extends TestCase {
 		$report = $this->report('query', 'bridge');
 
 		$this->assertNull($report['returned']);
-		$this->assertSame('(fp.read_forum IS NULL OR fp.read_forum=1) AND f.punbb_fixture_hidden=0', $report['query']['WHERE']);
-		$this->assertCount(2, $report['query']['JOINS']);
 		$this->assertNotEmpty($report['forums']);
 		$this->assertNotContains(self::HIDDEN_FORUM, $report['forums']);
-		$this->assertSame(array(array('extension' => 'punbb_fixture', 'hook' => 'in_qr_get_cats_and_forums', 'seen' => array('where' => $report['query']['WHERE']))), $report['markers']);
+		$this->assertSame(array(array('extension' => 'punbb_fixture', 'hook' => 'in_qr_get_cats_and_forums', 'seen' => array('where' => '(fp.read_forum IS NULL OR fp.read_forum=1) AND f.punbb_fixture_hidden=0'))), $report['markers']);
 		$this->assertSame(array(), $report['stack']);
 	}
 

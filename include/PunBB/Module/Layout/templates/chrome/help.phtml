@@ -1,0 +1,22 @@
+<?php /* The help page's chrome. Every variable is escaped unless it is Html. */ ?>
+<!DOCTYPE html>
+<!--[if lt IE 7 ]> <html class="oldie ie6" <?= $local ?>> <![endif]-->
+<!--[if IE 7 ]>    <html class="oldie ie7" <?= $local ?>> <![endif]-->
+<!--[if IE 8 ]>    <html class="oldie ie8" <?= $local ?>> <![endif]-->
+<!--[if gt IE 8]><!--> <html <?= $local ?>> <!--<![endif]-->
+<head>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<?= $head, "\n" ?>
+</head>
+<body>
+<?= $messages, "\n" ?>
+<div <?= $page ?> class="brd-page">
+<div id="brd-wrap" class="brd">
+<?= $main, "\n" ?>
+</div>
+</div>
+<?= $javascript, "\n" ?>
+</body>
+</html>

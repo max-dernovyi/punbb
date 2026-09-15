@@ -1,0 +1,202 @@
+<?php /* The installation form, and the choice of the installer's language when there is one. Every variable is escaped unless it is Html. */ ?>
+<!DOCTYPE html>
+<!--[if lt IE 7 ]> <html class="oldie ie6" lang="en" dir="ltr"> <![endif]-->
+<!--[if IE 7 ]>    <html class="oldie ie7" lang="en" dir="ltr"> <![endif]-->
+<!--[if IE 8 ]>    <html class="oldie ie8" lang="en" dir="ltr"> <![endif]-->
+<!--[if gt IE 8]><!--> <html lang="en" dir="ltr"> <!--<![endif]-->
+<head>
+	<meta charset="utf-8" />
+	<title>PunBB Installation</title>
+	<link rel="stylesheet" type="text/css" href="../style/Oxygen/Oxygen.css" />
+</head>
+<body>
+<div id="brd-install" class="brd-page">
+<div id="brd-wrap" class="brd">
+
+<div id="brd-head" class="gen-content">
+	<p id="brd-title"><strong><?= $title ?></strong></p>
+	<p id="brd-desc"><?= $s['Install intro'] ?></p>
+</div>
+
+<div id="brd-main" class="main">
+
+	<div class="main-head">
+		<h1 class="hn"><span><?= $title ?></span></h1>
+	</div>
+
+<?php if (count($languages) > 1): ?>
+	<form class="frm-form" method="get" accept-charset="utf-8" action="install.php">
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $s['Choose language'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<fieldset class="frm-group group1">
+			<legend class="group-legend"><strong><?= $s['Choose language legend'] ?></strong></legend>
+			<div class="sf-set set1">
+				<div class="sf-box text">
+					<label for="fld0"><span><?= $s['Installer language'] ?></span> <small><?= $s['Choose language help'] ?></small></label><br />
+					<span class="fld-input"><select id="fld0" name="lang">
+<?php foreach ($languages as $pack): ?>
+					<option value="<?= $pack ?>"<?php if ($pack == $language): ?> selected="selected"<?php endif ?>><?= $pack ?></option>
+<?php endforeach ?>
+					</select></span>
+				</div>
+			</div>
+		</fieldset>
+		<div class="frm-buttons">
+			<span class="submit primary"><input type="submit" name="changelang" value="<?= $s['Choose language'] ?>" /></span>
+		</div>
+	</div>
+	</form>
+<?php endif ?>
+	<form class="frm-form frm-suggest-username" method="post" accept-charset="utf-8" action="install.php">
+	<div class="hidden">
+		<input type="hidden" name="form_sent" value="1" />
+	</div>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $s['Part1'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<div class="ct-box info-box">
+			<p><?= $s['Part1 intro'] ?></p>
+			<ul class="spaced list-clean">
+				<li><span><strong><?= $s['Database type'] ?></strong> <?= $s['Database type info'] ?><?php if ($bothMysql): ?> <?= $s['Mysql type info'] ?><?php endif ?></span></li>
+				<li><span><strong><?= $s['Database server'] ?></strong> <?= $s['Database server info'] ?></span></li>
+				<li><span><strong><?= $s['Database name'] ?></strong> <?= $s['Database name info'] ?></span></li>
+				<li><span><strong><?= $s['Database user pass'] ?></strong> <?= $s['Database username info'] ?></span></li>
+				<li><span><strong><?= $s['Table prefix'] ?></strong> <?= $s['Table prefix info'] ?></span></li>
+			</ul>
+		</div>
+		<div id="req-msg" class="req-warn ct-box error-box">
+			<p class="important"><?= $s['Required warn'] ?></p>
+		</div>
+		<fieldset class="frm-group group1">
+			<legend class="group-legend"><strong><?= $s['Part1 legend'] ?></strong></legend>
+			<div class="sf-set set1">
+				<div class="sf-box select required">
+					<label for="req_db_type"><span><?= $s['Database type'] ?></span> <small><?= $s['Database type help'] ?></small></label><br />
+					<span class="fld-input"><select id="req_db_type" name="req_db_type">
+<?php foreach ($databases as $type => $label): ?>
+					<option value="<?= $type ?>"><?= $label ?></option>
+<?php endforeach ?>
+					</select></span>
+				</div>
+			</div>
+			<div class="sf-set set1" id="db_host_block">
+				<div class="sf-box text required">
+					<label for="db_host"><span><?= $s['Database server'] ?></span> <small><?= $s['Database server help'] ?></small></label><br />
+					<span class="fld-input"><input id="db_host" type="text" name="req_db_host" value="localhost" size="35" maxlength="100" required /></span>
+				</div>
+			</div>
+			<div class="sf-set set2">
+				<div class="sf-box text required">
+					<label for="fld3"><span><?= $s['Database name'] ?></span> <small><?= $s['Database name help'] ?></small></label><br />
+					<span class="fld-input"><input id="fld3" type="text" name="req_db_name" size="35" maxlength="50" required /></span>
+				</div>
+			</div>
+			<div class="sf-set set3" id="db_username_block">
+				<div class="sf-box text">
+					<label for="fld4"><span><?= $s['Database username'] ?></span> <small><?= $s['Database username help'] ?></small></label><br />
+					<span class="fld-input"><input id="fld4" type="text" name="db_username" size="35" maxlength="50" /></span>
+				</div>
+			</div>
+			<div class="sf-set set4" id="db_password_block">
+				<div class="sf-box text">
+					<label for="fld5"><span><?= $s['Database password'] ?></span> <small><?= $s['Database password help'] ?></small></label><br />
+					<span class="fld-input"><input id="fld5" type="text" name="db_password" size="35" autocomplete="off" /></span>
+				</div>
+			</div>
+			<div class="sf-set set5">
+				<div class="sf-box text">
+					<label for="fld6"><span><?= $s['Table prefix'] ?></span> <small><?= $s['Table prefix help'] ?></small></label><br />
+					<span class="fld-input"><input id="fld6" type="text" name="db_prefix" size="35" maxlength="30" /></span>
+				</div>
+			</div>
+		</fieldset>
+	</div>
+
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $s['Part2'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<div class="ct-box info-box">
+			<p><?= $s['Part2 intro'] ?></p>
+		</div>
+		<fieldset class="frm-group group1">
+			<legend class="group-legend"><strong><?= $s['Part2 legend'] ?></strong></legend>
+			<div class="sf-set set4">
+				<div class="sf-box text required">
+					<label for="admin_email"><span><?= $s['Admin e-mail'] ?></span> <small><?= $s['E-mail address help'] ?></small></label><br />
+					<span class="fld-input"><input id="admin_email" type="email" data-suggest-role="email" name="req_email" size="35" maxlength="80" required /></span>
+				</div>
+			</div>
+			<div class="sf-set set1 prepend-top">
+				<div class="sf-box text required">
+					<label for="admin_username"><span><?= $s['Admin username'] ?></span> <small><?= $s['Username help'] ?></small></label><br />
+					<span class="fld-input"><input id="admin_username" type="text" data-suggest-role="username" name="req_username" size="35" maxlength="25" required /></span>
+				</div>
+			</div>
+			<div class="sf-set set2">
+				<div class="sf-box text required">
+					<label for="fld8"><span><?= $s['Admin password'] ?></span> <small><?= $s['Password help'] ?></small></label><br />
+					<span class="fld-input"><input id="fld8" type="text" name="req_password1" size="35" required autocomplete="off" /></span>
+				</div>
+			</div>
+		</fieldset>
+	</div>
+	<div class="main-subhead">
+		<h2 class="hn"><span><?= $s['Part3'] ?></span></h2>
+	</div>
+	<div class="main-content main-frm">
+		<div class="ct-box info-box">
+			<p><?= $s['Part3 intro'] ?></p>
+			<ul class="spaced list-clean">
+				<li><span><strong><?= $s['Base URL'] ?></strong> <?= $s['Base URL info'] ?></span></li>
+			</ul>
+		</div>
+		<fieldset class="frm-group group1">
+			<legend class="group-legend"><strong><?= $s['Part3 legend'] ?></strong></legend>
+			<div class="sf-set set3">
+				<div class="sf-box text required">
+					<label for="fld10"><span><?= $s['Base URL'] ?></span> <small><?= $s['Base URL help'] ?></small></label><br />
+					<span class="fld-input"><input id="fld10" type="url" name="req_base_url" value="<?= $baseUrl ?>" size="35" maxlength="100" required /></span>
+				</div>
+			</div>
+<?php if (count($languages) > 1): ?>
+			<div class="sf-set set4">
+				<div class="sf-box text">
+					<label for="fld11"><span><?= $s['Default language'] ?></span> <small><?= $s['Default language help'] ?></small></label><br />
+					<span class="fld-input"><select id="fld11" name="req_language">
+<?php foreach ($languages as $pack): ?>
+					<option value="<?= $pack ?>"<?php if ($pack == $language): ?> selected="selected"<?php endif ?>><?= $pack ?></option>
+<?php endforeach ?>
+					</select></span>
+				</div>
+			</div>
+<?php else: ?>
+			<div class="hidden">
+				<input type="hidden" name="req_language" value="<?= $languages[0] ?? '' ?>" />
+			</div>
+<?php endif ?>
+<?php if ($repository): ?>
+			<div class="sf-set set5">
+				<div class="sf-box checkbox">
+					<span class="fld-input"><input id="fld12" type="checkbox" name="install_pun_repository" value="1" checked="checked" /></span>
+					<label for="fld12"><span><?= $s['Pun repository'] ?></span> <?= $s['Pun repository help'] ?></label><br />
+				</div>
+			</div>
+<?php endif ?>
+		</fieldset>
+		<div class="frm-buttons">
+			<span class="submit primary"><input type="submit" name="start" value="<?= $s['Start install'] ?>" /></span>
+		</div>
+	</div>
+	</form>
+</div>
+
+</div>
+</div>
+	<script src="../include/js/punbb.common.js"></script>
+	<script src="../include/js/punbb.install.js"></script>
+</body>
+</html>
