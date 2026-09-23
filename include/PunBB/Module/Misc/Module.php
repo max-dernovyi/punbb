@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace PunBB\Module\Misc;
 
+use PunBB\Module\Database\Schema\Column;
+use PunBB\Module\Database\Schema\Table;
+use PunBB\Module\Database\Schema\TableOwnerInterface;
 use PunBB\Module\Database\Sql\Connection;
+use PunBB\Module\Database\Sql\Platform;
 use PunBB\Module\Framework\Container\Container;
 use PunBB\Module\Framework\Event\EventDispatcher;
 use PunBB\Module\Framework\Modules\ModuleInterface;
@@ -42,7 +46,7 @@ use PunBB\Module\Site\Visitor\VisitorInterface;
  * member, reporting a post, and subscriptions. A request for an action leaves
  * no visit behind.
  */
-final class Module implements ModuleInterface {
+final class Module implements ModuleInterface, TableOwnerInterface {
 	public function name(): string {
 		return 'Misc';
 	}
@@ -82,5 +86,19 @@ final class Module implements ModuleInterface {
 			$c->get(MailerInterface::class),
 			$c->get(PostRulesInterface::class)
 		), quietWith: array('action'));
+	}
+
+	public function tables(Platform $platform): array {
+		return array(
+			new Table('subscriptions', array(
+				new Column('user_id', 'INT(10) UNSIGNED', false, 0),
+				new Column('topic_id', 'INT(10) UNSIGNED', false, 0),
+			), array('user_id', 'topic_id')),
+
+			new Table('forum_subscriptions', array(
+				new Column('user_id', 'INT(10) UNSIGNED', false, 0),
+				new Column('forum_id', 'INT(10) UNSIGNED', false, 0),
+			), array('user_id', 'forum_id')),
+		);
 	}
 }

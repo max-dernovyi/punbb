@@ -9,7 +9,9 @@
  * @package PunBB
  */
 
+use PunBB\Module\Database\Patch\AppliedPatchesInterface;
 use PunBB\Module\Database\Schema\Column;
+use PunBB\Module\Database\Schema\InstalledTable;
 use PunBB\Module\Database\Schema\SchemaInterface;
 use PunBB\Module\Database\Schema\Table;
 use PunBB\Module\Setup\Config\BoardConfiguration;
@@ -130,6 +132,8 @@ final class FakeSetupDatabase implements DatabaseInterface {
 
 	public function endTransaction(): void { $this->journal->add('end transaction'); }
 
+	public function rollBack(): void { $this->journal->add('roll back'); }
+
 	public function close(): void { $this->journal->add('close'); }
 }
 
@@ -143,7 +147,12 @@ final class FakeSchema implements SchemaInterface {
 	/** @var list<string> "table.index" */
 	public array $indexes = array();
 
+	/** @var array<string, InstalledTable> what describe() reports, by table */
+	public array $described = array();
+
 	public function __construct(private readonly SetupJournal $journal) {}
+
+	public function describe(string $table): ?InstalledTable { return $this->described[$table] ?? null; }
 
 	public function tableExists(string $table): bool { return in_array($table, $this->tables, true); }
 
@@ -172,4 +181,18 @@ final class FakeSetupConfiguration implements ConfigurationInterface {
 	}
 
 	public function load(): ?BoardConfiguration { return $this->configuration; }
+}
+
+final class JournalAppliedPatches implements AppliedPatchesInterface {
+	/** @var list<string> */
+	public array $names = array();
+
+	public function __construct(private readonly SetupJournal $journal) {}
+
+	public function names(): array { return $this->names; }
+
+	public function record(string $name): void {
+		$this->names[] = $name;
+		$this->journal->add('record '.$name);
+	}
 }

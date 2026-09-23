@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace PunBB\Module\Groups;
 
+use PunBB\Module\Database\Schema\Column;
+use PunBB\Module\Database\Schema\Table;
+use PunBB\Module\Database\Schema\TableOwnerInterface;
 use PunBB\Module\Database\Sql\Connection;
+use PunBB\Module\Database\Sql\Platform;
 use PunBB\Module\Framework\Container\Container;
 use PunBB\Module\Framework\Event\EventDispatcher;
 use PunBB\Module\Framework\Modules\ModuleInterface;
@@ -34,7 +38,7 @@ use PunBB\Module\Site\Visitor\VisitorInterface;
  * QuickjumpCacheInterface, ConfigCacheInterface and ModeratorListsInterface,
  * which the bootstrap's side wires.
  */
-final class Module implements ModuleInterface {
+final class Module implements ModuleInterface, TableOwnerInterface {
 	public function name(): string {
 		return 'Groups';
 	}
@@ -68,5 +72,34 @@ final class Module implements ModuleInterface {
 			$c->get(CsrfTokensInterface::class),
 			$c->get(FlashMessagesInterface::class)
 		));
+	}
+
+	public function tables(Platform $platform): array {
+		return array(
+			new Table('groups', array(
+				new Column('g_id', 'SERIAL'),
+				new Column('g_title', 'VARCHAR(50)', false, ''),
+				new Column('g_user_title', 'VARCHAR(50)', true),
+				new Column('g_moderator', 'TINYINT(1)', false, 0),
+				new Column('g_mod_edit_users', 'TINYINT(1)', false, 0),
+				new Column('g_mod_rename_users', 'TINYINT(1)', false, 0),
+				new Column('g_mod_change_passwords', 'TINYINT(1)', false, 0),
+				new Column('g_mod_ban_users', 'TINYINT(1)', false, 0),
+				new Column('g_read_board', 'TINYINT(1)', false, 1),
+				new Column('g_view_users', 'TINYINT(1)', false, 1),
+				new Column('g_post_replies', 'TINYINT(1)', false, 1),
+				new Column('g_post_topics', 'TINYINT(1)', false, 1),
+				new Column('g_edit_posts', 'TINYINT(1)', false, 1),
+				new Column('g_delete_posts', 'TINYINT(1)', false, 1),
+				new Column('g_delete_topics', 'TINYINT(1)', false, 1),
+				new Column('g_set_title', 'TINYINT(1)', false, 1),
+				new Column('g_search', 'TINYINT(1)', false, 1),
+				new Column('g_search_users', 'TINYINT(1)', false, 1),
+				new Column('g_send_email', 'TINYINT(1)', false, 1),
+				new Column('g_post_flood', 'SMALLINT(6)', false, 30),
+				new Column('g_search_flood', 'SMALLINT(6)', false, 30),
+				new Column('g_email_flood', 'SMALLINT(6)', false, 60),
+			), array('g_id'), removedColumns: array('g_edit_subjects_interval', 'g_post_polls', 'g_posts_approved')),
+		);
 	}
 }

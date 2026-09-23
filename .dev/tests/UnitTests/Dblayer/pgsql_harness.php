@@ -14,6 +14,7 @@
 
 define('FORUM_ROOT', dirname(__DIR__, 4).'/');
 define('FORUM', 1);
+define('FORUM_SHOW_QUERIES', 1);
 
 require FORUM_ROOT.'include/constants.php';
 require FORUM_ROOT.'include/functions.php';
@@ -59,6 +60,16 @@ echo 'INSERT_ID_AGAIN=', var_export($db->insert_id(), true), "\n";
 // driver, rather than raise a diagnostic of its own.
 $empty = $db->query('SELECT label FROM '.$table.' WHERE id = 999');
 echo 'EMPTY_RESULT=', var_export($db->result($empty), true), "\n";
+
+// alter_field() casts explicitly only into a non-character type; into a character type the assignment cast rejects an over-length value
+$db->query('ALTER TABLE '.$table.' ADD num VARCHAR(10)');
+$db->alter_field($table, 'num', 'INT(10) UNSIGNED', true, null, null, true);
+$db->alter_field($table, 'label', 'VARCHAR(40)', false, '', null, true);
+foreach ($db->get_saved_queries() as $saved)
+{
+	if (str_contains($saved[0], ' TYPE '))
+		echo 'ALTER_TYPE=', $saved[0], "\n";
+}
 
 $db->query('DROP TABLE '.$table);
 

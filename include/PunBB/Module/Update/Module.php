@@ -4,7 +4,12 @@ declare(strict_types=1);
 
 namespace PunBB\Module\Update;
 
+use Closure;
+use PunBB\Module\Database\Patch\PatchApplier;
+use PunBB\Module\Database\Patch\PatchDeclaration;
+use PunBB\Module\Database\Patch\PatchOwnerInterface;
 use PunBB\Module\Database\Schema\SchemaInterface;
+use PunBB\Module\Database\Schema\SchemaSynchronizer;
 use PunBB\Module\Database\Sql\Connection;
 use PunBB\Module\Framework\Container\Container;
 use PunBB\Module\Framework\Modules\ModuleInterface;
@@ -18,7 +23,6 @@ use PunBB\Module\Setup\Page\SetupPage;
 use PunBB\Module\Update\Api\BoardDataInterface;
 use PunBB\Module\Update\Api\BoardSettingsInterface;
 use PunBB\Module\Update\Api\ConversionInterface;
-use PunBB\Module\Update\Controller\Stages;
 use PunBB\Module\Update\Controller\Update;
 use PunBB\Module\Update\Controller\UpdateController;
 use PunBB\Module\Update\Interceptor\BoardDataInterceptor;
@@ -28,15 +32,28 @@ use PunBB\Module\Update\Model\BoardData;
 use PunBB\Module\Update\Model\BoardSettings;
 use PunBB\Module\Update\Model\Conversion;
 use PunBB\Module\Update\Parsing\PreparserInterface;
+use PunBB\Module\Update\Patch\AddOptions;
+use PunBB\Module\Update\Patch\ConvertMisc;
+use PunBB\Module\Update\Patch\ConvertRows;
+use PunBB\Module\Update\Patch\ConvertTables;
+use PunBB\Module\Update\Patch\LimitGroupMail;
+use PunBB\Module\Update\Patch\ModeratorGroups;
+use PunBB\Module\Update\Patch\MoveUnverifiedUsers;
+use PunBB\Module\Update\Patch\Preparse;
+use PunBB\Module\Update\Patch\RecordAvatars;
+use PunBB\Module\Update\Patch\RecordFirstPosts;
+use PunBB\Module\Update\Patch\SchemeLinkedinAddresses;
 
 /**
- * Updating a board's database to this release, a stage per request. The
+ * Updating a board's database to this release, a stage per request: the
+ * schema every module declares, then each data patch a batch per request. The
+ * patches here carry an older board's data to this release's shape. The
  * preparser is declared here and wired by the bootstrap's side.
  *
  * It has no permission check: remove this module's directory once the update
  * has run, and admin/db_update.php is a page not found.
  */
-final class Module implements ModuleInterface {
+final class Module implements ModuleInterface, PatchOwnerInterface {
 	public function name(): string {
 		return 'Update';
 	}
@@ -69,17 +86,49 @@ final class Module implements ModuleInterface {
 				$c->get(BoardFilesInterface::class),
 				$c->get(SetupPage::class),
 				$c->get(TemplateRenderer::class),
-				new Stages(
-					$c->get(BoardSettingsInterface::class),
-					$c->get(BoardDataInterface::class),
-					$c->get(ConversionInterface::class),
-					$c->get(SchemaInterface::class),
-					$c->get(DatabaseInterface::class),
-					$c->get(EnvironmentInterface::class),
-					$c->get(BoardFilesInterface::class),
-					$c->get(PreparserInterface::class)
-				)
+				$c->get(SchemaSynchronizer::class),
+				$c->get(PatchApplier::class)
 			)
 		), setup: true);
+	}
+
+	/** The data a board from 1.2 on still holds in a shape this release does not read. */
+	public function patches(): array {
+		$conversions = array('Update::convert_misc', 'Update::convert_reports', 'Update::convert_search_words', 'Update::convert_users', 'Update::convert_topics', 'Update::convert_posts');
+
+		return array(
+			new PatchDeclaration('Update::avatars', array(), static fn (Container $c): RecordAvatars => new RecordAvatars($c->get(BoardSettingsInterface::class), $c->get(BoardDataInterface::class), $c->get(BoardFilesInterface::class))),
+			new PatchDeclaration('Update::options', array(), static fn (Container $c): AddOptions => new AddOptions($c->get(BoardSettingsInterface::class), $c->get(EnvironmentInterface::class))),
+			new PatchDeclaration('Update::moderator_groups', array(), static fn (Container $c): ModeratorGroups => new ModeratorGroups($c->get(BoardSettingsInterface::class), $c->get(BoardDataInterface::class))),
+			new PatchDeclaration('Update::group_mail', array('Update::moderator_groups'), static fn (Container $c): LimitGroupMail => new LimitGroupMail($c->get(BoardDataInterface::class))),
+			new PatchDeclaration('Update::first_posts', array(), static fn (Container $c): RecordFirstPosts => new RecordFirstPosts($c->get(BoardSettingsInterface::class), $c->get(BoardDataInterface::class))),
+			new PatchDeclaration('Update::unverified_users', array(), static fn (Container $c): MoveUnverifiedUsers => new MoveUnverifiedUsers($c->get(BoardDataInterface::class))),
+			new PatchDeclaration('Update::linkedin_addresses', array(), static fn (Container $c): SchemeLinkedinAddresses => new SchemeLinkedinAddresses($c->get(BoardSettingsInterface::class), $c->get(BoardDataInterface::class))),
+			// The text a 1.2 board stored, converted once every option and group is in place
+			new PatchDeclaration('Update::convert_misc', array('Update::options', 'Update::moderator_groups'), static fn (Container $c): ConvertMisc => new ConvertMisc($c->get(BoardSettingsInterface::class), $c->get(ConversionInterface::class), $c->get(DatabaseInterface::class))),
+			new PatchDeclaration('Update::convert_reports', array('Update::convert_misc'), self::rows('reports', array('message'), array(), 'report')),
+			new PatchDeclaration('Update::convert_search_words', array('Update::convert_misc'), self::rows('search_words', array('word'), array(), 'search word')),
+			new PatchDeclaration('Update::convert_users', array('Update::convert_misc'), self::rows('users', array('username', 'title', 'realname', 'location', 'signature', 'admin_note'), array('title', 'realname', 'location', 'signature', 'admin_note'), 'user', 2)),
+			new PatchDeclaration('Update::convert_topics', array('Update::convert_misc'), self::rows('topics', array('poster', 'subject', 'last_poster'), array(), 'topic')),
+			new PatchDeclaration('Update::convert_posts', array('Update::convert_misc'), self::rows('posts', array('poster', 'message', 'edited_by'), array('edited_by'), 'post')),
+			// Read as UTF-8 only once every row is converted, and preparsed only once it is UTF-8
+			new PatchDeclaration('Update::convert_tables', $conversions, static fn (Container $c): ConvertTables => new ConvertTables($c->get(BoardSettingsInterface::class), $c->get(ConversionInterface::class), $c->get(SchemaInterface::class), $c->get(Connection::class))),
+			new PatchDeclaration('Update::preparse_posts', array('Update::convert_tables'), self::preparse('posts', 'message', false, 'Preparsing post')),
+			new PatchDeclaration('Update::preparse_signatures', array('Update::convert_tables'), self::preparse('users', 'signature', true, 'Preparsing signature', 1)),
+		);
+	}
+
+	/**
+	 * @param list<string> $columns
+	 * @param list<string> $nullable
+	 * @return Closure(Container): ConvertRows
+	 */
+	private static function rows(string $table, array $columns, array $nullable, string $label, ?int $from = null): Closure {
+		return static fn (Container $c): ConvertRows => new ConvertRows($c->get(BoardSettingsInterface::class), $c->get(ConversionInterface::class), $c->get(DatabaseInterface::class), $table, $columns, $nullable, $label, $from);
+	}
+
+	/** @return Closure(Container): Preparse */
+	private static function preparse(string $table, string $column, bool $signature, string $label, ?int $from = null): Closure {
+		return static fn (Container $c): Preparse => new Preparse($c->get(BoardSettingsInterface::class), $c->get(ConversionInterface::class), $c->get(DatabaseInterface::class), $c->get(PreparserInterface::class), $table, $column, $signature, $label, $from);
 	}
 }

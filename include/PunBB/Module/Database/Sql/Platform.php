@@ -13,6 +13,16 @@ enum Platform {
 	case Pgsql;
 	case Sqlite;
 
+	/** The platform of $dbType, the driver config.php names: 'mysqli', 'mysqli_innodb', 'pgsql', 'sqlite3'. */
+	public static function ofDbType(string $dbType): self {
+		return match ($dbType) {
+			'mysqli', 'mysqli_innodb'	=> self::Mysql,
+			'pgsql'						=> self::Pgsql,
+			'sqlite3'					=> self::Sqlite,
+			default						=> throw new DatabaseException(sprintf('"%s" is not a database driver', $dbType)),
+		};
+	}
+
 	/** $name quoted as an identifier: MySQL 8 reserves words the schema uses as names, such as GROUPS and RANK. */
 	public function quoteIdentifier(string $name): string {
 		return $this === self::Mysql

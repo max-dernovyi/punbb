@@ -11,8 +11,14 @@
  */
 
 use PHPUnit\Framework\TestCase;
+use PunBB\Module\Database\Patch\DeclaredPatches;
+use PunBB\Module\Database\Patch\PatchApplier;
+use PunBB\Module\Database\Schema\DeclaredSchema;
+use PunBB\Module\Database\Schema\SchemaSynchronizer;
+use PunBB\Module\Framework\Container\Container;
 use PunBB\Module\Framework\Http\Request;
 use PunBB\Module\Framework\Http\Response;
+use PunBB\Module\Framework\Modules\ModuleRegistry;
 use PunBB\Module\Install\Api\BoardInstallationInterface;
 use PunBB\Module\Install\Api\Data\AdministratorInterface;
 use PunBB\Module\Install\Api\Data\ExtensionInterface;
@@ -161,9 +167,11 @@ class InstallControllerTest extends TestCase {
 		$this->language = new FakeInstallerLanguage();
 		$this->extensions = new FakeBundledExtensions();
 		$services = new FakeInstallerServices($this->journal);
+		$modules = ModuleRegistry::discover(FORUM_ROOT.'include/PunBB/Module', 'PunBB\\Module\\')->modules();
+		$patches = new PatchApplier(new DeclaredPatches(...$modules), new JournalAppliedPatches($this->journal), new Container(array()));
 
 		$this->controller = new InstallController($this->environment, $this->files, $this->database, $this->language, $this->extensions, $services, $services, new SetupPage(new TemplateRenderer()), new TemplateRenderer(),
-			fn (): Installation => new Installation($this->board, $this->schema, $this->database, $this->environment, $services, $services, $services, $this->extensions));
+			fn (): Installation => new Installation($this->board, $this->schema, new SchemaSynchronizer(new DeclaredSchema(...$modules), $this->schema), $patches, $this->database, $this->environment, $services, $services, $services, $this->extensions));
 	}
 
 	/** @param array<string, mixed> $post */
@@ -312,7 +320,9 @@ class InstallControllerTest extends TestCase {
 		$this->assertSame(array(
 			'open sqlite3 forum.sqlite ',
 			'start transaction',
-			'create bans', 'create categories', 'create censoring', 'create config', 'create extensions', 'create extension_hooks', 'create forum_perms', 'create forums', 'create groups', 'create online', 'create posts', 'create ranks', 'create reports', 'create search_cache', 'create search_matches', 'create search_words', 'create subscriptions', 'create forum_subscriptions', 'create topics', 'create users',
+			'create data_patches', 'create online', 'create users', 'create bans', 'create categories', 'create censoring', 'create extensions', 'create extension_hooks', 'create forum_perms', 'create forums', 'create groups', 'create subscriptions', 'create forum_subscriptions', 'create posts', 'create topics', 'create ranks', 'create reports', 'create search_cache', 'create search_matches', 'create search_words', 'create config',
+			'record Update::avatars', 'record Update::options', 'record Update::moderator_groups', 'record Update::group_mail', 'record Update::first_posts', 'record Update::unverified_users', 'record Update::linkedin_addresses',
+			'record Update::convert_misc', 'record Update::convert_reports', 'record Update::convert_search_words', 'record Update::convert_users', 'record Update::convert_topics', 'record Update::convert_posts', 'record Update::convert_tables', 'record Update::preparse_posts', 'record Update::preparse_signatures',
 			'groups', 'guest', 'administrator admin', 'settings', 'welcome by 2', 'index 1 Test post', 'ranks New member 0, Member 10',
 			'end transaction',
 			'clear cache',

@@ -22,22 +22,33 @@ final class BoardData implements BoardDataInterface {
 
 	public function __construct(private readonly Connection $db) {}
 
-	public function reorderGroups(): void {
-		$groups = $this->db->table('groups');
+	public function spareGroupId(): int {
+		return (int) $this->db->selectValue('SELECT MAX(g.g_id) + 1 FROM '.$this->db->table('groups').' AS g');
+	}
 
-		$this->db->execute('UPDATE '.$groups.' SET g_moderator=1 WHERE g_id=2');
-
-		$spare = (int) $this->db->selectValue('SELECT MAX(g.g_id) + 1 FROM '.$groups.' AS g');
-
-		foreach (array('groups' => 'g_id', 'users' => 'group_id', 'forum_perms' => 'group_id') as $table => $column)
+	public function reorderGroups(int $spare, int $step): bool {
+		if ($step === 0)
 		{
-			$sql = 'UPDATE '.$this->db->table($table).' SET '.$column.'=? WHERE '.$column.'=?';
+			$this->db->execute('UPDATE '.$this->db->table('groups').' SET g_moderator=1 WHERE g_id=2');
 
-			$this->db->execute($sql, $spare, 2);
-			$this->db->execute($sql, 2, 3);
-			$this->db->execute($sql, 3, 4);
-			$this->db->execute($sql, 4, $spare);
+			return true;
 		}
+
+		$tables = array('groups' => 'g_id', 'users' => 'group_id', 'forum_perms' => 'group_id');
+		$moves = array(array($spare, 2), array(2, 3), array(3, 4), array(4, $spare));
+
+		$table = array_keys($tables)[intdiv($step - 1, 4)] ?? null;
+		if ($table === null)
+			return false;
+
+		[$to, $from] = $moves[($step - 1) % 4];
+		$this->db->execute('UPDATE '.$this->db->table($table).' SET '.$tables[$table].'=? WHERE '.$tables[$table].'=?', $to, $from);
+
+		return true;
+	}
+
+	public function hasModeratorGroup(): bool {
+		return $this->db->selectValue('SELECT 1 FROM '.$this->db->table('groups').' AS g WHERE g.g_moderator=1 LIMIT 1') !== null;
 	}
 
 	public function grantModerators(string $permission, int $value): void {

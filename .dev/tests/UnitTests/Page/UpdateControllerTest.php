@@ -2,8 +2,9 @@
 /**
  * admin/db_update.php as a module, built with no forum: what it answers before
  * it opens the database, the checks that a board is one it updates, the start
- * form, the structure a 1.4 board is brought to, a 1.2 board's conversion
- * stages and the finish.
+ * form, the schema the start brings a board to, the data patches applied a
+ * batch per request — a 1.4 board's and a 1.2 board's conversion — a patch
+ * that fails, and the finish.
  *
  * @copyright (C) 2008-2012 PunBB, partially based on code (C) 2008-2009 FluxBB.org
  * @license http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
@@ -11,11 +12,28 @@
  */
 
 use PHPUnit\Framework\TestCase;
+use PunBB\Module\Database\Patch\DeclaredPatches;
+use PunBB\Module\Database\Patch\PatchApplier;
+use PunBB\Module\Database\Patch\PatchException;
+use PunBB\Module\Database\Schema\DeclaredSchema;
+use PunBB\Module\Database\Schema\InstalledColumn;
+use PunBB\Module\Database\Schema\InstalledIndex;
+use PunBB\Module\Database\Schema\InstalledTable;
+use PunBB\Module\Database\Schema\SchemaInterface;
+use PunBB\Module\Database\Schema\SchemaSynchronizer;
+use PunBB\Module\Database\Sql\Connection;
+use PunBB\Module\Database\Sql\Driver\DriverInterface;
+use PunBB\Module\Database\Sql\Platform;
+use PunBB\Module\Framework\Container\Container;
 use PunBB\Module\Framework\Http\Request;
 use PunBB\Module\Framework\Http\Response;
+use PunBB\Module\Framework\Modules\ModuleRegistry;
 use PunBB\Module\Layout\View\TemplateRenderer;
 use PunBB\Module\Setup\Config\BoardConfiguration;
+use PunBB\Module\Setup\Database\DatabaseInterface;
 use PunBB\Module\Setup\Database\DatabaseSettings;
+use PunBB\Module\Setup\Environment\EnvironmentInterface;
+use PunBB\Module\Setup\Files\BoardFilesInterface;
 use PunBB\Module\Setup\Page\SetupPage;
 use PunBB\Module\Update\Api\BoardDataInterface;
 use PunBB\Module\Update\Api\BoardSettingsInterface;
@@ -23,7 +41,6 @@ use PunBB\Module\Update\Api\ConversionInterface;
 use PunBB\Module\Update\Api\Data\PostRangeInterface;
 use PunBB\Module\Update\Api\Data\SettingInterface;
 use PunBB\Module\Update\Api\Data\TextRowInterface;
-use PunBB\Module\Update\Controller\Stages;
 use PunBB\Module\Update\Controller\Update;
 use PunBB\Module\Update\Controller\UpdateController;
 use PunBB\Module\Update\Model\PostRange;
@@ -51,32 +68,69 @@ final class FakeBoardSettings implements BoardSettingsInterface {
 
 	public function add(SettingInterface ...$settings): void {
 		foreach ($settings as $setting)
+		{
 			$this->journal->add('add setting '.$setting->name().'='.$setting->value());
+			$this->config[$setting->name()] = $setting->value();
+		}
 	}
 
 	public function update(SettingInterface ...$settings): void {
 		foreach ($settings as $setting)
+		{
 			$this->journal->add('set '.$setting->name().'='.$setting->value());
+			if (array_key_exists($setting->name(), $this->config))
+				$this->config[$setting->name()] = $setting->value();
+		}
 	}
 
 	public function replace(SettingInterface $setting, string $expected): void { $this->journal->add('replace '.$setting->name().' '.$expected.'='.$setting->value()); }
 
 	public function rename(string $from, string $to): void { $this->journal->add('rename '.$from.' '.$to); }
 
-	public function remove(string ...$names): void { $this->journal->add('remove setting '.implode(',', $names)); }
+	public function remove(string ...$names): void {
+		$this->journal->add('remove setting '.implode(',', $names));
+		foreach ($names as $name)
+			unset($this->config[$name]);
+	}
 }
 
 final class FakeBoardData implements BoardDataInterface {
 	/** @var list<string> */
 	public array $samples = array('Hello', 'Ünïcode');
 
+	public bool $moderatorGroup = false;
+
+	public bool $mailFails = false;
+
+	/** The reorder step the connection is lost at. */
+	public ?int $reorderFailsAt = null;
+
 	public function __construct(private readonly SetupJournal $journal) {}
 
-	public function reorderGroups(): void { $this->journal->add('reorder groups'); }
+	public function spareGroupId(): int { return 5; }
+
+	public function reorderGroups(int $spare, int $step): bool {
+		if ($step > 12)
+			return false;
+
+		if ($step === $this->reorderFailsAt)
+			throw new RuntimeException('Lost connection to the server');
+
+		$this->journal->add('reorder groups '.$spare.':'.$step);
+
+		return true;
+	}
+
+	public function hasModeratorGroup(): bool { return $this->moderatorGroup; }
 
 	public function grantModerators(string $permission, int $value): void { $this->journal->add('grant '.$permission.'='.$value); }
 
-	public function limitGroupMail(): void { $this->journal->add('limit group mail'); }
+	public function limitGroupMail(): void {
+		if ($this->mailFails)
+			throw new RuntimeException('the groups table is gone');
+
+		$this->journal->add('limit group mail');
+	}
 
 	public function recordFirstPosts(): void { $this->journal->add('first posts'); }
 
@@ -107,6 +161,9 @@ final class FakeConversion implements ConversionInterface {
 	/** @var array<string, list<TextRow>> */
 	public array $rows = array();
 
+	/** The rows stored before the connection is lost. */
+	public int $storesLeft = PHP_INT_MAX;
+
 	public function __construct(private readonly SetupJournal $journal) {}
 
 	public function firstId(string $table): ?int { return ($this->rows[$table] ?? array()) !== array() ? $this->rows[$table][0]->id() : null; }
@@ -128,11 +185,24 @@ final class FakeConversion implements ConversionInterface {
 		foreach ($row->columns() as $column)
 			$values[] = $column.'='.var_export($row->value($column), true);
 
+		if ($this->storesLeft-- === 0)
+			throw new \RuntimeException('Lost connection to the server');
+
 		$this->journal->add('store '.$table.' '.$row->id().' '.implode(' ', $values));
+
+		foreach ($this->rows[$table] ?? array() as $i => $stored)
+			if ($stored->id() === $row->id())
+				$this->rows[$table][$i] = $row;
 	}
 
+	/** @var array<string, list<TableColumn>> the columns a table is described with instead of the defaults */
+	public array $columns = array();
+
 	public function columns(string $table): array {
-		return $table === 'search_words' ? array(new TableColumn('word', 'varchar(20)', 'latin1_swedish_ci', false, '')) : array(new TableColumn('title', 'varchar(50)', 'latin1_swedish_ci', true, null), new TableColumn('id', 'int(10) unsigned', null, false, null));
+		if (isset($this->columns[$table]))
+			return $this->columns[$table];
+
+		return $table === 'search_words' ? array(new TableColumn('word', 'varchar(20)', 'latin1_bin', false, '')) : array(new TableColumn('title', 'varchar(50)', 'latin1_swedish_ci', true, null), new TableColumn('id', 'int(10) unsigned', null, false, null));
 	}
 
 	public function setDefaultCharset(string $table): void { $this->journal->add('charset '.$table); }
@@ -142,7 +212,23 @@ final class FakePreparser implements PreparserInterface {
 	public function preparse(string $text, bool $signature): string { return strtolower($text).($signature ? ' (sig)' : ''); }
 }
 
+/** A MySQL connection that runs nothing: the patches ask it only for its platform and prefix. */
+final class IdleMysqlDriver implements DriverInterface {
+	public function platform(): Platform { return Platform::Mysql; }
+
+	public function select(string $sql, array $parameters): array { return array(); }
+
+	public function execute(string $sql, array $parameters): int { return 0; }
+
+	public function lastInsertId(): int { return 0; }
+}
+
 class UpdateControllerTest extends TestCase {
+	private const PATCHES = array(
+		'Update::avatars', 'Update::options', 'Update::moderator_groups', 'Update::group_mail', 'Update::first_posts', 'Update::unverified_users', 'Update::linkedin_addresses',
+		'Update::convert_misc', 'Update::convert_reports', 'Update::convert_search_words', 'Update::convert_users', 'Update::convert_topics', 'Update::convert_posts', 'Update::convert_tables', 'Update::preparse_posts', 'Update::preparse_signatures',
+	);
+
 	private SetupJournal $journal;
 
 	private FakeEnvironment $environment;
@@ -159,6 +245,8 @@ class UpdateControllerTest extends TestCase {
 
 	private FakeConversion $conversion;
 
+	private JournalAppliedPatches $applied;
+
 	private UpdateController $controller;
 
 	protected function setUp(): void {
@@ -167,21 +255,80 @@ class UpdateControllerTest extends TestCase {
 		$this->configuration = new FakeSetupConfiguration();
 		$this->files = new FakeBoardFiles($this->journal);
 		$this->schema = new FakeSchema($this->journal);
-		$this->schema->tables = array('config', 'search_cache', 'extensions', 'extension_hooks', 'forum_subscriptions');
+		$this->schema->tables = array('config');
 		$this->settings = new FakeBoardSettings($this->journal);
 		$this->data = new FakeBoardData($this->journal);
 		$this->conversion = new FakeConversion($this->journal);
+		$this->applied = new JournalAppliedPatches($this->journal);
 		$database = new FakeSetupDatabase($this->journal);
 		$pages = new SetupPage(new TemplateRenderer());
+		$modules = ModuleRegistry::discover(FORUM_ROOT.'include/PunBB/Module', 'PunBB\\Module\\')->modules();
+
+		// What the Update module's patches are built from
+		$container = new Container(array(
+			BoardSettingsInterface::class	=> fn (): object => $this->settings,
+			BoardDataInterface::class		=> fn (): object => $this->data,
+			ConversionInterface::class		=> fn (): object => $this->conversion,
+			SchemaInterface::class			=> fn (): object => $this->schema,
+			DatabaseInterface::class		=> fn (): object => $database,
+			EnvironmentInterface::class		=> fn (): object => $this->environment,
+			BoardFilesInterface::class		=> fn (): object => $this->files,
+			PreparserInterface::class		=> fn (): object => new FakePreparser(),
+			Connection::class				=> fn (): object => new Connection(new IdleMysqlDriver(), 'pun_'),
+		));
 
 		$this->controller = new UpdateController($this->environment, $this->configuration, $database, $pages,
 			fn (): Update => new Update($this->settings, $this->data, $this->schema, $database, $this->environment, $this->files, $pages, new TemplateRenderer(),
-				new Stages($this->settings, $this->data, $this->conversion, $this->schema, $database, $this->environment, $this->files, new FakePreparser())));
+				new SchemaSynchronizer(new DeclaredSchema(...$modules), $this->schema),
+				new PatchApplier(new DeclaredPatches(...$modules), $this->applied, $container)));
 	}
 
 	/** @param array<string, string> $query */
 	private function get(array $query = array()): Response {
 		return $this->controller->handle(new Request('GET', '/', 'admin/db_update.php', $query));
+	}
+
+	/** Every patch before $patch recorded, as a board has them that stopped there. */
+	private function appliedUpTo(string $patch): void {
+		$this->applied->names = array_slice(self::PATCHES, 0, (int) array_search($patch, self::PATCHES, true));
+	}
+
+	/** @return array<string, string> the query the page sends the browser on to */
+	private static function next(string $body): array {
+		if (preg_match('/window\.location="db_update\.php\?([^"]*)"/', $body, $matches) !== 1)
+			return array();
+
+		parse_str(str_replace('\u0026', '&', $matches[1]), $query);
+
+		return array_map(strval(...), $query);
+	}
+
+	/** @return list<string> the pages, from the patch stage on until it sends the browser to the finish */
+	private function applyAll(): array {
+		$bodies = array();
+		$query = array('stage' => 'patch');
+
+		while (($query['stage'] ?? '') === 'patch' && count($bodies) < 100)
+		{
+			$bodies[] = $body = $this->get($query)->body;
+			$query = self::next($body);
+		}
+
+		$this->assertSame(array('stage' => 'finish'), $query, 'the patches go on to the finish');
+
+		return $bodies;
+	}
+
+	/** A patch request the simulated lost connection stops. */
+	private function assertConnectionLost(): void {
+		try {
+			$this->get(array('stage' => 'patch'));
+			$this->fail('the lost connection stops the update');
+		}
+		catch (PatchException $e) {
+			$this->assertInstanceOf(RuntimeException::class, $e->getPrevious());
+			$this->assertSame('Lost connection to the server', $e->getPrevious()->getMessage());
+		}
 	}
 
 	public function testWithoutConfigPhpNothingIsOpened(): void {
@@ -257,114 +404,502 @@ class UpdateControllerTest extends TestCase {
 		$this->assertSame(array('set o_default_style=Oxygen', 'set o_default_lang=English'), $this->journal->starting('set o_default'));
 	}
 
-	public function testTheStartBringsA14BoardsStructureUpAndGoesOnToTheFinish(): void {
-		$this->files->avatarFiles = array('3.png' => array(60, 60), '4.jpg' => array(100, 60), '1.gif' => array(1, 1), 'x.png' => array(1, 1), '5.gif' => null);
-		$this->settings->config += array('o_avatars_width' => '60', 'o_avatars_height' => '60');
+	public function testTheStartBringsTheSchemaToWhatTheModulesDeclareAndGoesOnToThePatches(): void {
+		// A 1.4 board's online table, with the index 1.2 put back
+		$this->schema->described['online'] = new InstalledTable('online', array(
+			new InstalledColumn('user_id', 'int unsigned', false, '1'),
+			new InstalledColumn('ident', 'varchar(200)', false, ''),
+			new InstalledColumn('logged', 'int unsigned', false, '0'),
+			new InstalledColumn('idle', 'tinyint(1)', false, '0'),
+			new InstalledColumn('csrf_token', 'varchar(40)', false, ''),
+			new InstalledColumn('prev_url', 'varchar(255)', true, null),
+			new InstalledColumn('last_post', 'int unsigned', true, null),
+			new InstalledColumn('last_search', 'int unsigned', true, null),
+		), array(), array(
+			new InstalledIndex('user_id_ident_idx', array('user_id', 'ident(40)'), true),
+			new InstalledIndex('ident_idx', array('ident(40)'), false),
+			new InstalledIndex('logged_idx', array('logged'), false),
+			new InstalledIndex('user_id_idx', array('user_id'), false),
+		));
 
 		$body = $this->get(array('stage' => 'start'))->body;
 
-		$this->assertStringContainsString('<script type="text/javascript">window.location="db_update.php?stage=finish"</script><br />JavaScript seems to be disabled. <a href="db_update.php?stage=finish">Click here to continue</a>.', $body);
-		$this->assertSame(array(), $this->journal->starting('create'), 'the tables it finds are not created again');
-		$this->assertContains('add users.avatar_width TINYINT(3) UNSIGNED after avatar', $this->journal->entries);
-		$this->assertContains('alter users.password VARCHAR(255)', $this->journal->entries);
-		$this->assertContains('index online.user_id_ident_idx user_id,ident(25) unique', $this->journal->entries);
-		$this->assertContains('drop index topics.subject_idx', $this->journal->entries);
-		$this->assertSame(array('avatar 3 3 60x60'), $this->journal->starting('avatar'));
-		$this->assertSame(array('remove avatar 4.jpg', 'remove avatar 5.gif'), $this->journal->starting('remove avatar'));
-		$this->assertContains('set o_timeout_visit=1800', $this->journal->entries);
-		$this->assertContains('rename o_server_timezone o_default_timezone', $this->journal->entries);
-		$this->assertContains('add setting o_sef=Default', $this->journal->entries);
-		$this->assertContains('reorder groups', $this->journal->entries);
-		$this->assertContains('replace o_default_user_group 4=3', $this->journal->entries);
-		$this->assertContains('remove extension hotfix_1_4_3', $this->journal->entries);
-		$this->assertNotContains('linkedin', $this->journal->entries, 'only a board between 1.3 and 1.4.1 stored them');
-		$this->assertSame(array('end transaction', 'close'), array_slice($this->journal->entries, -2));
+		$this->assertStringStartsWith("Create table data_patches…<br />\nDrop index online.user_id_idx…<br />\nCreate table users…<br />", $body);
+		$this->assertStringContainsString('<script type="text/javascript">window.location="db_update.php?stage=patch"</script><br />JavaScript seems to be disabled. <a href="db_update.php?stage=patch">Click here to continue</a>.', $body);
+		$this->assertCount(20, $this->journal->starting('create'), 'every table but the one the board has');
+		$this->assertLessThan(array_search('create data_patches', $this->journal->entries, true), array_search('empty online', $this->journal->entries, true), 'the online list is empty before a key over it is added');
+		$this->assertSame(array(), $this->journal->starting('record'), 'no patch is applied yet');
+		$this->assertSame(array(), $this->journal->starting('remove setting'), 'a 1.4 board has no text to convert');
+		$this->assertSame(array('remove extension hotfix_1_4_3'), $this->journal->starting('remove extension'));
 	}
 
-	public function testA12BoardsOptionsForEveryModeratorBecomeGroupPermissions(): void {
+	public function testThe12TextsCharacterSetIsKeptForThePatches(): void {
 		$this->settings->config['o_cur_version'] = '1.2.15';
-		$this->settings->config['p_mod_rename_users'] = '1';
-		$this->schema->fields = array('groups.g_moderator');
 
-		$body = $this->get(array('stage' => 'start', 'convert_charset' => '1', 'req_old_charset' => 'iso8859-15'))->body;
+		$this->get(array('stage' => 'start', 'convert_charset' => '1', 'req_old_charset' => 'iso8859-15'));
+		$this->assertSame(array('remove setting update:charset', 'add setting update:charset=ISO-8859-15'), array_values(array_filter($this->journal->entries, static fn (string $entry): bool => str_contains($entry, 'update:charset'))));
 
-		$this->assertStringContainsString('window.location="db_update.php?stage=conv_misc\u0026req_old_charset=ISO-8859-15\u0026req_per_page=300"', $body);
-		$this->assertStringContainsString('<a href="db_update.php?stage=conv_misc&amp;req_old_charset=ISO-8859-15&amp;req_per_page=300">', $body);
-		$this->assertSame(array('remove setting p_mod_rename_users'), $this->journal->starting('remove setting'));
-		$this->assertContains('add groups.g_mod_rename_users TINYINT(1) after g_mod_edit_users', $this->journal->entries);
-		$this->assertContains('grant g_mod_rename_users=1', $this->journal->entries);
-		$this->assertNotContains('reorder groups', $this->journal->entries);
-
-		$this->assertStringContainsString('window.location="db_update.php?stage=conv_tables"', $this->get(array('stage' => 'start'))->body, 'without the conversion the tables are next');
+		$this->journal->entries = array();
+		$this->get(array('stage' => 'start'));
+		$this->assertSame(array('remove setting update:charset'), array_values(array_filter($this->journal->entries, static fn (string $entry): bool => str_contains($entry, 'update:charset'))), 'without the conversion there is none');
 	}
 
 	public function testAnUnknownCharacterSetIsRefused(): void {
-		$this->assertSame('Unknown character set. Set req_old_charset to an encoding this PHP installation supports.', $this->get(array('stage' => 'conv_misc', 'req_old_charset' => 'NO-SUCH-SET'))->body);
+		$this->assertSame('Unknown character set. Set req_old_charset to an encoding this PHP installation supports.', $this->get(array('stage' => 'start', 'req_old_charset' => 'NO-SUCH-SET'))->body);
 	}
 
-	public function testAConversionStageConvertsABatchAndGoesOnToTheNext(): void {
+	public function testEachRequestAppliesTheFirstPatchTheBoardHasNotRecorded(): void {
+		$body = $this->get(array('stage' => 'patch'))->body;
+
+		$this->assertStringStartsWith("Applying Update::avatars…<br />\n<script", $body);
+		$this->assertSame(array('stage' => 'patch'), self::next($body));
+		$this->assertSame(array('record Update::avatars'), $this->journal->starting('record'));
+
+		$this->assertStringStartsWith("Applying Update::options…<br />\n<script", $this->get(array('stage' => 'patch'))->body);
+	}
+
+	public function testA14BoardsPatchesChangeWhatA14BoardLacks(): void {
+		$this->files->avatarFiles = array('3.png' => array(60, 60), '4.jpg' => array(100, 60), '1.gif' => array(1, 1), 'x.png' => array(1, 1), '5.gif' => null);
+		$this->settings->config += array('o_avatars_width' => '60', 'o_avatars_height' => '60');
+
+		$this->assertCount(16, $this->applyAll());
+
+		$this->assertSame(array_map(static fn (string $patch): string => 'record '.$patch, self::PATCHES), $this->journal->starting('record'));
+		$this->assertSame(array('avatar 3 3 60x60'), $this->journal->starting('avatar'));
+		$this->assertSame(array('remove avatar 4.jpg', 'remove avatar 5.gif'), $this->journal->starting('remove avatar'));
+		$this->assertContains('add setting o_sef=Default', $this->journal->entries);
+		$this->assertContains('rename o_server_timezone o_default_timezone', $this->journal->entries);
+		$this->assertContains('set o_timeout_visit=1800', $this->journal->entries);
+		$this->assertContains('limit group mail', $this->journal->entries);
+		$this->assertContains('unverified', $this->journal->entries);
+		$this->assertNotContains('reorder groups', $this->journal->entries, 'a 1.4 board has its moderator group');
+		$this->assertNotContains('first posts', $this->journal->entries);
+		$this->assertNotContains('linkedin', $this->journal->entries, 'only a board between 1.3 and 1.4.1 stored them');
+		$this->assertSame(array(), $this->journal->starting('store'), 'a 1.4 board\'s text is UTF-8');
+		$this->assertSame(array(), $this->journal->starting('alter'));
+	}
+
+	public function testA12BoardsModeratorsBecomeAGroupAndItsOptionsPermissions(): void {
 		$this->settings->config['o_cur_version'] = '1.2.15';
+		$this->settings->config['p_mod_rename_users'] = '1';
+		$this->appliedUpTo('Update::moderator_groups');
+
+		$this->get(array('stage' => 'patch'));
+
+		$this->assertSame(array('add setting update:groups=5:0', 'reorder groups 5:0', 'set update:groups=5:1', 'reorder groups 5:1'), array_slice($this->journal->entries, 3, 4), 'the spare group is recorded before the first step');
+		$this->assertSame(13, count($this->journal->starting('reorder groups')));
+		$this->assertSame(array('set update:groups=5:13', 'replace o_default_user_group 4=3', 'grant g_mod_rename_users=1', 'remove setting p_mod_rename_users'), array_slice($this->journal->entries, -7, 4));
+
+		// Applied again after a failure, it does not move the groups back
+		$this->journal->entries = array();
+		$this->data->moderatorGroup = true;
+		$this->settings->config['p_mod_rename_users'] = '1';
+		$this->appliedUpTo('Update::moderator_groups');
+		$this->get(array('stage' => 'patch'));
+
+		$this->assertSame(array(), $this->journal->starting('reorder groups'));
+		$this->assertContains('grant g_mod_rename_users=1', $this->journal->entries);
+	}
+
+	public function testAGroupReorderInterruptedPartWayResumesAtTheStepItStoppedAt(): void {
+		$this->settings->config['o_cur_version'] = '1.2.15';
+		$this->appliedUpTo('Update::moderator_groups');
+		$this->data->reorderFailsAt = 6;
+
+		$this->assertConnectionLost();
+
+		// The first step made group 2 moderate, which MyISAM keeps
+		$this->journal->entries = array();
+		$this->data->moderatorGroup = true;
+		$this->data->reorderFailsAt = null;
+		$this->get(array('stage' => 'patch'));
+
+		$this->assertSame(array('reorder groups 5:6', 'reorder groups 5:7', 'reorder groups 5:8', 'reorder groups 5:9', 'reorder groups 5:10', 'reorder groups 5:11', 'reorder groups 5:12'), $this->journal->starting('reorder groups'));
+		$this->assertContains('replace o_default_user_group 4=3', $this->journal->entries);
+	}
+
+	public function testAGroupReorderInterruptedAtItsSecondStepResumesThere(): void {
+		$this->settings->config['o_cur_version'] = '1.2.15';
+		$this->appliedUpTo('Update::moderator_groups');
+		$this->data->reorderFailsAt = 1;
+
+		$this->assertConnectionLost();
+		$this->assertSame('5:1', $this->settings->config['update:groups']);
+
+		// Step 0 made group 2 moderate, so the board reads as having its moderator group already
+		$this->journal->entries = array();
+		$this->data->moderatorGroup = true;
+		$this->data->reorderFailsAt = null;
+		$this->get(array('stage' => 'patch'));
+
+		$this->assertSame(array_map(static fn (int $step): string => 'reorder groups 5:'.$step, range(1, 12)), $this->journal->starting('reorder groups'));
+		$this->assertSame(array(), $this->journal->starting('add setting update:groups'), 'the spare group is not picked again');
+		$this->assertContains('replace o_default_user_group 4=3', $this->journal->entries);
+	}
+
+	public function testAConversionPatchConvertsABatchAndGoesOnFromWhereItStopped(): void {
+		$this->settings->config['o_cur_version'] = '1.2.15';
+		$this->settings->config['update:charset'] = 'ISO-8859-1';
+		$this->appliedUpTo('Update::convert_users');
 		$this->conversion->rows['users'] = array(
 			new TextRow(2, array('username' => "J\xF6rg", 'title' => '', 'realname' => null, 'location' => "K&ouml;ln", 'signature' => '&#8364;', 'admin_note' => null)),
 			new TextRow(3, array('username' => 'plain', 'title' => null, 'realname' => null, 'location' => null, 'signature' => null, 'admin_note' => null)),
-			new TextRow(400, array('username' => 'later', 'title' => null, 'realname' => null, 'location' => null, 'signature' => null, 'admin_note' => null)),
+			new TextRow(400, array('username' => "S\xF8ren", 'title' => null, 'realname' => null, 'location' => null, 'signature' => null, 'admin_note' => null)),
 		);
 
-		$body = $this->get(array('stage' => 'conv_users', 'req_old_charset' => 'ISO-8859-1'))->body;
+		$body = $this->get(array('stage' => 'patch'))->body;
 
-		$this->assertStringStartsWith("Converting user 2…<br />\nConverting user 3…<br />\n<script", $body);
+		$this->assertStringStartsWith("Applying Update::convert_users…<br />\nConverting user 2…<br />\nConverting user 3…<br />\n<script", $body);
 		$this->assertSame(array("store users 2 username='Jörg' title=NULL realname=NULL location='Köln' signature='€' admin_note=NULL"), $this->journal->starting('store'));
-		$this->assertStringContainsString('window.location="db_update.php?stage=conv_users\u0026req_old_charset=ISO-8859-1\u0026req_per_page=300\u0026start_at=400"', $body);
+		$this->assertStringContainsString('window.location="db_update.php?stage=patch\u0026patch=Update%3A%3Aconvert_users\u0026start_at=400"', $body);
+		$this->assertSame(array(), $this->journal->starting('record'), 'a patch with rows left is not recorded');
 
-		$this->assertStringContainsString('window.location="db_update.php?stage=conv_topics', $this->get(array('stage' => 'conv_users', 'req_old_charset' => 'ISO-8859-1', 'start_at' => '302'))->body);
-		$this->assertStringContainsString('window.location="db_update.php?stage=conv_tables"', $this->get(array('stage' => 'conv_posts', 'req_old_charset' => 'ISO-8859-1'))->body);
+		$body = $this->get(self::next($body))->body;
+
+		$this->assertStringStartsWith("Applying Update::convert_users…<br />\nConverting user 400…<br />\n<script", $body);
+		$this->assertSame(array('stage' => 'patch'), self::next($body));
+		$this->assertSame(array('record Update::convert_users'), $this->journal->starting('record'));
+		$this->assertSame('users:700', $this->settings->config['update:converted'], 'a run stopped before the record converts nothing again');
+	}
+
+	public function testAConversionRunAgainGoesOnAfterTheBatchesItStored(): void {
+		$this->settings->config['o_cur_version'] = '1.2.15';
+		$this->settings->config['update:charset'] = 'ISO-8859-1';
+		$this->appliedUpTo('Update::convert_users');
+		$this->conversion->rows['users'] = array(
+			new TextRow(2, array('username' => '&amp;amp;', 'title' => null, 'realname' => null, 'location' => null, 'signature' => null, 'admin_note' => null)),
+			new TextRow(400, array('username' => "S\xF8ren", 'title' => null, 'realname' => null, 'location' => null, 'signature' => null, 'admin_note' => null)),
+		);
+
+		$this->get(array('stage' => 'patch'));
+		$this->assertSame('users:400', $this->settings->config['update:converted']);
+
+		// The redirect lost, the update is run again from its first batch
+		$this->journal->entries = array();
+		$this->assertStringStartsWith("Applying Update::convert_users…<br />\nConverting user 400…<br />", $this->get(array('stage' => 'patch'))->body);
+		$this->assertSame(array("store users 400 username='Søren' title=NULL realname=NULL location=NULL signature=NULL admin_note=NULL"), $this->journal->starting('store'), 'a stored row is not decoded twice');
+	}
+
+	public function testABatchInterruptedPartWayStoresItsRemainingRowsOnly(): void {
+		$this->settings->config['o_cur_version'] = '1.2.15';
+		$this->settings->config['update:charset'] = 'ISO-8859-1';
+		$this->appliedUpTo('Update::convert_users');
+		$this->conversion->rows['users'] = array(
+			new TextRow(2, array('username' => '&amp;amp;', 'title' => null, 'realname' => null, 'location' => null, 'signature' => null, 'admin_note' => null)),
+			new TextRow(3, array('username' => "J\xF6rg", 'title' => null, 'realname' => null, 'location' => null, 'signature' => null, 'admin_note' => null)),
+		);
+		$this->conversion->storesLeft = 1;
+
+		$this->assertConnectionLost();
+
+		$this->journal->entries = array();
+		$this->conversion->storesLeft = PHP_INT_MAX;
+		$this->get(array('stage' => 'patch'));
+
+		$this->assertSame(array("store users 3 username='Jörg' title=NULL realname=NULL location=NULL signature=NULL admin_note=NULL"), $this->journal->starting('store'), 'a stored row is not decoded twice');
+		$this->assertSame('&amp;', $this->conversion->rows['users'][0]->value('username'));
+	}
+
+	public function testARowTheDatabaseCoercedOnStoreIsNotConvertedAgain(): void {
+		$this->settings->config['o_cur_version'] = '1.2.15';
+		$this->settings->config['update:charset'] = 'ISO-8859-1';
+		$this->appliedUpTo('Update::convert_users');
+		$this->conversion->rows['users'] = array(
+			new TextRow(2, array('username' => '&#x1F642; &amp;amp;', 'title' => null, 'realname' => null, 'location' => null, 'signature' => null, 'admin_note' => null)),
+			new TextRow(3, array('username' => "J\xF6rg", 'title' => null, 'realname' => null, 'location' => null, 'signature' => null, 'admin_note' => null)),
+		);
+		$this->conversion->storesLeft = 1;
+
+		$this->assertConnectionLost();
+
+		// Non-strict utf8mb3 replaces the character it cannot hold
+		$this->conversion->rows['users'][0] = new TextRow(2, array('username' => '? &amp;', 'title' => null, 'realname' => null, 'location' => null, 'signature' => null, 'admin_note' => null));
+		$this->journal->entries = array();
+		$this->conversion->storesLeft = PHP_INT_MAX;
+		$this->get(array('stage' => 'patch'));
+
+		$this->assertSame(array("store users 3 username='Jörg' title=NULL realname=NULL location=NULL signature=NULL admin_note=NULL"), $this->journal->starting('store'), 'a coerced row is not decoded twice');
+	}
+
+	public function testABatchWithTextTheCharsetCannotConvertStoresNoRow(): void {
+		$this->settings->config['o_cur_version'] = '1.2.15';
+		$this->settings->config['update:charset'] = 'NO-SUCH-SET';
+		$this->appliedUpTo('Update::convert_users');
+		$this->conversion->rows['users'] = array(
+			new TextRow(2, array('username' => '&ouml;', 'title' => null, 'realname' => null, 'location' => null, 'signature' => null, 'admin_note' => null)),
+			new TextRow(3, array('username' => "J\xF6rg", 'title' => null, 'realname' => null, 'location' => null, 'signature' => null, 'admin_note' => null)),
+		);
+
+		$this->get(array('stage' => 'patch'));
+
+		$this->assertSame(array(), $this->journal->starting('store'), 'MyISAM keeps what a failed batch stored');
+	}
+
+	public function testA12BoardsConfigurationForumsAndGroupsAreConvertedAtOnce(): void {
+		$this->settings->config['o_cur_version'] = '1.2.15';
+		$this->settings->config['update:charset'] = 'ISO-8859-1';
+		$this->settings->config['o_board_title'] = "Caf\xE9";
+		$this->appliedUpTo('Update::convert_misc');
+		$this->conversion->rows['categories'] = array(new TextRow(1, array('cat_name' => "Cat\xE9gorie")));
+		$this->conversion->rows['forums'] = array(
+			new TextRow(1, array('forum_name' => "F\xF6rum", 'forum_desc' => '', 'moderators' => serialize(array("J\xF6rg" => 3)))),
+			new TextRow(2, array('forum_name' => 'Plain', 'forum_desc' => 'plain', 'moderators' => null)),
+		);
+		$this->conversion->rows['groups'] = array(new TextRow(4, array('g_title' => "Mod\xE9rateurs", 'g_user_title' => '')));
+
+		$body = $this->get(array('stage' => 'patch'))->body;
+
+		$this->assertStringStartsWith("Applying Update::convert_misc…<br />\nConverting configuration…<br />\nConverting categories…<br />\nConverting forums…<br />\nConverting groups…<br />\nConverting ranks…<br />\nConverting censor words…<br />", $body);
+		$this->assertContains('set o_board_title=Café', $this->journal->entries);
+		$this->assertSame(array(
+			"store categories 1 cat_name='Catégorie'",
+			"store forums 1 forum_name='Förum' forum_desc=NULL moderators='a:1:{s:5:\"Jörg\";i:3;}'",
+			"store groups 4 g_title='Modérateurs' g_user_title=NULL",
+		), $this->journal->starting('store'), 'the moderators are keyed by their converted names, and a plain forum is left alone');
+		$this->assertSame(array('record Update::convert_misc'), $this->journal->starting('record'));
+	}
+
+	public function testAMiscConversionInterruptedPartWayStoresItsRemainingValuesOnly(): void {
+		$this->settings->config['o_cur_version'] = '1.2.15';
+		$this->settings->config['update:charset'] = 'ISO-8859-1';
+		$this->settings->config['o_board_title'] = '&amp;amp;';
+		$this->settings->config['o_ext,a=b'] = '&amp;amp;';
+		$this->appliedUpTo('Update::convert_misc');
+		$this->conversion->rows['categories'] = array(new TextRow(1, array('cat_name' => '&amp;amp;')));
+		$this->conversion->rows['groups'] = array(new TextRow(4, array('g_title' => "Mod\xE9rateurs", 'g_user_title' => '')));
+		$this->conversion->storesLeft = 1;
+
+		$this->assertConnectionLost();
+
+		$this->journal->entries = array();
+		$this->conversion->storesLeft = PHP_INT_MAX;
+		$this->get(array('stage' => 'patch'));
+
+		$this->assertSame('&amp;', $this->settings->config['o_board_title'], 'a stored option is not decoded twice');
+		$this->assertNotContains('set o_board_title=&', $this->journal->entries);
+		$this->assertSame('&amp;', $this->settings->config['o_ext,a=b'], 'an option whose name holds the journal\'s separators is not decoded twice');
+		$this->assertSame(array("store groups 4 g_title='Modérateurs' g_user_title=NULL"), $this->journal->starting('store'), 'a stored row is not decoded twice');
+	}
+
+	public function testAMiscConversionJournalFitsATextColumnHoweverManyRowsItRecords(): void {
+		$this->settings->config['o_cur_version'] = '1.2.15';
+		$this->settings->config['update:charset'] = 'ISO-8859-1';
+		$this->appliedUpTo('Update::convert_misc');
+		$this->conversion->rows['censoring'] = array_map(static fn (int $id): TextRow => new TextRow($id, array('search_for' => "w\xF6rd", 'replace_with' => '&amp;amp;')), range(1, 3000));
+		$this->conversion->storesLeft = 2000;
+		$this->settings->config['update:converted_misc_theme'] = 'dark';
+		$this->settings->config['update:converted_misc_1'] = 'kept';
+		$this->settings->config['update:converted_misc_99'] = 'kept';
+
+		$this->assertConnectionLost();
+
+		foreach ($this->settings->config as $name => $value)
+			$this->assertLessThanOrEqual(65535, strlen($value ?? ''), $name.' fits a MySQL TEXT column');
+
+		$this->journal->entries = array();
+		$this->conversion->storesLeft = PHP_INT_MAX;
+		$this->get(array('stage' => 'patch'));
+
+		$stored = $this->journal->starting('store');
+		$this->assertCount(1000, $stored, 'a stored row is not decoded twice');
+		$this->assertSame("store censoring 2001 search_for='wörd' replace_with='&amp;'", $stored[0]);
+
+		$this->journal->entries = array();
+		$this->applied->names = self::PATCHES;
+		$this->get(array('stage' => 'finish'));
+
+		$this->assertSame(array(), array_filter(array_keys($this->settings->config), static fn (string $name): bool => preg_match('/^update:converted_misc(_\d+|_written)?$/', $name) === 1 && !in_array($name, array('update:converted_misc_1', 'update:converted_misc_99'), true)), 'the finish removes every part of the journal');
+		$this->assertSame('dark', $this->settings->config['update:converted_misc_theme'], 'an extension\'s option sharing the prefix is kept');
+		$this->assertSame('kept', $this->settings->config['update:converted_misc_1'], 'an extension\'s numbered option the journal would have used is kept');
+		$this->assertSame('kept', $this->settings->config['update:converted_misc_99'], 'an extension\'s numbered option beyond the journal is kept');
+	}
+
+	public function testTheFinishKeepsAnExtensionsOUpdateOptions(): void {
+		$this->settings->config['o_update_groups'] = 'ext';
+		$this->settings->config['o_update_converted'] = 'ext';
+		$this->applied->names = self::PATCHES;
+
+		$this->get(array('stage' => 'finish'));
+
+		$this->assertSame('ext', $this->settings->config['o_update_groups']);
+		$this->assertSame('ext', $this->settings->config['o_update_converted']);
+	}
+
+	public function testTheFinishRemovesEveryJournalPartAnInterruptedWriteLeft(): void {
+		$this->settings->config['update:converted_misc_written'] = 'update:converted_misc_1,update:converted_misc_3';
+		$this->settings->config['update:converted_misc_1'] = 'a=b';
+		$this->settings->config['update:converted_misc_3'] = 'c=d';
+		$this->settings->config['update:converted_misc_4'] = 'kept';
+		$this->applied->names = self::PATCHES;
+
+		$this->get(array('stage' => 'finish'));
+
+		$this->assertSame(array('remove setting update:converted_misc_1,update:converted_misc_3,update:charset,update:converted,update:converted_misc,update:converted_misc_written,update:groups,update:altering'), $this->journal->starting('remove setting'), 'the parts go before the lists naming them');
+		$this->assertArrayNotHasKey('update:converted_misc_written', $this->settings->config);
+		$this->assertArrayNotHasKey('update:converted_misc_1', $this->settings->config);
+		$this->assertArrayNotHasKey('update:converted_misc_3', $this->settings->config, 'a part the interrupted write claimed is removed');
+		$this->assertSame('kept', $this->settings->config['update:converted_misc_4'], 'an option the update never wrote is kept');
+	}
+
+	public function testABatchStartMeantForAnotherPatchIsIgnored(): void {
+		$this->settings->config['o_cur_version'] = '1.2.15';
+		$this->settings->config['update:charset'] = 'ISO-8859-1';
+		$this->appliedUpTo('Update::convert_users');
+		$this->conversion->rows['users'] = array(new TextRow(2, array('username' => "J\xF6rg", 'title' => null, 'realname' => null, 'location' => null, 'signature' => null, 'admin_note' => null)));
+
+		$this->assertStringContainsString('Converting user 2…', $this->get(array('stage' => 'patch', 'patch' => 'Update::convert_topics', 'start_at' => '400'))->body);
 	}
 
 	public function testABatchStartBeyondTheIntegerRangeIsKeptInsideIt(): void {
 		$this->settings->config['o_cur_version'] = '1.2.15';
+		$this->settings->config['update:charset'] = 'ISO-8859-1';
+		$this->appliedUpTo('Update::convert_users');
 
-		$this->assertStringContainsString('window.location="db_update.php?stage=conv_topics', $this->get(array('stage' => 'conv_users', 'req_old_charset' => 'ISO-8859-1', 'start_at' => '9223372036854775807'))->body);
+		$this->assertSame(array('stage' => 'patch'), self::next($this->get(array('stage' => 'patch', 'patch' => 'Update::convert_users', 'start_at' => '9223372036854775807'))->body));
 	}
 
-	public function testA14BoardSkipsTheConversionStages(): void {
-		$this->assertStringContainsString('window.location="db_update.php?stage=conv_tables"', $this->get(array('stage' => 'conv_users'))->body);
+	public function testA14BoardConvertsNoText(): void {
+		$this->settings->config['update:charset'] = 'ISO-8859-1';
+		$this->conversion->rows['users'] = array(new TextRow(2, array('username' => "J\xF6rg", 'title' => null, 'realname' => null, 'location' => null, 'signature' => null, 'admin_note' => null)));
+
+		$this->applyAll();
+
 		$this->assertSame(array(), $this->journal->starting('store'));
 	}
 
-	public function testMysqlConvertsItsTablesThroughABinaryType(): void {
-		$body = $this->get(array('stage' => 'conv_tables'))->body;
+	public function testMysqlReadsA12BoardsTablesAsUtf8ThroughABinaryType(): void {
+		$this->settings->config['o_cur_version'] = '1.2.15';
+		$this->appliedUpTo('Update::convert_tables');
 
-		$this->assertStringStartsWith("Converting table pun_bans…<br />\nConverting table pun_categories…<br />", $body);
-		$this->assertStringContainsString('window.location="db_update.php?stage=preparse_posts"', $body);
+		$body = $this->get(array('stage' => 'patch'))->body;
+
+		$this->assertStringStartsWith("Applying Update::convert_tables…<br />\nConverting table pun_bans…<br />\nConverting table pun_categories…<br />", $body);
 		$this->assertSame(array('alter bans.title varbinary(50)', 'alter bans.title varchar(50) CHARACTER SET utf8'), array_slice($this->journal->starting('alter'), 0, 2));
+		$this->assertContains('alter search_words.word varchar(20) CHARACTER SET utf8 COLLATE utf8_bin', $this->journal->entries, 'a binary collation stays binary');
 		$this->assertSame(19, count($this->journal->starting('charset')));
 	}
 
+	public function testAColumnLeftBinaryByAnInterruptedRunIsFinished(): void {
+		$this->settings->config['o_cur_version'] = '1.2.15';
+		$this->settings->config['update:altering'] = 'bans:title:0:varchar(50)';
+		$this->appliedUpTo('Update::convert_tables');
+		$this->conversion->columns['bans'] = array(new TableColumn('title', 'varbinary(50)', null, true, null));
+
+		$this->get(array('stage' => 'patch'));
+
+		$this->assertSame(array('alter bans.title varchar(50) CHARACTER SET utf8'), array_slice($this->journal->starting('alter'), 0, 1));
+		$this->assertSame('set update:altering=categories:title:0:varchar(50)', array_values(array_filter($this->journal->entries, static fn (string $entry): bool => str_starts_with($entry, 'set update:altering=')))[0], 'the next column is recorded before it is altered');
+	}
+
+	public function testAColumnLeftBinaryWithABinaryCollationIsFinishedBinary(): void {
+		$this->settings->config['o_cur_version'] = '1.2.15';
+		$this->settings->config['update:altering'] = 'search_words:word:1:varchar(20)';
+		$this->appliedUpTo('Update::convert_tables');
+		$this->conversion->columns['search_words'] = array(new TableColumn('word', 'varbinary(20)', null, false, ''));
+
+		$this->get(array('stage' => 'patch'));
+
+		$this->assertSame(array('alter search_words.word varchar(20) CHARACTER SET utf8 COLLATE utf8_bin'), $this->journal->starting('alter search_words'));
+	}
+
+	public function testAColumnARunRecordedButNeverAlteredTakesBothSteps(): void {
+		$this->settings->config['o_cur_version'] = '1.2.15';
+		$this->settings->config['update:altering'] = 'bans:title:0:varchar(50)';
+		$this->appliedUpTo('Update::convert_tables');
+
+		$this->get(array('stage' => 'patch'));
+
+		$this->assertSame(array('alter bans.title varbinary(50)', 'alter bans.title varchar(50) CHARACTER SET utf8'), $this->journal->starting('alter bans'));
+	}
+
 	public function testPostsAndSignaturesArePreparsed(): void {
+		$this->settings->config['o_cur_version'] = '1.2.15';
+		$this->appliedUpTo('Update::preparse_posts');
 		$this->conversion->rows['posts'] = array(new TextRow(7, array('message' => '[B]Hi[/B]')), new TextRow(8, array('message' => null)));
 		$this->conversion->rows['users'] = array(new TextRow(1, array('signature' => '[I]Sig[/I]')));
 
-		$this->assertStringContainsString('window.location="db_update.php?stage=preparse_sigs"', $this->get(array('stage' => 'preparse_posts'))->body);
-		$this->assertStringContainsString('window.location="db_update.php?stage=finish"', $this->get(array('stage' => 'preparse_sigs'))->body);
+		$this->assertCount(2, $this->applyAll());
 		$this->assertSame(array("store posts 7 message='[b]hi[/b]'", "store posts 8 message=''", "store users 1 signature='[i]sig[/i] (sig)'"), $this->journal->starting('store'));
 	}
 
-	public function testTheFinishRecordsTheReleaseAndMovesTheAddressIntoConfigPhp(): void {
+	public function testAPatchTheTextDefeatsStopsTheUpdateAtItWithItsBatchDiscarded(): void {
+		$this->settings->config['o_cur_version'] = '1.2.15';
+		$this->settings->config['update:charset'] = 'NO-SUCH-SET';
+		$this->appliedUpTo('Update::convert_users');
+		$this->conversion->rows['users'] = array(new TextRow(2, array('username' => "J\xF6rg", 'title' => null, 'realname' => null, 'location' => null, 'signature' => null, 'admin_note' => null)));
+
+		$this->assertSame('Data patch Update::convert_users failed: Failed to convert a value to UTF-8 from the requested character set. Conversion aborted. The patches before it are applied; the update goes on from this one when it is run again.', $this->get(array('stage' => 'patch'))->body);
+		$this->assertSame(array('roll back', 'end transaction', 'close'), array_slice($this->journal->entries, -3));
+		$this->assertSame(array(), $this->journal->starting('record'));
+	}
+
+	public function testAnyOtherFailureIsRaisedOnceTheBatchIsDiscarded(): void {
+		$this->data->mailFails = true;
+		$this->appliedUpTo('Update::group_mail');
+
+		try {
+			$this->get(array('stage' => 'patch'));
+			$this->fail('the failure was swallowed');
+		}
+		catch (PatchException $e) {
+			$this->assertSame('Data patch Update::group_mail failed', $e->getMessage());
+			$this->assertSame('the groups table is gone', $e->getPrevious()?->getMessage());
+		}
+
+		$this->assertSame('roll back', array_slice($this->journal->entries, -1)[0]);
+		$this->assertSame(array(), $this->journal->starting('record'));
+	}
+
+	public function testABoardWithEveryPatchRecordedGoesOnToTheFinish(): void {
+		$this->applied->names = self::PATCHES;
+
+		$this->assertSame(array('stage' => 'finish'), self::next($this->get(array('stage' => 'patch'))->body));
+		$this->assertSame(array(), $this->journal->starting('record'));
+	}
+
+	public function testAFinishRequestedWithAPatchPendingRecordsNoReleaseAndGoesOnToThePatches(): void {
+		$this->appliedUpTo('Update::preparse_signatures');
+
 		$body = $this->get(array('stage' => 'finish'))->body;
 
-		$this->assertSame(array('set o_cur_version=1.5.1', 'set o_database_revision=6', 'sync 1', 'sync 2', 'empty search cache', 'empty online', 'clear cache'), array_values(array_filter($this->journal->entries, static fn (string $entry): bool => preg_match('/^(set o_(cur|database)|sync|empty|clear)/', $entry) === 1)));
+		$this->assertSame(array('stage' => 'patch'), self::next($body));
+		$this->assertSame('1.4.4', $this->settings->config['o_cur_version']);
+		$this->assertSame('4', $this->settings->config['o_database_revision']);
+		$this->assertSame(array(), $this->journal->starting('set o_'));
+		$this->assertSame(array(), $this->journal->starting('remove setting'));
+	}
+
+	public function testTheFinishRecordsTheReleaseAndMovesTheAddressIntoConfigPhp(): void {
+		$this->applied->names = self::PATCHES;
+		$body = $this->get(array('stage' => 'finish'))->body;
+
+		$this->assertSame(array('sync 1', 'sync 2', 'empty search cache', 'empty online', 'clear cache', 'set o_cur_version=1.5.1', 'set o_database_revision=6'), array_values(array_filter($this->journal->entries, static fn (string $entry): bool => preg_match('/^(set o_(cur|database)|sync|empty|clear)/', $entry) === 1)));
+		$this->assertSame(array('remove setting update:charset,update:converted,update:converted_misc,update:converted_misc_written,update:groups,update:altering'), $this->journal->starting('remove setting'));
 		$this->assertStringContainsString('<h1 class="hn"><span>PunBB Database Update completed!</span></h1>', $body);
 		$this->assertStringContainsString('You may <a href="http://forum.test/index.php">go to the forum index</a> now.', $body);
 		$this->assertSame(array(), $this->journal->starting('replace config'));
 
+		$this->journal->entries = array();
+		$this->settings->config['o_cur_version'] = '1.4.4';
 		$this->settings->config['o_base_url'] = 'http://old.test';
 		$this->configuration->configuration = new BoardConfiguration(new DatabaseSettings('mysqli', 'db', 'forum', 'user', 'secret', 'pun_', true), null, 'cookie', '.forum.test', '/forum/', true);
 		$this->files->writable = false;
 
 		$body = $this->get(array('stage' => 'finish'))->body;
 
-		$this->assertSame(array('remove setting o_base_url'), $this->journal->starting('remove setting'));
+		$this->assertSame(array('remove setting update:charset,update:converted,update:converted_misc,update:converted_misc_written,update:groups,update:altering'), $this->journal->starting('remove setting'));
+		$this->assertSame('http://old.test', $this->settings->config['o_base_url'], 'until the copy is saved, the stored address is what the forum and a rerun fall back to');
 		$this->assertStringContainsString(htmlspecialchars("\$p_connect = true;\n\n\$base_url = 'http://old.test';\n\n\$cookie_name = 'cookie';\n\$cookie_domain = '.forum.test';\n\$cookie_path = '/forum/';\n\$cookie_secure = 1;\n\ndefine('FORUM', 1);", ENT_QUOTES).'</textarea>', $body);
 		$this->assertStringNotContainsString('FORUM_DEBUG', $body, 'an updated config.php offers no options');
+
+		$this->journal->entries = array();
+		$this->settings->config['o_cur_version'] = '1.4.4';
+		$this->files->writable = true;
+
+		$this->get(array('stage' => 'finish'));
+
+		$this->assertStringContainsString("\$base_url = 'http://old.test';", $this->files->written ?? '');
+		$this->assertSame(array('remove setting o_base_url', 'set o_cur_version=1.5.1', 'set o_database_revision=6'), array_values(array_filter($this->journal->entries, static fn (string $entry): bool => in_array($entry, array('remove setting o_base_url', 'set o_cur_version=1.5.1', 'set o_database_revision=6'), true))), 'the release is recorded after the address moves, so an interrupted finish is run again');
+		$this->assertArrayNotHasKey('o_base_url', $this->settings->config);
 	}
 }

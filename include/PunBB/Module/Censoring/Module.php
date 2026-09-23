@@ -9,7 +9,11 @@ use PunBB\Module\Censoring\Cache\CensorCacheInterface;
 use PunBB\Module\Censoring\Controller\CensoringController;
 use PunBB\Module\Censoring\Interceptor\CensorsInterceptor;
 use PunBB\Module\Censoring\Model\Censors;
+use PunBB\Module\Database\Schema\Column;
+use PunBB\Module\Database\Schema\Table;
+use PunBB\Module\Database\Schema\TableOwnerInterface;
 use PunBB\Module\Database\Sql\Connection;
+use PunBB\Module\Database\Sql\Platform;
 use PunBB\Module\Framework\Container\Container;
 use PunBB\Module\Framework\Event\EventDispatcher;
 use PunBB\Module\Framework\Modules\ModuleInterface;
@@ -29,7 +33,7 @@ use PunBB\Module\Site\Visitor\VisitorInterface;
  * The censored words: adding, editing and removing them. The list the board
  * censors with is CensorCacheInterface, which the bootstrap's side wires.
  */
-final class Module implements ModuleInterface {
+final class Module implements ModuleInterface, TableOwnerInterface {
 	public function name(): string {
 		return 'Censoring';
 	}
@@ -60,5 +64,15 @@ final class Module implements ModuleInterface {
 			$c->get(CsrfTokensInterface::class),
 			$c->get(FlashMessagesInterface::class)
 		));
+	}
+
+	public function tables(Platform $platform): array {
+		return array(
+			new Table('censoring', array(
+				new Column('id', 'SERIAL'),
+				new Column('search_for', 'VARCHAR(60)', false, ''),
+				new Column('replace_with', 'VARCHAR(60)', false, ''),
+			), array('id')),
+		);
 	}
 }

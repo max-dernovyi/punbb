@@ -1,8 +1,7 @@
 <?php
 /**
- * What the installer and the updater share: config.php as each writes it, the
- * schema installed and its translation into the arrays the DBLayer builders
- * take, and the forum's error page a setup route answers with.
+ * What the installer and the updater share: config.php as each writes it, and
+ * the forum's error page a setup route answers with.
  *
  * @copyright (C) 2008-2012 PunBB, partially based on code (C) 2008-2009 FluxBB.org
  * @license http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
@@ -10,17 +9,12 @@
  */
 
 use PHPUnit\Framework\TestCase;
-use PunBB\Module\Database\Schema\Column;
-use PunBB\Module\Database\Schema\Table;
 use PunBB\Module\Layout\View\Html;
 use PunBB\Module\Layout\View\TemplateRenderer;
-use PunBB\Module\LegacyBridge\Database\LegacySchema;
 use PunBB\Module\Setup\Config\BoardConfiguration;
 use PunBB\Module\Setup\Config\ConfigFile;
 use PunBB\Module\Setup\Database\DatabaseSettings;
 use PunBB\Module\Setup\Page\SetupPage;
-use PunBB\Module\Setup\Schema\BoardSchema;
-use PunBB\Module\Setup\Schema\SchemaException;
 
 class SetupFilesTest extends TestCase {
 	public function testAnInstalledConfigPhpOffersEveryOptionCommentedOut(): void {
@@ -54,45 +48,6 @@ class SetupFilesTest extends TestCase {
 			ConfigFile::updated($configuration));
 		$this->assertTrue(ConfigFile::isSecureAddress('HTTPS://forum.test'));
 		$this->assertFalse(ConfigFile::isSecureAddress('http://forum.test/https://'));
-	}
-
-	public function testMysqlIndexesAPrefixAndSqliteKeysTheSearchWordsById(): void {
-		$online = BoardSchema::table('online', 'mysqli_innodb');
-		$this->assertSame(array('user_id_ident_idx' => array('user_id', 'ident(40)')), $online->uniqueKeys);
-		$this->assertSame('HEAP', $online->engine);
-		$this->assertSame(array('username(8)'), BoardSchema::table('users', 'mysqli')->indexes['username_idx']);
-		$this->assertSame(array('ident'), BoardSchema::table('search_cache', 'pgsql')->indexes['ident_idx']);
-
-		$words = BoardSchema::table('search_words', 'sqlite3');
-		$this->assertSame(array(array('id'), array('word_idx' => array('word'))), array($words->primaryKey, $words->uniqueKeys));
-		$this->assertSame(array(array('word'), array()), array(BoardSchema::table('search_words', 'pgsql')->primaryKey, BoardSchema::table('search_words', 'pgsql')->uniqueKeys));
-
-		$this->expectException(SchemaException::class);
-		BoardSchema::table('polls', 'mysqli');
-	}
-
-	public function testATableIsTheArrayTheDblayerBuildersTake(): void {
-		$table = new Table('t', array(
-			new Column('id', 'SERIAL'),
-			new Column('name', 'VARCHAR(20)', false, 'it\'s', 'bin'),
-			new Column('count', 'INT(10)', false, 0),
-			new Column('note', 'TEXT', true),
-		), array('id'), array('name_idx' => array('name')), array('count_idx' => array('count')), 'InnoDB');
-
-		$this->assertSame(array(
-			'FIELDS'		=> array(
-				'id'	=> array('datatype' => 'SERIAL', 'allow_null' => false),
-				'name'	=> array('datatype' => 'VARCHAR(20)', 'allow_null' => false, 'default' => '\'it\'\'s\'', 'collation' => 'bin'),
-				'count'	=> array('datatype' => 'INT(10)', 'allow_null' => false, 'default' => '0'),
-				'note'	=> array('datatype' => 'TEXT', 'allow_null' => true),
-			),
-			'PRIMARY KEY'	=> array('id'),
-			'UNIQUE KEYS'	=> array('name_idx' => array('name')),
-			'INDEXES'		=> array('count_idx' => array('count')),
-			'ENGINE'		=> 'InnoDB',
-		), LegacySchema::definition($table));
-
-		$this->assertSame(array('FIELDS' => array('a' => array('datatype' => 'INT', 'allow_null' => false))), LegacySchema::definition(new Table('u', array(new Column('a', 'INT')))));
 	}
 
 	public function testASetupRouteAnswersWithTheForumsErrorPage(): void {

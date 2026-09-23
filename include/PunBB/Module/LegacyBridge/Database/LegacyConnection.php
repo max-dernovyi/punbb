@@ -19,7 +19,7 @@ use SQLite3;
  * The connection include/essentials.php opened, for the new core's
  * repositories: the same link, so the same transaction. A statement counts in
  * the debug footer's query total and list, and a refused one renders the
- * forum's error page, as the DBLayer drivers do.
+ * forum's error page, as the DBLayer drivers do, its transaction rolled back.
  */
 final class LegacyConnection {
 	/** The DBLayer include/essentials.php connected. */
@@ -48,12 +48,24 @@ final class LegacyConnection {
 
 				++$db->num_queries;
 			},
-			static function (QueryException $e) use ($db): void {
+			static function (QueryException $e) use ($db, $driver): void {
 				if (defined('FORUM_SHOW_QUERIES') || defined('FORUM_DEBUG'))
 					$db->saved_queries[] = array($e->sql(), 0);
 
 				$db->error_no = $e->getCode();
 				$db->error_msg = $e->getMessage();
+
+				// Rolled back as the drivers roll back a refused query, before the error page's close() commits it
+				if ((get_object_vars($db)['in_transaction'] ?? 0) > 0)
+				{
+					try {
+						$driver->execute('ROLLBACK', array());
+					}
+					catch (QueryException) {
+					}
+
+					--$db->in_transaction;
+				}
 
 				\error($e->callFile(), $e->callLine());
 			});

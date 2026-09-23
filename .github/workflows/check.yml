@@ -55,11 +55,12 @@ jobs:
       - run: composer lint
       - run: composer test
 
-  # Installs the forum on every supported driver, upgrades a real 1.4.4 dump,
-  # walks the user and admin flows and installs, exercises and uninstalls the
-  # fixture extensions, against PHP's built-in server. The harnesses assert that
-  # no PHP diagnostic reached the error log during any of it. The extension
-  # corpus runner is not here: it needs a corpus the repository does not carry.
+  # Installs the forum on every supported driver, upgrades real 1.4.4 and 1.5.1
+  # dumps on each, walks the user and admin flows and installs, exercises and
+  # uninstalls the fixture extensions, against PHP's built-in server. The
+  # harnesses assert that no PHP diagnostic reached the error log during any of
+  # it. The extension corpus runner is not here: it needs a corpus the
+  # repository does not carry.
   integration:
     name: install, upgrade and flows
     runs-on: ubuntu-latest

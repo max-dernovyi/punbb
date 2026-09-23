@@ -186,6 +186,17 @@ class ModuleRegistryTest extends TestCase {
 		$registry->container();
 	}
 
+	public function testTheRegistryIsAServiceOfItsContainerThatNoModuleWires(): void {
+		$registry = new ModuleRegistry(self::module('Names'));
+		$this->assertSame($registry, $registry->container()->get(ModuleRegistry::class));
+
+		$impostor = new ModuleRegistry(self::module('Names', array(), array(), fn (Wiring $wiring) => $wiring->service(ModuleRegistry::class, fn (): object => new stdClass())));
+
+		$this->expectException(ModuleException::class);
+		$this->expectExceptionMessage('Module Names wires service "'.ModuleRegistry::class.'", which is the registry itself');
+		$impostor->container();
+	}
+
 	public function testAModuleWiringOneServiceTwiceFails(): void {
 		$registry = new ModuleRegistry(self::module('Smtp', array(), array(), function (Wiring $wiring): void {
 			$wiring->service('mailer', fn (): object => new stdClass());

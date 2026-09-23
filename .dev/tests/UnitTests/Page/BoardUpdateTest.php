@@ -12,6 +12,9 @@
 use PHPUnit\Framework\TestCase;
 use PunBB\Module\Database\Sql\Connection;
 use PunBB\Module\Database\Sql\Driver\Sqlite3Driver;
+use PunBB\Module\Database\Sql\QueryException;
+use PunBB\Module\Setup\Database\DatabaseInterface;
+use PunBB\Module\Setup\Database\DatabaseSettings;
 use PunBB\Module\Update\Api\Data\SettingInterface;
 use PunBB\Module\Update\Api\Data\TextRowInterface;
 use PunBB\Module\Update\Charset\ConversionException;
@@ -20,6 +23,9 @@ use PunBB\Module\Update\Model\BoardSettings;
 use PunBB\Module\Update\Model\Conversion;
 use PunBB\Module\Update\Model\Setting;
 use PunBB\Module\Update\Model\TextRow;
+use PunBB\Module\Update\Patch\BoardOptions;
+use PunBB\Module\Update\Patch\ConvertMisc;
+use PunBB\Module\Update\Patch\ConvertRows;
 
 class BoardUpdateTest extends TestCase {
 	private SQLite3 $sqlite;
@@ -56,6 +62,101 @@ class BoardUpdateTest extends TestCase {
 		return $rows;
 	}
 
+	/** A connection whose character set is not the test's concern. */
+	private static function database(): DatabaseInterface {
+		return new class implements DatabaseInterface {
+			public function open(DatabaseSettings $settings): void {}
+
+			public function openUnencoded(DatabaseSettings $settings): void {}
+
+			public function serverVersion(): string { return ''; }
+
+			public function supportsInnodb(): bool { return false; }
+
+			public function setNames(string $charset): void {}
+
+			public function startTransaction(): void {}
+
+			public function endTransaction(): void {}
+
+			public function rollBack(): void {}
+
+			public function close(): void {}
+		};
+	}
+
+	/** A 1.2 board converting from ISO-8859-1, whose writes to $table's row $id fail until the trigger is dropped. */
+	private function interruptedAt(string $table, int $id): BoardSettings {
+		$this->db->execute('INSERT INTO pun_config (conf_name, conf_value) VALUES (\'o_cur_version\', \'1.2.15\'), (\'update:charset\', \'ISO-8859-1\')');
+		$this->db->execute('CREATE TRIGGER lost BEFORE UPDATE ON pun_'.$table.' WHEN NEW.id = '.$id.' BEGIN SELECT RAISE(ABORT, \'Lost connection to the server\'); END');
+
+		return new BoardSettings($this->db);
+	}
+
+	private function assertConnectionLost(callable $run): void {
+		try {
+			$run();
+			$this->fail('the lost connection stops the patch');
+		}
+		catch (QueryException $e) {
+			$this->assertStringContainsString('Lost connection to the server', $e->getMessage());
+		}
+
+		$this->db->execute('DROP TRIGGER lost');
+	}
+
+	/** @return list<string> the update's progress options the board holds */
+	private function progress(): array {
+		return array_map(static fn (array $row): string => (string) $row[0], $this->rows('SELECT conf_name FROM pun_config WHERE conf_name LIKE \'update:%\' ORDER BY conf_name'));
+	}
+
+	public function testARowsConversionInterruptedPartWayDecodesEachRowOnce(): void {
+		// Row 3 holds 'Jörg' as ISO-8859-1 bytes
+		$this->db->execute('INSERT INTO pun_users (id, username) VALUES (2, \'&amp;amp;\'), (3, CAST(X\'4AF67267\' AS TEXT)), (4, \'&amp;amp;\')');
+		$settings = $this->interruptedAt('users', 3);
+		$patch = new ConvertRows($settings, new Conversion($this->db), self::database(), 'users', array('username'), array(), 'user');
+
+		$this->assertConnectionLost(static fn (): mixed => $patch->apply(0));
+		$this->assertSame(array('update:charset', 'update:converted'), $this->progress(), 'the cursor is inserted, not updated into nothing');
+		$this->assertSame(array(array('&amp;')), $this->rows('SELECT username FROM pun_users WHERE id=2'), 'SQLite keeps the row stored before the failure');
+
+		$this->assertNull($patch->apply(0)->next);
+
+		$this->assertSame(array(array(2, '&amp;'), array(3, 'Jörg'), array(4, '&amp;')), $this->rows('SELECT id, username FROM pun_users ORDER BY id'), 'each row is decoded once');
+		$this->assertSame(array(array('users:302')), $this->rows('SELECT conf_value FROM pun_config WHERE conf_name=\'update:converted\''));
+
+		$settings->remove(...BoardOptions::progress($settings));
+		$this->assertSame(array(), $this->progress());
+	}
+
+	public function testAMiscConversionInterruptedPartWayDecodesEachValueOnce(): void {
+		foreach (array(
+			'ALTER TABLE pun_groups ADD g_user_title VARCHAR(50)',
+			'ALTER TABLE pun_forums ADD forum_desc TEXT',
+			'ALTER TABLE pun_forums ADD moderators TEXT',
+			'CREATE TABLE pun_categories (id INTEGER PRIMARY KEY, cat_name VARCHAR(80))',
+			'CREATE TABLE pun_ranks (id INTEGER PRIMARY KEY, rank VARCHAR(50))',
+			'CREATE TABLE pun_censoring (id INTEGER PRIMARY KEY, search_for VARCHAR(60), replace_with VARCHAR(60))',
+			'INSERT INTO pun_config (conf_name, conf_value) VALUES (\'o_board_title\', \'&amp;amp;\')',
+			'INSERT INTO pun_categories (id, cat_name) VALUES (1, \'&amp;amp;\'), (2, \'&amp;amp;\')',
+		) as $statement)
+			$this->db->execute($statement);
+
+		$settings = $this->interruptedAt('categories', 2);
+		$patch = new ConvertMisc($settings, new Conversion($this->db), self::database());
+
+		$this->assertConnectionLost(static fn (): mixed => $patch->apply(0));
+		$this->assertSame(array('update:charset', 'update:converted_misc', 'update:converted_misc_1', 'update:converted_misc_written'), $this->progress(), 'the journal is inserted, not updated into nothing');
+
+		$patch->apply(0);
+
+		$this->assertSame(array(array('&amp;')), $this->rows('SELECT conf_value FROM pun_config WHERE conf_name=\'o_board_title\''), 'a stored option is decoded once');
+		$this->assertSame(array(array(1, '&amp;'), array(2, '&amp;')), $this->rows('SELECT id, cat_name FROM pun_categories ORDER BY id'), 'each row is decoded once');
+
+		$settings->remove(...BoardOptions::progress($settings));
+		$this->assertSame(array(), $this->progress());
+	}
+
 	public function testTheOptionsAreReadAddedChangedRenamedAndRemoved(): void {
 		$settings = new BoardSettings($this->db);
 		$this->assertNull($settings->version());
@@ -77,7 +178,16 @@ class BoardUpdateTest extends TestCase {
 		$this->db->execute('INSERT INTO pun_users (id, group_id) VALUES (1, 3), (2, 1), (3, 2), (4, 4)');
 		$this->db->execute('INSERT INTO pun_forum_perms (group_id, forum_id, read_forum) VALUES (2, 1, 1), (3, 1, 0)');
 
-		(new BoardData($this->db))->reorderGroups();
+		$data = new BoardData($this->db);
+		$this->assertFalse($data->hasModeratorGroup(), 'a 1.2 board has no moderating group');
+
+		// Each step twice, as a run interrupted before recording it takes it again
+		$spare = $data->spareGroupId();
+		for ($step = 0; $data->reorderGroups($spare, $step); ++$step)
+			$data->reorderGroups($spare, $step);
+
+		$this->assertSame(13, $step);
+		$this->assertTrue($data->hasModeratorGroup(), 'so a rerun leaves the groups where they are');
 
 		$this->assertSame(array(array(1, 'Administrators', 0), array(2, 'Guest', 0), array(3, 'Members', 0), array(4, 'Moderators', 1)), $this->rows('SELECT g_id, g_title, g_moderator FROM pun_groups ORDER BY g_id'));
 		$this->assertSame(array(array(1, 2), array(2, 1), array(3, 4), array(4, 3)), $this->rows('SELECT id, group_id FROM pun_users ORDER BY id'));

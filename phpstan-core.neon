@@ -5,7 +5,7 @@ parameters:
 	paths:
 		- include/PunBB
 	# The legacy functions, classes and constants the bridge calls, declared but not analysed.
-	# One driver stands for DBLayer: the four declare the same class.
+	# One driver stands for DBLayer, which Database\Schema\DbLayerSchema also takes: the four declare the same class.
 	scanFiles:
 		- include/functions.php
 		- include/parser.php

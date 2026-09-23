@@ -8,7 +8,11 @@ use PunBB\Module\Categories\Api\CategoriesInterface;
 use PunBB\Module\Categories\Controller\CategoriesController;
 use PunBB\Module\Categories\Interceptor\CategoriesInterceptor;
 use PunBB\Module\Categories\Model\Categories;
+use PunBB\Module\Database\Schema\Column;
+use PunBB\Module\Database\Schema\Table;
+use PunBB\Module\Database\Schema\TableOwnerInterface;
 use PunBB\Module\Database\Sql\Connection;
+use PunBB\Module\Database\Sql\Platform;
 use PunBB\Module\Framework\Container\Container;
 use PunBB\Module\Framework\Event\EventDispatcher;
 use PunBB\Module\Framework\Modules\ModuleInterface;
@@ -31,7 +35,7 @@ use PunBB\Module\Site\Visitor\VisitorInterface;
  * category's forums is ForumContentsInterface and the jump list is
  * QuickjumpCacheInterface, which the bootstrap's side wires.
  */
-final class Module implements ModuleInterface {
+final class Module implements ModuleInterface, TableOwnerInterface {
 	public function name(): string {
 		return 'Categories';
 	}
@@ -63,5 +67,15 @@ final class Module implements ModuleInterface {
 			$c->get(CsrfTokensInterface::class),
 			$c->get(FlashMessagesInterface::class)
 		));
+	}
+
+	public function tables(Platform $platform): array {
+		return array(
+			new Table('categories', array(
+				new Column('id', 'SERIAL'),
+				new Column('cat_name', 'VARCHAR(80)', false, 'New Category'),
+				new Column('disp_position', 'INT(10)', false, 0),
+			), array('id')),
+		);
 	}
 }

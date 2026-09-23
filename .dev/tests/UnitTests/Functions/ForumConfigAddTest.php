@@ -96,6 +96,15 @@ class ForumConfigAddTest extends TestCase
 		$this->assertSame('\'o_audit_plain\', \'plain\'', $this->db->queries[0]['VALUES']);
 	}
 
+	/** The update's progress options are reserved, so an extension can neither overwrite nor lose one. */
+	public function testTheUpdateNamespaceIsRefused(): void
+	{
+		forum_config_add('update:groups', '5:3');
+		forum_config_add('update:converted', 'users:1');
+
+		$this->assertSame(array(), $this->db->queries);
+	}
+
 	/** An option the forum already carries is left alone, quotes or not. */
 	public function testAnExistingOptionIsNotRewritten(): void
 	{

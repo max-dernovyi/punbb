@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace PunBB\Module\Extensions;
 
+use PunBB\Module\Database\Schema\Column;
+use PunBB\Module\Database\Schema\Table;
+use PunBB\Module\Database\Schema\TableOwnerInterface;
 use PunBB\Module\Database\Sql\Connection;
+use PunBB\Module\Database\Sql\Platform;
 use PunBB\Module\Extensions\Api\ExtensionsInterface;
 use PunBB\Module\Extensions\Cache\ExtensionCacheInterface;
 use PunBB\Module\Extensions\Controller\ExtensionsController;
@@ -34,7 +38,7 @@ use PunBB\Module\Site\Visitor\VisitorInterface;
  * extension installs itself with, the caches it shapes and the update services
  * are served by whoever holds them.
  */
-final class Module implements ModuleInterface {
+final class Module implements ModuleInterface, TableOwnerInterface {
 	public function name(): string {
 		return 'Extensions';
 	}
@@ -69,5 +73,29 @@ final class Module implements ModuleInterface {
 			$c->get(CsrfTokensInterface::class),
 			$c->get(FlashMessagesInterface::class)
 		));
+	}
+
+	public function tables(Platform $platform): array {
+		return array(
+			new Table('extensions', array(
+				new Column('id', 'VARCHAR(150)', false, ''),
+				new Column('title', 'VARCHAR(255)', false, ''),
+				new Column('version', 'VARCHAR(25)', false, ''),
+				new Column('description', 'TEXT', true),
+				new Column('author', 'VARCHAR(50)', false, ''),
+				new Column('uninstall', 'TEXT', true),
+				new Column('uninstall_note', 'TEXT', true),
+				new Column('disabled', 'TINYINT(1)', false, 0),
+				new Column('dependencies', 'VARCHAR(255)', false, ''),
+			), array('id'), removedColumns: array('uninstall_notes')),
+
+			new Table('extension_hooks', array(
+				new Column('id', 'VARCHAR(150)', false, ''),
+				new Column('extension_id', 'VARCHAR(50)', false, ''),
+				new Column('code', 'TEXT', true),
+				new Column('installed', 'INT(10) UNSIGNED', false, 0),
+				new Column('priority', 'TINYINT(1) UNSIGNED', false, 5),
+			), array('id', 'extension_id')),
+		);
 	}
 }

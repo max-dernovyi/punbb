@@ -29,11 +29,11 @@ use PunBB\Module\Censoring\Event\CensoredWordRendering;
 use PunBB\Module\Censoring\Event\CensoringRendering;
 use PunBB\Module\Censoring\Event\CensoringRequested;
 use PunBB\Module\Database\Sql\Connection;
+use PunBB\Module\Database\Schema\DbLayerSchema;
 use PunBB\Module\Database\Schema\SchemaInterface;
 use PunBB\Module\Install\Indexing\PostIndexInterface as InstallPostIndexInterface;
 use PunBB\Module\Install\Language\InstallerLanguageInterface;
 use PunBB\Module\Install\Manifest\BundledExtensionsInterface;
-use PunBB\Module\LegacyBridge\Database\LegacySchema;
 use PunBB\Module\LegacyBridge\Setup\LegacyBoardFiles;
 use PunBB\Module\LegacyBridge\Setup\LegacyBundledExtensions;
 use PunBB\Module\LegacyBridge\Setup\LegacyConfiguration;
@@ -689,7 +689,7 @@ final class Module implements ModuleInterface {
 		$wiring->service(PacksInterface::class, fn (): object => new LegacyPacks());
 
 		// The installer and the updater, which run before a usable configuration exists
-		$wiring->service(SchemaInterface::class, fn (): object => new LegacySchema());
+		$wiring->service(SchemaInterface::class, fn (Container $c): object => new DbLayerSchema(LegacyConnection::legacy(), $c->get(Connection::class)));
 		$wiring->service(EnvironmentInterface::class, fn (): object => new LegacyEnvironment());
 		$wiring->service(BoardFilesInterface::class, fn (): object => new LegacyBoardFiles());
 		$wiring->service(SetupDatabaseInterface::class, fn (): object => new LegacySetupDatabase());

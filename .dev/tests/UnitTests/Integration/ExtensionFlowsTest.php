@@ -30,7 +30,7 @@ class ExtensionFlowsTest extends TestCase {
 
 	/** Sharing storage with another run would let one teardown drop the other's tables. */
 	public function testItGetsStorageOfItsOwn(): void {
-		$claimed = array(USER_FLOWS_PREFIX, UPGRADE_PATH_PREFIX);
+		$claimed = array_merge(array(USER_FLOWS_PREFIX), upgrade_path_claimed());
 		foreach (install_matrix_drivers() as $spec)
 			$claimed[] = $spec['backend'].'|'.$spec['name'].'|'.$spec['prefix'];
 

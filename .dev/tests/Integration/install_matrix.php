@@ -4,8 +4,9 @@
  *
  * Drives admin/install.php over HTTP once per supported database driver and
  * asserts, for each of them, that the install completes, config.php is written
- * for that driver, the whole schema exists and is populated, the admin account
- * can log in, and not one PHP diagnostic was emitted along the way.
+ * for that driver, the whole schema exists as the modules declare it and is
+ * populated, the admin account can log in, and not one PHP diagnostic was
+ * emitted along the way.
  *
  * Run it from inside the web container — it needs the forum both as files (it
  * moves config.php aside and back) and as a running site on $base_url.
@@ -29,6 +30,9 @@
 require_once dirname(__DIR__, 2).'/bin/smoke.php';
 
 define('INSTALL_MATRIX_ROOT', dirname(__DIR__, 3).'/');
+
+// The declared schema and its reader, to hold a fresh install against what the modules declare.
+require_once INSTALL_MATRIX_ROOT.'vendor/autoload.php';
 define('INSTALL_MATRIX_SQLITE', '.dev/tmp/matrix/matrix.sqlite3');
 
 // Admin account every install in the matrix creates.
@@ -42,7 +46,7 @@ const INSTALL_MATRIX_EMAIL = 'matrix-admin@example.invalid';
 function install_matrix_expected_tables()
 {
 	return array(
-		'bans', 'categories', 'censoring', 'config', 'extension_hooks', 'extensions',
+		'bans', 'categories', 'censoring', 'config', 'data_patches', 'extension_hooks', 'extensions',
 		'forum_perms', 'forum_subscriptions', 'forums', 'groups', 'online', 'posts',
 		'ranks', 'reports', 'search_cache', 'search_matches', 'search_words',
 		'subscriptions', 'topics', 'users',
@@ -50,13 +54,51 @@ function install_matrix_expected_tables()
 }
 
 
-/** The tables admin/install.php actually creates for $db_type, from the schema it installs. */
+/** The tables admin/install.php actually creates for $db_type, from the schema the modules declare. */
 function install_matrix_installer_tables($db_type)
 {
-	$tables = array_map(static fn ($table) => $table->name, PunBB\Module\Setup\Schema\BoardSchema::tables($db_type));
+	$tables = array_map(static fn ($table) => $table->name, install_matrix_declared_schema()->tables(PunBB\Module\Database\Sql\Platform::ofDbType($db_type)));
 	sort($tables);
 
 	return $tables;
+}
+
+
+function install_matrix_declared_schema()
+{
+	return new PunBB\Module\Database\Schema\DeclaredSchema(...PunBB\Module\Framework\Modules\ModuleRegistry::discover(INSTALL_MATRIX_ROOT.'include/PunBB/Module', 'PunBB\\Module\\')->modules());
+}
+
+
+/** The new core's connection to one driver's database, read-only on SQLite. */
+function install_matrix_connection($spec)
+{
+	$driver = match ($spec['backend']) {
+		'mysql'		=> new PunBB\Module\Database\Sql\Driver\MysqliDriver(install_matrix_mysql($spec)),
+		'pgsql'		=> new PunBB\Module\Database\Sql\Driver\PgsqlDriver(install_matrix_pgsql($spec)),
+		'sqlite3'	=> new PunBB\Module\Database\Sql\Driver\Sqlite3Driver(new SQLite3(INSTALL_MATRIX_ROOT.$spec['name'], SQLITE3_OPEN_READONLY)),
+	};
+
+	return new PunBB\Module\Database\Sql\Connection($driver, $spec['prefix']);
+}
+
+
+/**
+ * What an installed forum still lacks of the schema the modules declare, as
+ * its database reports it, each change in words; nothing after a fresh install.
+ */
+function install_matrix_schema_gap($db_type, $spec)
+{
+	$platform = PunBB\Module\Database\Sql\Platform::ofDbType($db_type);
+	$reader = new PunBB\Module\Database\Schema\SchemaReader(install_matrix_connection($spec));
+	$differ = new PunBB\Module\Database\Schema\SchemaDiffer();
+
+	$gap = array();
+	foreach (install_matrix_declared_schema()->tables($platform) as $table)
+		foreach ($differ->diff($table, $reader->table($table->name), $platform) as $change)
+			$gap[] = $change->describe();
+
+	return $gap;
 }
 
 
@@ -285,13 +327,13 @@ function install_matrix_clear_cache()
  * the login would then be checked against the previous forum's user table.
  * Returns false when the site never caught up.
  */
-function install_matrix_await_install($base_url, $jar, $attempts = 20)
+function install_matrix_await_install($base_url, $jar, $username = INSTALL_MATRIX_USERNAME, $attempts = 20)
 {
 	for ($attempt = 0; $attempt < $attempts; $attempt++)
 	{
 		$response = smoke_request($base_url.'/userlist.php', $jar);
 
-		if (strpos((string) $response['body'], INSTALL_MATRIX_USERNAME) !== false)
+		if (strpos((string) $response['body'], $username) !== false)
 			return true;
 
 		usleep(500000);
@@ -302,13 +344,14 @@ function install_matrix_await_install($base_url, $jar, $attempts = 20)
 
 
 /**
- * Log in as the account the install just created. Returns '' on success and the
- * reason otherwise. The CSRF token is bound to $base_url, so this only passes
- * when the matrix drives the site on exactly the URL it installed it with.
+ * Log in as the account the install just created, or as $username where the
+ * forum is another. Returns '' on success and the reason otherwise. The CSRF
+ * token is bound to $base_url, so this only passes when the matrix drives the
+ * site on exactly the URL it installed it with.
  */
-function install_matrix_login($base_url, $jar, &$diagnostics)
+function install_matrix_login($base_url, $jar, &$diagnostics, $username = INSTALL_MATRIX_USERNAME, $password = INSTALL_MATRIX_PASSWORD)
 {
-	if (!install_matrix_await_install($base_url, $jar))
+	if (!install_matrix_await_install($base_url, $jar, $username))
 		return 'the site never started serving the new install';
 
 	$form = smoke_request($base_url.'/login.php', $jar);
@@ -320,8 +363,8 @@ function install_matrix_login($base_url, $jar, &$diagnostics)
 	$response = smoke_request($base_url.'/login.php', $jar, array(
 		'form_sent' => '1',
 		'csrf_token' => $match[1],
-		'req_username' => INSTALL_MATRIX_USERNAME,
-		'req_password' => INSTALL_MATRIX_PASSWORD,
+		'req_username' => $username,
+		'req_password' => $password,
 		'redirect_url' => $base_url.'/index.php',
 	));
 	$diagnostics = array_merge($diagnostics, smoke_diagnostics($response['body']));
@@ -413,6 +456,9 @@ function install_matrix_run_driver($db_type, $spec, $base_url, $log)
 	$missing = array_diff(install_matrix_expected_tables(), install_matrix_present_tables($spec));
 	if ($missing)
 		$failures[] = count($missing).' table(s) missing: '.implode(', ', $missing);
+	else
+		foreach (install_matrix_schema_gap($db_type, $spec) as $change)
+			$failures[] = 'the installed schema is not the declared one, it needs: '.$change;
 
 	// A schema alone proves nothing: the installer also seeds these.
 	foreach (array('users' => 2, 'config' => 1, 'forums' => 1, 'topics' => 1, 'posts' => 1, 'groups' => 1) as $table => $least)

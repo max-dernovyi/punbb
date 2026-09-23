@@ -12,6 +12,7 @@
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use PunBB\Module\Database\Schema\TableOwnerInterface;
 
 class BridgeBoundaryTest extends TestCase {
 	private const BRIDGE = 'LegacyBridge';
@@ -133,5 +134,18 @@ PHP;
 
 		$this->assertNotEmpty(preg_grep('/: eval$/', $references), 'the bridge no longer evaluates stored code; the scanner is looking in the wrong place');
 		$this->assertNotEmpty(preg_grep('/: \\\\get_hook$/', $references));
+	}
+
+	/** The schema outlives the bridge: no table is declared in it and no DDL is built from it. */
+	public function testTheBridgeHoldsNoSchema(): void {
+		$module = 'PunBB\\Module\\'.self::BRIDGE.'\\Module';
+		$this->assertNotInstanceOf(TableOwnerInterface::class, new $module());
+
+		$builders = array();
+		foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(FORUM_ROOT.self::BRIDGE_DIRECTORY, FilesystemIterator::SKIP_DOTS)) as $file)
+			if (preg_match_all('/->(?:create_table|drop_table|add_field|alter_field|drop_field|add_index|drop_index)\s*\(/', (string) file_get_contents($file->getPathname()), $matches) > 0)
+				$builders[] = substr($file->getPathname(), strlen(FORUM_ROOT)).': '.implode(', ', $matches[0]);
+
+		$this->assertSame(array(), $builders);
 	}
 }

@@ -28,6 +28,9 @@ interface DatabaseInterface {
 
 	public function endTransaction(): void;
 
+	/** Discards what the open transaction changed, and leaves an empty one open for endTransaction(). */
+	public function rollBack(): void;
+
 	/** Closes the connection, when one is open, committing what it left uncommitted. */
 	public function close(): void;
 }

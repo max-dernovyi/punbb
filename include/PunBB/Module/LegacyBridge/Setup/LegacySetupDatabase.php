@@ -64,6 +64,18 @@ final class LegacySetupDatabase implements DatabaseInterface {
 		LegacyConnection::legacy()->end_transaction();
 	}
 
+	public function rollBack(): void {
+		$db = LegacyConnection::legacy();
+
+		// The MyISAM driver opens no transaction: what it wrote stays written
+		if ((get_object_vars($db)['in_transaction'] ?? 0) < 1)
+			return;
+
+		$db->query('ROLLBACK');
+		--$db->in_transaction;
+		$db->start_transaction();
+	}
+
 	public function close(): void {
 		$db = $GLOBALS['forum_db'] ?? null;
 		if ($db instanceof \DBLayer)

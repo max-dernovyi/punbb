@@ -68,8 +68,9 @@ final class ModuleRegistry {
 
 	/**
 	 * Assembles the container from every module's wiring, in load order. A
-	 * contract resolves to its interceptor when any module plugs it, and the
-	 * event dispatcher holds every module's observers.
+	 * contract resolves to its interceptor when any module plugs it, the event
+	 * dispatcher holds every module's observers, and this registry is a service
+	 * for what reads the modules' declarations.
 	 */
 	public function container(): Container {
 		$factories = array();
@@ -97,7 +98,11 @@ final class ModuleRegistry {
 		if (isset($owners[EventDispatcher::class]))
 			throw new ModuleException(sprintf('Module %s wires service "%s", which the registry assembles from every module\'s observers', $owners[EventDispatcher::class], EventDispatcher::class));
 
+		if (isset($owners[self::class]))
+			throw new ModuleException(sprintf('Module %s wires service "%s", which is the registry itself', $owners[self::class], self::class));
+
 		$factories[EventDispatcher::class] = static fn (Container $container): object => new EventDispatcher($observers, $container);
+		$factories[self::class] = fn (): object => $this;
 
 		$manager = new PluginManager($interceptors, $plugins);
 		foreach (array_keys($interceptors) as $contract)

@@ -22,7 +22,7 @@ class NullableColumnGuardTest extends TestCase
 
 	private function updateScript(): string
 	{
-		return (string) file_get_contents(FORUM_ROOT.'include/PunBB/Module/Update/Controller/Stages.php');
+		return (string) file_get_contents(FORUM_ROOT.'include/PunBB/Module/Update/Patch/Preparse.php');
 	}
 
 	public function testUpgradeReadsOfNullableColumnsCarryADefault(): void

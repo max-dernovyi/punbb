@@ -1,8 +1,8 @@
 <?php
 
 // Define the version and database revision that this code was written for
-define('FORUM_VERSION', '1.5.1');
-define('FORUM_DB_REVISION', 6);
+define('FORUM_VERSION', '2.0.0');
+define('FORUM_DB_REVISION', 7);
 
 // The PHP version this release requires
 define('FORUM_MIN_PHP_VERSION', '8.4.0');
@@ -36,6 +36,6 @@ define('FORUM_SEARCH_MAX_WORD', 20);
 
 define('FORUM_PUN_EXTENSION_REPOSITORY_URL', 'https://punbb.informer.com/extensions/1.4');
 
-// The oldest release line whose extensions this one still runs: 1.5 keeps the
+// The oldest release line whose extensions this one still runs: 2.0 keeps the
 // 1.4 hook and manifest contract, so install accepts a maxtestedon of 1.4.x.
 define('FORUM_EXTENSION_API_VERSION', '1.4');

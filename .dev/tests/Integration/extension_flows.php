@@ -444,9 +444,10 @@ function extension_flows_set_hidden($state, $hidden)
 
 // ---------------------------------------------------------------- the steps --
 
-/** A second post, so the post loop runs its hook more than once. */
+/** Another post, so the post loop runs its hook more than once. */
 function extension_flows_step_reply(&$state)
 {
+	$posts = count(extension_flows_rows($state['spec'], 'SELECT id FROM %pposts WHERE topic_id = '.$state['topic_id']));
 	$form = user_flows_get($state, 'admin', 'post.php?tid='.$state['topic_id']);
 
 	$response = user_flows_submit($state, 'admin', $form, 'name="req_message"', array(
@@ -459,7 +460,7 @@ function extension_flows_step_reply(&$state)
 
 	$state['post_ids'] = array_column(extension_flows_rows($state['spec'], 'SELECT id FROM %pposts WHERE topic_id = '.$state['topic_id'].' ORDER BY id'), 'id');
 
-	user_flows_assert(count($state['post_ids']) === 2, 'the reply was not stored: '.user_flows_summary($response['body']));
+	user_flows_assert(count($state['post_ids']) === $posts + 1, 'the reply was not stored: '.user_flows_summary($response['body']));
 }
 
 
@@ -467,7 +468,7 @@ function extension_flows_step_install(&$state)
 {
 	$state['before'] = extension_flows_snapshot($state['spec']);
 
-	user_flows_assert($state['before']['extensions'] === array(), 'the fresh forum already has extensions installed');
+	user_flows_assert(array_intersect(EXTENSION_FLOWS_IDS, array_column($state['before']['extensions'], 'id')) === array(), 'the forum already has a fixture extension installed');
 
 	foreach (EXTENSION_FLOWS_IDS as $id)
 	{
@@ -706,17 +707,10 @@ function extension_flows_steps()
 }
 
 
-/** One driver end to end. Returns the list of failures, empty when it passed. */
-function extension_flows_run_driver($db_type, $spec, $base_url, $log)
+/** A walk's state over the forum on $spec, with a jar each for its administrator and a guest. */
+function extension_flows_state($base_url, $spec)
 {
-	$diagnostics = array();
-
-	@unlink(INSTALL_MATRIX_ROOT.'config.php');
-	install_matrix_clear_cache();
-	extension_flows_drop_schema($spec);
-	install_matrix_truncate_log($log);
-
-	$state = array(
+	return array(
 		'base_url' => $base_url,
 		'spec' => $spec,
 		'jars' => array(
@@ -724,28 +718,26 @@ function extension_flows_run_driver($db_type, $spec, $base_url, $log)
 			'guest' => (string) tempnam(sys_get_temp_dir(), 'extfg'),
 		),
 		'diagnostics' => array(),
-		// The topic and forum a fresh install creates.
+		// The topic and forum a fresh install creates, and the upgrade fixtures carry.
 		'topic_id' => 1,
 		'forum_id' => 1,
 		'post_ids' => array(),
 		'before' => array(),
 	);
+}
+
+
+/**
+ * The steps over the forum $state names, its administrator signed in on the
+ * admin jar, with the fixtures linked for the length of the walk. Returns the
+ * failures; diagnostics stay in $state.
+ */
+function extension_flows_walk(&$state)
+{
+	extension_flows_link_fixtures();
 
 	try
 	{
-		$response = smoke_request($base_url.'/admin/install.php', $state['jars']['admin'], install_matrix_form_fields($db_type, $spec, $base_url));
-		$diagnostics = array_merge($diagnostics, smoke_diagnostics($response['body']));
-
-		if ($response['status'] !== 200 || !install_matrix_install_succeeded($response['body']))
-			return array_merge(array('the forum did not install: HTTP '.$response['status'].', '.install_matrix_failure_reason($response['body'])), $diagnostics);
-
-		$reason = install_matrix_login($base_url, $state['jars']['admin'], $diagnostics);
-
-		if ($reason !== '')
-			return array_merge(array('the administrator could not log in: '.$reason), $diagnostics);
-
-		extension_flows_link_fixtures();
-
 		$failures = array();
 		$steps = extension_flows_steps();
 		$width = max(array_map(static fn(array $step): int => strlen($step[0]), $steps)) + 2;
@@ -770,6 +762,42 @@ function extension_flows_run_driver($db_type, $spec, $base_url, $log)
 			}
 		}
 
+		return $failures;
+	}
+	finally
+	{
+		extension_flows_unlink_fixtures();
+	}
+}
+
+
+/** One driver end to end. Returns the list of failures, empty when it passed. */
+function extension_flows_run_driver($db_type, $spec, $base_url, $log)
+{
+	$diagnostics = array();
+
+	@unlink(INSTALL_MATRIX_ROOT.'config.php');
+	install_matrix_clear_cache();
+	extension_flows_drop_schema($spec);
+	install_matrix_truncate_log($log);
+
+	$state = extension_flows_state($base_url, $spec);
+
+	try
+	{
+		$response = smoke_request($base_url.'/admin/install.php', $state['jars']['admin'], install_matrix_form_fields($db_type, $spec, $base_url));
+		$diagnostics = array_merge($diagnostics, smoke_diagnostics($response['body']));
+
+		if ($response['status'] !== 200 || !install_matrix_install_succeeded($response['body']))
+			return array_merge(array('the forum did not install: HTTP '.$response['status'].', '.install_matrix_failure_reason($response['body'])), $diagnostics);
+
+		$reason = install_matrix_login($base_url, $state['jars']['admin'], $diagnostics);
+
+		if ($reason !== '')
+			return array_merge(array('the administrator could not log in: '.$reason), $diagnostics);
+
+		$failures = extension_flows_walk($state);
+
 		return array_merge($failures, array_values(array_unique(array_merge($diagnostics, $state['diagnostics'], install_matrix_log_diagnostics($log)))));
 	}
 	finally
@@ -777,7 +805,6 @@ function extension_flows_run_driver($db_type, $spec, $base_url, $log)
 		foreach ($state['jars'] as $jar)
 			@unlink($jar);
 
-		extension_flows_unlink_fixtures();
 		@unlink(INSTALL_MATRIX_ROOT.'config.php');
 		extension_flows_drop_schema($spec);
 		install_matrix_clear_cache();

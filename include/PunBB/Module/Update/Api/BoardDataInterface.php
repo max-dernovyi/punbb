@@ -10,12 +10,19 @@ use PunBB\Module\Update\Api\Data\PostRangeInterface;
  * The rows an update rewrites to the shape this release reads.
  */
 interface BoardDataInterface {
+	/** An id no group has, to park a group at while the others move. */
+	public function spareGroupId(): int;
+
 	/**
-	 * Makes the moderators' group, which 1.2 kept as group 2, group 4 with
-	 * moderation rights, and moves the guests and the members down to 2 and 3,
-	 * with their accounts and forum permissions.
+	 * Step $step of making the moderators' group, which 1.2 kept as group 2,
+	 * group 4 with moderation rights, and moving the guests and the members down
+	 * to 2 and 3, with their accounts and forum permissions; false when there is
+	 * no such step. A step run twice in a row changes nothing more.
 	 */
-	public function reorderGroups(): void;
+	public function reorderGroups(int $spare, int $step): bool;
+
+	/** Whether any group moderates. */
+	public function hasModeratorGroup(): bool;
 
 	/** Gives every moderating group $permission ('g_mod_edit_users' …) as the board had it for all of them. */
 	public function grantModerators(string $permission, int $value): void;

@@ -10,6 +10,9 @@ namespace PunBB\Module\Database\Schema;
  * created, a column that is missing is not altered.
  */
 interface SchemaInterface {
+	/** Table $table as the database reports it; null when there is no such table. */
+	public function describe(string $table): ?InstalledTable;
+
 	public function tableExists(string $table): bool;
 
 	public function fieldExists(string $table, string $field): bool;

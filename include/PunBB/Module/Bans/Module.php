@@ -11,7 +11,11 @@ use PunBB\Module\Bans\Interceptor\BanCandidatesInterceptor;
 use PunBB\Module\Bans\Interceptor\BansInterceptor;
 use PunBB\Module\Bans\Model\BanCandidates;
 use PunBB\Module\Bans\Model\Bans;
+use PunBB\Module\Database\Schema\Column;
+use PunBB\Module\Database\Schema\Table;
+use PunBB\Module\Database\Schema\TableOwnerInterface;
 use PunBB\Module\Database\Sql\Connection;
+use PunBB\Module\Database\Sql\Platform;
 use PunBB\Module\Framework\Container\Container;
 use PunBB\Module\Framework\Event\EventDispatcher;
 use PunBB\Module\Framework\Modules\ModuleInterface;
@@ -35,7 +39,7 @@ use PunBB\Module\Site\Visitor\VisitorInterface;
  * The bans: listing, adding, editing and removing them. The list every request
  * is checked against is Site\Cache\BanCacheInterface.
  */
-final class Module implements ModuleInterface {
+final class Module implements ModuleInterface, TableOwnerInterface {
 	public function name(): string {
 		return 'Bans';
 	}
@@ -71,5 +75,19 @@ final class Module implements ModuleInterface {
 			$c->get(FlashMessagesInterface::class),
 			$c->get(EmailAddressesInterface::class)
 		));
+	}
+
+	public function tables(Platform $platform): array {
+		return array(
+			new Table('bans', array(
+				new Column('id', 'SERIAL'),
+				new Column('username', 'VARCHAR(200)', true),
+				new Column('ip', 'VARCHAR(255)', true),
+				new Column('email', 'VARCHAR(80)', true),
+				new Column('message', 'VARCHAR(255)', true),
+				new Column('expire', 'INT(10) UNSIGNED', true),
+				new Column('ban_creator', 'INT(10) UNSIGNED', false, 0),
+			), array('id')),
+		);
 	}
 }

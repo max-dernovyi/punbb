@@ -1,24 +1,29 @@
 <?php
 /**
- * Upgrade path from 1.4.4.
+ * Upgrade paths from 1.4.4 and from 1.5.1, on every supported driver.
  *
- * Restores the committed 1.4.4 fixture into MySQL under its own table prefix,
- * drives admin/db_update.php over HTTP until it reports completion, and asserts
- * that the version rows advanced, that every piece of non-ASCII content came
- * through untouched, and that not one PHP diagnostic was emitted along the way.
- * It then walks the upgraded forum over HTTP — pages, extension hook, login,
- * posting and search — so the upgraded data is exercised, not only asserted on.
- * It also asserts the removed-driver guard: a config.php naming 'mysql' has to
- * stop the update with the name of the driver to switch to.
+ * Per driver, installs a fresh forum of this release to hold the upgrades
+ * against, then for each starting release restores its committed fixture under
+ * a table prefix of its own and drives admin/db_update.php over HTTP until it
+ * reports completion. It asserts that the version rows advanced, that every
+ * piece of non-ASCII content came through untouched, that the schema is the
+ * one the modules declare and the one the fresh install has, that a second run
+ * changes nothing, and that not one PHP diagnostic was emitted along the way.
+ * It then walks the upgraded forum over HTTP — pages, the fixture extension's
+ * hook, login, posting and search, the extension flows and, on MySQL, the user
+ * flows — so the upgraded data is exercised, not only asserted on. It also
+ * asserts the removed-driver guard: a config.php naming a driver that no longer
+ * exists has to stop the update with the name of the driver to switch to.
  *
  * Run it from inside the web container — like the install matrix it needs the
  * forum both as files (it rewrites config.php) and as a running site.
  *
- *   php .dev/tests/Integration/upgrade_path.php
+ *   php .dev/tests/Integration/upgrade_path.php [driver ...]
  *
  * Environment (all optional, defaults match a stock dev stack):
  *   PUNBB_TEST_BASE_URL          site URL the update script is driven on
  *   PUNBB_TEST_MYSQL_HOST/USER/PASSWORD/DBNAME
+ *   PUNBB_TEST_PGSQL_HOST/USER/PASSWORD/DBNAME
  *   PUNBB_TEST_ERROR_LOG         error log file to assert on, when there is one
  *
  * @copyright (C) 2008-2012 PunBB, partially based on code (C) 2008-2009 FluxBB.org
@@ -26,13 +31,9 @@
  * @package PunBB
  */
 
-// The install matrix owns the shared pieces: the curl helpers it pulls in, the
-// connection helper, the table list and the config.php stash both runs need.
-require_once __DIR__.'/install_matrix.php';
-
-// The functional pass over the upgraded forum drives the same form helpers the
-// user flows do; only the steps below are this run's own.
-require_once __DIR__.'/user_flows.php';
+// The extension flows bring the user flows and, under them, the install matrix:
+// the curl helpers, the connections, the form driving and the config.php stash.
+require_once __DIR__.'/extension_flows.php';
 
 // The removed-driver map belongs to the forum, not to this script: the guard it
 // asserts on is only worth anything if both read the same table.
@@ -40,11 +41,12 @@ if (!function_exists('forum_removed_db_type_replacement'))
 	require_once dirname(__DIR__, 3).'/include/functions.php';
 
 define('UPGRADE_PATH_ROOT', dirname(__DIR__, 3).'/');
+define('UPGRADE_PATH_SQLITE', '.dev/tmp/matrix/upgrade.sqlite3');
+define('UPGRADE_PATH_FRESH_SQLITE', '.dev/tmp/matrix/upgrade-fresh.sqlite3');
 
-// A prefix of its own, so the fixture never touches the forum installed in the
-// same database, nor the prefixes the install matrix claims.
-const UPGRADE_PATH_PREFIX = 'up1_';
-const UPGRADE_PATH_FIXTURE = 'punbb-1.4.4-mysql.sql';
+// The releases a board is upgraded from: the last 1.4 the fork imported, and
+// 1.5.1, which every existing forum of this fork runs.
+const UPGRADE_PATH_RELEASES = array('1.4.4', '1.5.1');
 
 // The fixture administrator, and what the functional pass posts as them.
 const UPGRADE_PATH_USERNAME = 'fixture-admin';
@@ -68,22 +70,50 @@ const UPGRADE_PATH_MARKERS = array(
 );
 
 
-function upgrade_path_fixture_file()
+/** The fixture of $release for one backend: mysql, pgsql or sqlite3. */
+function upgrade_path_fixture_file($release, $backend)
 {
-	return __DIR__.'/fixtures/'.UPGRADE_PATH_FIXTURE;
+	return __DIR__.'/fixtures/punbb-'.$release.'-'.$backend.'.sql';
 }
 
 
-/** How to reach MySQL, and where the fixture's tables go. */
-function upgrade_path_spec()
+/**
+ * install_matrix_drivers() with the prefixes and SQLite file of the upgraded
+ * boards, or with $fresh those of the fresh install they are held against.
+ */
+function upgrade_path_drivers($fresh = false)
 {
-	return array(
-		'host' => getenv('PUNBB_TEST_MYSQL_HOST') ?: 'punbb-mysql',
-		'username' => getenv('PUNBB_TEST_MYSQL_USER') ?: 'punbb',
-		'password' => getenv('PUNBB_TEST_MYSQL_PASSWORD') ?: 'punbb',
-		'name' => getenv('PUNBB_TEST_MYSQL_DBNAME') ?: 'punbb',
-		'prefix' => UPGRADE_PATH_PREFIX,
-	);
+	$prefixes = $fresh
+		? array('mysqli' => 'uf1_', 'mysqli_innodb' => 'uf2_', 'pgsql' => 'uf3_', 'sqlite3' => '')
+		: array('mysqli' => 'up1_', 'mysqli_innodb' => 'up2_', 'pgsql' => 'up3_', 'sqlite3' => '');
+	$drivers = array();
+
+	foreach (install_matrix_drivers() as $db_type => $spec)
+		$drivers[$db_type] = array_merge($spec, array('prefix' => $prefixes[$db_type]));
+
+	$drivers['sqlite3']['name'] = $fresh ? UPGRADE_PATH_FRESH_SQLITE : UPGRADE_PATH_SQLITE;
+
+	return $drivers;
+}
+
+
+/**
+ * The storage this run claims, for the other runs to keep off: each prefix on
+ * a shared database, and each driver's backend|name|prefix.
+ */
+function upgrade_path_claimed()
+{
+	$claimed = array();
+
+	foreach (array_merge(array_values(upgrade_path_drivers()), array_values(upgrade_path_drivers(true))) as $spec)
+	{
+		if ($spec['backend'] !== 'sqlite3')
+			$claimed[] = $spec['prefix'];
+
+		$claimed[] = $spec['backend'].'|'.$spec['name'].'|'.$spec['prefix'];
+	}
+
+	return $claimed;
 }
 
 
@@ -149,13 +179,21 @@ function upgrade_path_statements($sql)
 }
 
 
-/** The fixture, with its %PREFIX% placeholder resolved. */
-function upgrade_path_fixture_sql($prefix)
+/**
+ * The fixture of $release for $db_type, with its %PREFIX% placeholder resolved.
+ * A mysqli_innodb board is the MySQL one with its tables on InnoDB: that engine
+ * is all the driver created differently.
+ */
+function upgrade_path_fixture_sql($release, $db_type, $prefix)
 {
-	$sql = @file_get_contents(upgrade_path_fixture_file());
+	$file = upgrade_path_fixture_file($release, install_matrix_drivers()[$db_type]['backend']);
+	$sql = @file_get_contents($file);
 
 	if ($sql === false)
-		throw new RuntimeException('cannot read the fixture: '.upgrade_path_fixture_file());
+		throw new RuntimeException('cannot read the fixture: '.$file);
+
+	if ($db_type === 'mysqli_innodb')
+		$sql = str_replace('ENGINE=MyISAM', 'ENGINE=InnoDB', $sql);
 
 	return str_replace('%PREFIX%', $prefix, $sql);
 }
@@ -176,6 +214,17 @@ function upgrade_path_target_versions($root)
 	$revision = preg_match('/define\(\'FORUM_DB_REVISION\',\s*(\d+)\)/', $source, $match) ? $match[1] : '';
 
 	return array('o_cur_version' => $version, 'o_database_revision' => $revision);
+}
+
+
+/** The removed driver a board on $db_type used to run on, or '' when there was none. */
+function upgrade_path_removed_driver($db_type)
+{
+	foreach (array('mysql', 'mysql_innodb', 'sqlite') as $removed)
+		if (forum_removed_db_type_replacement($removed) === $db_type)
+			return $removed;
+
+	return '';
 }
 
 
@@ -214,73 +263,115 @@ function upgrade_path_offers_update($body)
 }
 
 
-function upgrade_path_drop_schema($spec)
+/** What db_update.php answers on a board it has nothing left to do for. */
+function upgrade_path_up_to_date($body)
 {
-	$link = install_matrix_mysql($spec);
-
-	foreach (install_matrix_expected_tables() as $table)
-		mysqli_query($link, 'DROP TABLE IF EXISTS `'.$spec['prefix'].$table.'`');
-
-	mysqli_close($link);
+	return strpos((string) $body, 'Your database is already as up-to-date as this script can make it.') !== false;
 }
 
 
-/** The fixture, restored from nothing. */
-function upgrade_path_restore($spec)
+/** The fixture of $release, restored from nothing into $spec's database. */
+function upgrade_path_restore($release, $db_type, $spec)
 {
-	upgrade_path_drop_schema($spec);
+	extension_flows_drop_schema($spec);
 
-	$link = install_matrix_mysql($spec);
-	mysqli_set_charset($link, 'utf8mb4');
+	$statements = upgrade_path_statements(upgrade_path_fixture_sql($release, $db_type, $spec['prefix']));
 
-	try
+	switch ($spec['backend'])
 	{
-		foreach (upgrade_path_statements(upgrade_path_fixture_sql($spec['prefix'])) as $statement)
-			mysqli_query($link, $statement);
-	}
-	catch (mysqli_sql_exception $e)
-	{
-		mysqli_close($link);
-		throw new RuntimeException('restoring the fixture failed: '.$e->getMessage());
-	}
+		case 'mysql':
+			$link = install_matrix_mysql($spec);
+			mysqli_set_charset($link, 'utf8mb4');
 
-	mysqli_close($link);
+			try
+			{
+				foreach ($statements as $statement)
+					mysqli_query($link, $statement);
+			}
+			catch (mysqli_sql_exception $e)
+			{
+				mysqli_close($link);
+				throw new RuntimeException('restoring the fixture failed: '.$e->getMessage());
+			}
+
+			mysqli_close($link);
+			break;
+
+		case 'pgsql':
+			$link = install_matrix_pgsql($spec);
+
+			foreach ($statements as $statement)
+			{
+				if (@pg_query($link, $statement) === false)
+				{
+					$error = pg_last_error($link);
+					pg_close($link);
+					throw new RuntimeException('restoring the fixture failed: '.$error);
+				}
+			}
+
+			pg_close($link);
+			break;
+
+		case 'sqlite3':
+			$file = INSTALL_MATRIX_ROOT.$spec['name'];
+
+			try
+			{
+				$link = new SQLite3($file, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE);
+				$link->enableExceptions(true);
+
+				foreach ($statements as $statement)
+					$link->exec($statement);
+
+				$link->close();
+			}
+			catch (Exception $e)
+			{
+				throw new RuntimeException('restoring the fixture failed: '.$e->getMessage());
+			}
+
+			// The site writes the file this run created.
+			@chmod($file, 0666);
+			break;
+	}
 }
 
 
-/** One scalar out of the fixture's database, or null when it cannot be read. */
+/** One scalar out of the upgraded board's database, or null when it cannot be read. */
 function upgrade_path_value($spec, $sql)
 {
-	$link = install_matrix_mysql($spec);
-	mysqli_set_charset($link, 'utf8mb4');
-
 	try
 	{
-		$result = mysqli_query($link, $sql);
-		$value = ($result && ($row = mysqli_fetch_row($result))) ? $row[0] : null;
+		$rows = extension_flows_rows($spec, $sql);
 	}
-	catch (mysqli_sql_exception $e)
+	catch (UserFlowsFailure $e)
 	{
-		$value = null;
+		return null;
 	}
 
-	mysqli_close($link);
-
-	return $value;
+	return $rows === array() ? null : reset($rows[0]);
 }
 
 
 function upgrade_path_config_value($spec, $name)
 {
-	return upgrade_path_value($spec, 'SELECT conf_value FROM `'.$spec['prefix'].'config` WHERE conf_name = \''.$name.'\'');
+	return upgrade_path_value($spec, 'SELECT conf_value FROM %pconfig WHERE conf_name = \''.$name.'\'');
 }
 
 
 function upgrade_path_count($spec, $table)
 {
-	$count = upgrade_path_value($spec, 'SELECT COUNT(*) FROM `'.$spec['prefix'].$table.'`');
+	$count = upgrade_path_value($spec, 'SELECT COUNT(*) AS n FROM %p'.$table);
 
 	return $count === null ? -1 : (int) $count;
+}
+
+
+/** The data patches a board has recorded, by name. */
+function upgrade_path_patches($spec)
+{
+	return array_column(extension_flows_rows($spec, 'SELECT name FROM %pdata_patches ORDER BY name'), 'name');
 }
 
 
@@ -290,8 +381,6 @@ function upgrade_path_count($spec, $table)
  */
 function upgrade_path_content($spec)
 {
-	$prefix = $spec['prefix'];
-
 	$columns = array(
 		'posts' => array('message', 'poster'),
 		'topics' => array('subject', 'poster'),
@@ -304,39 +393,149 @@ function upgrade_path_content($spec)
 		'extensions' => array('title', 'description'),
 	);
 
-	$link = install_matrix_mysql($spec);
-	mysqli_set_charset($link, 'utf8mb4');
 	$content = array();
 
 	foreach ($columns as $table => $fields)
-	{
-		$select = implode(', ', array_map(static fn(string $field): string => '`'.$field.'`', $fields));
-
-		try
-		{
-			$result = mysqli_query($link, 'SELECT '.$select.' FROM `'.$prefix.$table.'` ORDER BY id');
-		}
-		catch (mysqli_sql_exception $e)
-		{
-			mysqli_close($link);
-			throw new RuntimeException('reading '.$table.' failed: '.$e->getMessage());
-		}
-
-		while ($result && ($row = mysqli_fetch_assoc($result)))
+		foreach (extension_flows_rows($spec, 'SELECT '.implode(', ', $fields).' FROM %p'.$table.' ORDER BY id') as $row)
 			foreach ($row as $field => $value)
 				$content[] = $table.'.'.$field.'='.(string) $value;
-	}
-
-	mysqli_close($link);
 
 	return $content;
 }
 
 
-/** config.php for the fixture database, written where the forum reads it. */
-function upgrade_path_write_config($spec, $base_url, $db_type)
+/**
+ * The schema of the board on $spec as its database reports it: every table,
+ * each column's nullability, default and collation, the primary key, the
+ * indexes and on MySQL the engine. Types are compared by the gap against the
+ * declared schema, as the differ compares them: SQLite ignores the length a
+ * type names. Column order is not compared: only MySQL places a column it adds.
+ */
+function upgrade_path_schema($spec)
 {
-	$config = "<?php\n\n".
+	$engines = array();
+	if ($spec['backend'] === 'mysql')
+		foreach (extension_flows_rows($spec, 'SELECT TABLE_NAME AS name, ENGINE AS engine FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()') as $row)
+			$engines[$row['name']] = $row['engine'];
+
+	$tables = extension_flows_tables($spec);
+
+	// Only now: pg_connect() hands every caller the same link, and extension_flows_rows() closes it
+	$reader = new PunBB\Module\Database\Schema\SchemaReader(install_matrix_connection($spec));
+	$schema = array();
+
+	foreach ($tables as $name)
+	{
+		$table = $reader->table($name);
+		if ($table === null)
+			continue;
+
+		$columns = array();
+		foreach ($table->columns as $column)
+			$columns[$column->name] = ($column->nullable ? 'NULL' : 'NOT NULL').($column->default !== null ? ' DEFAULT \''.$column->default.'\'' : '').($column->collation !== null ? ' COLLATE '.$column->collation : '');
+
+		ksort($columns);
+
+		$indexes = array();
+		foreach ($table->indexes as $index)
+			$indexes[] = ($index->unique ? 'unique ' : '').($index->name ?? '(unnamed)').' ('.implode(', ', $index->columns).')';
+
+		sort($indexes);
+
+		$schema[$name] = array(
+			'columns' => $columns,
+			'primary key' => implode(', ', $table->primaryKey),
+			'indexes' => $indexes,
+			'engine' => $engines[$spec['prefix'].$name] ?? '',
+		);
+	}
+
+	return $schema;
+}
+
+
+/** How $actual differs from $expected, one line per difference. */
+function upgrade_path_schema_diff($expected, $actual)
+{
+	$differences = array();
+
+	foreach (array_diff_key($expected, $actual) as $table => $unused)
+		$differences[] = 'table '.$table.' is missing';
+
+	foreach (array_diff_key($actual, $expected) as $table => $unused)
+		$differences[] = 'table '.$table.' is not in a fresh install';
+
+	foreach (array_intersect_key($actual, $expected) as $table => $shape)
+	{
+		foreach (array_diff_key($expected[$table]['columns'], $shape['columns']) as $column => $unused)
+			$differences[] = $table.'.'.$column.' is missing';
+
+		foreach (array_diff_key($shape['columns'], $expected[$table]['columns']) as $column => $unused)
+			$differences[] = $table.'.'.$column.' is not in a fresh install';
+
+		foreach (array_intersect_key($shape['columns'], $expected[$table]['columns']) as $column => $definition)
+			if ($definition !== $expected[$table]['columns'][$column])
+				$differences[] = $table.'.'.$column.' is '.$definition.', a fresh install has '.$expected[$table]['columns'][$column];
+
+		foreach (array('primary key', 'indexes', 'engine') as $part)
+			if ($shape[$part] !== $expected[$table][$part])
+				$differences[] = $table.' '.$part.': '.json_encode($shape[$part], JSON_UNESCAPED_UNICODE).', a fresh install has '.json_encode($expected[$table][$part], JSON_UNESCAPED_UNICODE);
+	}
+
+	return $differences;
+}
+
+
+/**
+ * A fresh install of this release on $db_type, installed over HTTP beside the
+ * upgrades and removed again: its schema and the data patches it recorded, or
+ * null with the reason in $failures.
+ */
+function upgrade_path_fresh($db_type, $base_url, $log, &$failures)
+{
+	$spec = upgrade_path_drivers(true)[$db_type];
+	$jar = (string) tempnam(sys_get_temp_dir(), 'upfresh');
+
+	@unlink(UPGRADE_PATH_ROOT.'config.php');
+	install_matrix_clear_cache();
+	install_matrix_drop_schema($spec);
+
+	// Each upgrade empties the log it asserts on, so the install asserts its own
+	if ($log !== '')
+		install_matrix_truncate_log($log);
+
+	try
+	{
+		$response = smoke_request($base_url.'/admin/install.php', $jar, install_matrix_form_fields($db_type, $spec, $base_url));
+		$failures = array_merge($failures, smoke_diagnostics($response['body']));
+
+		if ($response['status'] !== 200 || !install_matrix_install_succeeded($response['body']))
+		{
+			$failures[] = 'the fresh install to compare with did not complete: HTTP '.$response['status'].', '.install_matrix_failure_reason($response['body']);
+			return null;
+		}
+
+		return array('schema' => upgrade_path_schema($spec), 'patches' => upgrade_path_patches($spec));
+	}
+	finally
+	{
+		@unlink($jar);
+		@unlink(UPGRADE_PATH_ROOT.'config.php');
+		install_matrix_drop_schema($spec);
+		install_matrix_clear_cache();
+
+		$failures = array_merge($failures, install_matrix_log_diagnostics($log));
+	}
+}
+
+
+/**
+ * config.php for the fixture database, as the installer of 1.4 and 1.5 wrote
+ * it: IDNA and hooks behind the two commented-out defines the flows switch on.
+ */
+function upgrade_path_config($spec, $base_url, $db_type)
+{
+	return "<?php\n\n".
 		'$db_type = \''.$db_type."';\n".
 		'$db_host = \''.$spec['host']."';\n".
 		'$db_name = \''.$spec['name']."';\n".
@@ -349,9 +548,16 @@ function upgrade_path_write_config($spec, $base_url, $db_type)
 		'$cookie_domain = \'\';'."\n".
 		'$cookie_path = \'/\';'."\n".
 		'$cookie_secure = 0;'."\n\n".
-		"define('FORUM', 1);\n";
+		"define('FORUM', 1);\n\n".
+		"// Enable forum IDNA support by removing // from the following line\n//define('FORUM_ENABLE_IDNA', 1);\n\n".
+		"// Disable forum hooks (extensions) by removing // from the following line\n//define('FORUM_DISABLE_HOOKS', 1);\n";
+}
 
-	file_put_contents(UPGRADE_PATH_ROOT.'config.php', $config);
+
+/** upgrade_path_config(), written where the forum reads it. */
+function upgrade_path_write_config($spec, $base_url, $db_type)
+{
+	file_put_contents(UPGRADE_PATH_ROOT.'config.php', upgrade_path_config($spec, $base_url, $db_type));
 	install_matrix_clear_cache();
 }
 
@@ -379,20 +585,25 @@ function upgrade_path_await($base_url, $jar, $needle, $attempts = 20)
 
 
 /**
- * Follow db_update.php from its start form to its completion page. It hands the
- * browser on with a window.location per stage, so the chain is the run.
- * Returns the list of failures, empty when the update completed.
+ * Follow db_update.php from its start stage to its completion page. It hands
+ * the browser on with a window.location per stage, so the chain is the run;
+ * $stages collects each stage's address and page. Returns the list of
+ * failures, empty when the update completed.
  */
-function upgrade_path_drive($base_url, $jar, &$diagnostics, $max_stages = 500)
+function upgrade_path_drive($base_url, $jar, &$diagnostics, &$stages, $max_stages = 500)
 {
-	$response = smoke_request($base_url.'/admin/db_update.php?stage=start', $jar);
-	$diagnostics = array_merge($diagnostics, smoke_diagnostics($response['body']));
-
-	if ($response['status'] !== 200)
-		return array('the start stage returned HTTP '.$response['status'].($response['error'] !== '' ? ' ('.$response['error'].')' : ''));
+	$stages = array();
+	$next = 'db_update.php?stage=start';
 
 	for ($stage = 0; $stage < $max_stages; ++$stage)
 	{
+		$response = smoke_request($base_url.'/admin/'.$next, $jar);
+		$diagnostics = array_merge($diagnostics, smoke_diagnostics($response['body']));
+		$stages[] = array('url' => $next, 'body' => (string) $response['body']);
+
+		if ($response['status'] !== 200)
+			return array($next.' returned HTTP '.$response['status'].($response['error'] !== '' ? ' ('.$response['error'].')' : ''));
+
 		if (upgrade_path_completed($response['body']))
 			return array();
 
@@ -400,15 +611,73 @@ function upgrade_path_drive($base_url, $jar, &$diagnostics, $max_stages = 500)
 
 		if ($next === '')
 			return array('the update stopped without completing: '.install_matrix_failure_reason($response['body']));
-
-		$response = smoke_request($base_url.'/admin/'.$next, $jar);
-		$diagnostics = array_merge($diagnostics, smoke_diagnostics($response['body']));
-
-		if ($response['status'] !== 200)
-			return array($next.' returned HTTP '.$response['status']);
 	}
 
 	return array('the update never completed: still redirecting after '.$max_stages.' stages');
+}
+
+
+/** What a second run must leave exactly as it found it. */
+function upgrade_path_state($spec)
+{
+	return array(
+		'schema' => upgrade_path_schema($spec),
+		'content' => upgrade_path_content($spec),
+		'patches' => extension_flows_rows($spec, 'SELECT name, applied FROM %pdata_patches ORDER BY name'),
+	);
+}
+
+
+/**
+ * The update run a second time over the board it just upgraded. As it stands
+ * the script refuses, the board being up to date; set back to the version rows
+ * of $fixture, it finds nothing to change in the schema and every patch
+ * recorded, so it goes from the start straight to the finish. Returns the list
+ * of failures.
+ */
+function upgrade_path_rerun($fixture, $spec, $base_url, $jar, &$diagnostics)
+{
+	$failures = array();
+
+	$response = smoke_request($base_url.'/admin/db_update.php', $jar);
+	$diagnostics = array_merge($diagnostics, smoke_diagnostics($response['body']));
+
+	if (!upgrade_path_up_to_date($response['body']))
+		$failures[] = 'db_update.php did not refuse to run again on the upgraded board: '.install_matrix_failure_reason($response['body']);
+
+	$before = upgrade_path_state($spec);
+
+	foreach (array('o_cur_version', 'o_database_revision') as $name)
+		extension_flows_rows($spec, 'UPDATE %pconfig SET conf_value = \''.upgrade_path_fixture_config($fixture, $name).'\' WHERE conf_name = \''.$name.'\'');
+
+	install_matrix_clear_cache();
+
+	$stages = array();
+	$failures = array_merge($failures, upgrade_path_drive($base_url, $jar, $diagnostics, $stages));
+
+	if ($failures)
+		return $failures;
+
+	$visited = array_column($stages, 'url');
+	if ($visited !== array('db_update.php?stage=start', 'db_update.php?stage=finish'))
+		$failures[] = 'the second run went through '.implode(', ', $visited).', not from the start straight to the finish';
+
+	// A change or a patch is reported as a line ending in an ellipsis
+	if (strpos($stages[0]['body'], '…') !== false)
+		$failures[] = 'the second run\'s start changed the schema: '.trim(strip_tags(substr($stages[0]['body'], 0, (int) strpos($stages[0]['body'], '<script'))));
+
+	$after = upgrade_path_state($spec);
+
+	foreach (upgrade_path_schema_diff($before['schema'], $after['schema']) as $difference)
+		$failures[] = 'the second run changed the schema: '.$difference;
+
+	if ($after['content'] !== $before['content'])
+		$failures[] = 'the second run changed '.count(array_diff($before['content'], $after['content'])).' row value(s)';
+
+	if ($after['patches'] !== $before['patches'])
+		$failures[] = 'the second run changed the recorded patches: '.json_encode($after['patches']);
+
+	return $failures;
 }
 
 
@@ -520,34 +789,82 @@ function upgrade_path_functional_pass($base_url, &$diagnostics)
 }
 
 
-/** The whole upgrade, end to end. Returns the list of failures. */
-function upgrade_path_run($base_url, $log)
+/** The extension flows over the upgraded forum, as the fixture administrator. */
+function upgrade_path_extension_flows($base_url, $spec, &$diagnostics)
 {
-	$spec = upgrade_path_spec();
+	echo "   -- extension flows\n";
+
+	$state = extension_flows_state($base_url, $spec);
+
+	try
+	{
+		$reason = install_matrix_login($base_url, $state['jars']['admin'], $diagnostics, UPGRADE_PATH_USERNAME, UPGRADE_PATH_PASSWORD);
+
+		if ($reason !== '')
+			return array('extension flows: the fixture administrator could not log in: '.$reason);
+
+		return array_map(static fn(string $failure): string => 'extension flows: '.$failure, extension_flows_walk($state));
+	}
+	finally
+	{
+		foreach ($state['jars'] as $jar)
+			@unlink($jar);
+
+		$diagnostics = array_merge($diagnostics, $state['diagnostics']);
+	}
+}
+
+
+/** The user flows over the upgraded forum, set up as user_flows_run() sets up its own. MySQL only, as they are. */
+function upgrade_path_user_flows($base_url, $spec, &$diagnostics, &$user_id)
+{
+	echo "   -- user flows\n";
+
+	$reason = user_flows_enable_idna();
+
+	if ($reason !== '')
+		return array('user flows: '.$reason);
+
+	user_flows_relax_throttles($spec);
+
+	return array_map(static fn(string $failure): string => 'user flows: '.$failure,
+		user_flows_walk($base_url, $spec, array(UPGRADE_PATH_USERNAME, UPGRADE_PATH_PASSWORD), $diagnostics, $user_id));
+}
+
+
+/** One release on one driver, end to end. Returns the list of failures. */
+function upgrade_path_run($release, $db_type, $spec, $fresh, $base_url, $log)
+{
 	$failures = array();
 	$diagnostics = array();
+	$user_id = 0;
 	$jar = (string) tempnam(sys_get_temp_dir(), 'upgrade');
 	$backups = upgrade_path_config_backups();
+	$fixture = upgrade_path_fixture_sql($release, $db_type, $spec['prefix']);
 
-	upgrade_path_restore($spec);
+	upgrade_path_restore($release, $db_type, $spec);
 	install_matrix_truncate_log($log);
 
 	// A database this script cannot open must be reported by name, not by
 	// whatever the missing dblayer would have done.
-	upgrade_path_write_config($spec, $base_url, 'mysql');
-	$expected = upgrade_path_removed_driver_message('mysql');
-	$guard = upgrade_path_await($base_url, $jar, $expected);
+	$removed = upgrade_path_removed_driver($db_type);
 
-	if ($guard === null)
+	if ($removed !== '')
 	{
-		$response = smoke_request($base_url.'/admin/db_update.php', $jar);
-		$failures[] = 'the removed-driver guard did not fire for \'mysql\': '.trim(strip_tags((string) $response['body']));
+		upgrade_path_write_config($spec, $base_url, $removed);
+		$guard = upgrade_path_await($base_url, $jar, upgrade_path_removed_driver_message($removed));
+
+		if ($guard === null)
+		{
+			$response = smoke_request($base_url.'/admin/db_update.php', $jar);
+			$failures[] = 'the removed-driver guard did not fire for \''.$removed.'\': '.trim(strip_tags((string) $response['body']));
+		}
+		else
+			$diagnostics = array_merge($diagnostics, smoke_diagnostics($guard['body']));
 	}
-	else
-		$diagnostics = array_merge($diagnostics, smoke_diagnostics($guard['body']));
 
 	// Now the real thing.
-	upgrade_path_write_config($spec, $base_url, 'mysqli');
+	upgrade_path_write_config($spec, $base_url, $db_type);
 	$before = upgrade_path_content($spec);
 
 	foreach (UPGRADE_PATH_MARKERS as $marker)
@@ -560,8 +877,9 @@ function upgrade_path_run($base_url, $log)
 		$failures[] = 'db_update.php never offered the update: the site is not serving the fixture database';
 	else
 	{
+		$stages = array();
 		$diagnostics = array_merge($diagnostics, smoke_diagnostics($form['body']));
-		$failures = array_merge($failures, upgrade_path_drive($base_url, $jar, $diagnostics));
+		$failures = array_merge($failures, upgrade_path_drive($base_url, $jar, $diagnostics, $stages));
 	}
 
 	if (!$failures)
@@ -587,63 +905,133 @@ function upgrade_path_run($base_url, $log)
 
 		// sync_forum() runs at the finish stage: the counters it rebuilds have to
 		// match the fixture's own, or the upgraded forum lies about its content.
-		if (($topics = (string) upgrade_path_value($spec, 'SELECT num_topics FROM `'.$spec['prefix'].'forums` WHERE id = 1')) !== '1')
+		if (($topics = (string) upgrade_path_value($spec, 'SELECT num_topics FROM %pforums WHERE id = 1')) !== '1')
 			$failures[] = 'forum 1 reports '.$topics.' topic(s) after the resync, expected 1';
 
-		if (($avatar = (string) upgrade_path_value($spec, 'SELECT avatar FROM `'.$spec['prefix'].'users` WHERE id = 3')) !== '1')
+		if (($avatar = (string) upgrade_path_value($spec, 'SELECT avatar FROM %pusers WHERE id = 3')) !== '1')
 			$failures[] = 'the fixture avatar flag is \''.$avatar.'\' after the update, expected \'1\'';
+
+		foreach (install_matrix_schema_gap($db_type, $spec) as $change)
+			$failures[] = 'the upgraded schema is not the declared one, it needs: '.$change;
+
+		foreach (upgrade_path_schema_diff($fresh['schema'], upgrade_path_schema($spec)) as $difference)
+			$failures[] = 'the upgraded schema is not a fresh install\'s: '.$difference;
+
+		if (($patches = upgrade_path_patches($spec)) !== $fresh['patches'])
+			$failures[] = 'the upgrade recorded the patches '.implode(', ', $patches).', a fresh install records '.implode(', ', $fresh['patches']);
 	}
 
-	// The content assertions above are done, so the pass may add a post of its
-	// own: the upgraded data has to serve pages, not only match row values.
+	if (!$failures)
+		$failures = upgrade_path_rerun($fixture, $spec, $base_url, $jar, $diagnostics);
+
+	// The content assertions above are done, so the passes may add posts of
+	// their own: the upgraded data has to serve pages, not only match row values.
 	if (!$failures)
 		$failures = upgrade_path_functional_pass($base_url, $diagnostics);
+
+	if (!$failures)
+		$failures = upgrade_path_extension_flows($base_url, $spec, $diagnostics);
+
+	if (!$failures && $spec['backend'] === 'mysql')
+		$failures = upgrade_path_user_flows($base_url, $spec, $diagnostics, $user_id);
 
 	@unlink($jar);
 
 	foreach (array_unique(array_merge($diagnostics, install_matrix_log_diagnostics($log))) as $line)
 		$failures[] = $line;
 
-	// The fixture has no o_base_url row, so the update script has no reason to
+	// The fixtures have no o_base_url row, so the update script has no reason to
 	// rewrite config.php — a backup here means it took a path 1.4 never takes.
 	foreach (upgrade_path_clear_config_backups($backups) as $backup)
 		$failures[] = 'the update rewrote config.php and left '.$backup;
 
 	// Leave nothing behind: the schema is gone, so a config.php naming it would
 	// only make the checkout serve the database-error page.
+	user_flows_clear_avatars($user_id);
 	@unlink(UPGRADE_PATH_ROOT.'config.php');
-	upgrade_path_drop_schema($spec);
+	extension_flows_drop_schema($spec);
 	install_matrix_clear_cache();
 
 	return $failures;
 }
 
 
-function upgrade_path_main($base_url, $log)
+function upgrade_path_main($base_url, $requested, $log)
 {
+	$drivers = upgrade_path_drivers();
+	$unknown = array_diff($requested, array_keys($drivers));
+
+	if ($unknown)
+	{
+		fwrite(STDERR, 'unknown driver(s): '.implode(', ', $unknown)."\n");
+		return 2;
+	}
+
+	if ($requested)
+		$drivers = array_intersect_key($drivers, array_flip($requested));
+
+	$target = upgrade_path_target_versions(UPGRADE_PATH_ROOT)['o_cur_version'];
+
 	echo 'upgrade path on '.$base_url.' (PHP '.PHP_VERSION.")\n\n";
-	echo '== '.UPGRADE_PATH_FIXTURE." ==\n";
 
-	try
+	$failed = array();
+
+	foreach ($drivers as $db_type => $spec)
 	{
-		$failures = upgrade_path_run($base_url, $log);
+		$fresh_failures = array();
+
+		try
+		{
+			$fresh = upgrade_path_fresh($db_type, $base_url, $log, $fresh_failures);
+
+			if ($fresh_failures !== array())
+				$fresh = null;
+		}
+		catch (Throwable $e)
+		{
+			$fresh = null;
+			$fresh_failures[] = get_class($e).': '.$e->getMessage();
+		}
+
+		foreach (UPGRADE_PATH_RELEASES as $release)
+		{
+			$name = $release.' to '.$target.' on '.$db_type;
+			echo '== '.$name." ==\n";
+
+			if ($fresh === null)
+				$failures = $fresh_failures;
+			else
+			{
+				try
+				{
+					$failures = upgrade_path_run($release, $db_type, $spec, $fresh, $base_url, $log);
+				}
+				catch (Throwable $e)
+				{
+					$failures = array(get_class($e).': '.$e->getMessage());
+				}
+			}
+
+			if ($failures)
+			{
+				$failed[] = $name;
+				foreach ($failures as $failure)
+					echo '   FAIL  '.$failure."\n";
+			}
+			else
+				echo "   ok    restored, upgraded to a fresh install's schema, rerun unchanged, content intact, forum usable\n";
+
+			echo "\n";
+		}
 	}
-	catch (Throwable $e)
+
+	if ($failed)
 	{
-		$failures = array(get_class($e).': '.$e->getMessage());
-	}
-
-	if ($failures)
-	{
-		foreach ($failures as $failure)
-			echo '   FAIL  '.$failure."\n";
-
-		echo "\n".count($failures)." failure(s)\n";
-
+		echo count($failed).' upgrade(s) failed: '.implode(', ', $failed)."\n";
 		return 1;
 	}
 
-	echo "   ok    restored, upgraded, content intact, forum usable\n\nupgrade path passed\n";
+	echo count($drivers) * count(UPGRADE_PATH_RELEASES)." upgrade(s) passed\n";
 
 	return 0;
 }
@@ -652,9 +1040,11 @@ function upgrade_path_main($base_url, $log)
 if (PHP_SAPI === 'cli' && isset($argv[0]) && realpath($argv[0]) === realpath(__FILE__))
 {
 	install_matrix_stash_config();
+	register_shutdown_function('extension_flows_unlink_fixtures');
 
 	exit(upgrade_path_main(
 		rtrim(getenv('PUNBB_TEST_BASE_URL') ?: 'http://localhost', '/'),
+		array_slice($argv, 1),
 		(string) getenv('PUNBB_TEST_ERROR_LOG')
 	));
 }

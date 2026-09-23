@@ -11,8 +11,16 @@ use PunBB\Module\Update\Api\Data\PostRangeInterface;
 final class BoardDataInterceptor implements BoardDataInterface {
 	public function __construct(private readonly BoardDataInterface $subject, private readonly PluginChain $plugins) {}
 
-	public function reorderGroups(): void {
-		$this->plugins->call($this, __FUNCTION__, func_get_args(), $this->subject->reorderGroups(...));
+	public function spareGroupId(): int {
+		return $this->plugins->call($this, __FUNCTION__, func_get_args(), $this->subject->spareGroupId(...));
+	}
+
+	public function reorderGroups(int $spare, int $step): bool {
+		return $this->plugins->call($this, __FUNCTION__, func_get_args(), $this->subject->reorderGroups(...));
+	}
+
+	public function hasModeratorGroup(): bool {
+		return $this->plugins->call($this, __FUNCTION__, func_get_args(), $this->subject->hasModeratorGroup(...));
 	}
 
 	public function grantModerators(string $permission, int $value): void {

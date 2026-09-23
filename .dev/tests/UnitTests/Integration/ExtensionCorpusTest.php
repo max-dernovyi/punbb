@@ -90,7 +90,7 @@ class ExtensionCorpusTest extends TestCase {
 
 	/** Sharing storage with another run would let one teardown drop the other's tables. */
 	public function testItGetsStorageOfItsOwn(): void {
-		$claimed = array(USER_FLOWS_PREFIX, UPGRADE_PATH_PREFIX);
+		$claimed = array_merge(array(USER_FLOWS_PREFIX), upgrade_path_claimed());
 		foreach (array_merge(array_values(install_matrix_drivers()), array_values(extension_flows_drivers())) as $spec)
 			$claimed[] = $spec['backend'].'|'.$spec['name'].'|'.$spec['prefix'];
 

@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace PunBB\Module\Search;
 
+use PunBB\Module\Database\Schema\Column;
+use PunBB\Module\Database\Schema\Table;
+use PunBB\Module\Database\Schema\TableOwnerInterface;
 use PunBB\Module\Database\Sql\Connection;
+use PunBB\Module\Database\Sql\Platform;
 use PunBB\Module\Framework\Container\Container;
 use PunBB\Module\Framework\Event\EventDispatcher;
 use PunBB\Module\Framework\Modules\ModuleInterface;
@@ -31,7 +35,7 @@ use PunBB\Module\Site\Visitor\VisitorInterface;
  * The search page: the form, keyword and author searches stored for their
  * results pages, and the quick searches.
  */
-final class Module implements ModuleInterface {
+final class Module implements ModuleInterface, TableOwnerInterface {
 	public function name(): string {
 		return 'Search';
 	}
@@ -63,5 +67,37 @@ final class Module implements ModuleInterface {
 			$c->get(FormatterInterface::class),
 			$c->get(CsrfTokensInterface::class)
 		));
+	}
+
+	public function tables(Platform $platform): array {
+		$mysql = $platform === Platform::Mysql;
+		$sqlite = $platform === Platform::Sqlite;
+
+		return array(
+			new Table('search_cache', array(
+				new Column('id', 'INT(10) UNSIGNED', false, 0),
+				new Column('ident', 'VARCHAR(200)', false, ''),
+				new Column('search_data', 'TEXT', true),
+			), array('id'), array(), array(
+				'ident_idx'	=> array($mysql ? 'ident(8)' : 'ident'),
+			)),
+
+			new Table('search_matches', array(
+				new Column('post_id', 'INT(10) UNSIGNED', false, 0),
+				new Column('word_id', 'INT(10) UNSIGNED', false, 0),
+				new Column('subject_match', 'TINYINT(1)', false, 0),
+			), array(), array(), array(
+				'word_id_idx'	=> array('word_id'),
+				'post_id_idx'	=> array('post_id'),
+			)),
+
+			// SQLite keys the words by their id
+			new Table('search_words', array(
+				new Column('id', 'SERIAL'),
+				new Column('word', 'VARCHAR(20)', false, '', 'bin'),
+			), $sqlite ? array('id') : array('word'), $sqlite ? array('word_idx' => array('word')) : array(), array(
+				'id_idx'	=> array('id'),
+			)),
+		);
 	}
 }

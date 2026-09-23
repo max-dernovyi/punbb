@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace PunBB\Module\Install;
 
 use PunBB\Module\Database\Schema\SchemaInterface;
+use PunBB\Module\Database\Patch\PatchApplier;
+use PunBB\Module\Database\Schema\SchemaSynchronizer;
 use PunBB\Module\Database\Sql\Connection;
 use PunBB\Module\Framework\Container\Container;
 use PunBB\Module\Framework\Modules\ModuleInterface;
@@ -61,6 +63,8 @@ final class Module implements ModuleInterface {
 			static fn (): Installation => new Installation(
 				$c->get(BoardInstallationInterface::class),
 				$c->get(SchemaInterface::class),
+				$c->get(SchemaSynchronizer::class),
+				$c->get(PatchApplier::class),
 				$c->get(DatabaseInterface::class),
 				$c->get(EnvironmentInterface::class),
 				$c->get(PasswordsInterface::class),

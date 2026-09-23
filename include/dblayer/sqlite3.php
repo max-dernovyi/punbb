@@ -612,13 +612,15 @@ class DBLayer
 
 		$table = array();
 		$table['indices'] = array();
+		$table['unique'] = array();
 		$num_rows = 0;
 
 		while ($cur_index = $this->fetch_assoc($result))
 		{
 			if (!isset($table['sql']))
 				$table['sql'] = $cur_index['sql'];
-			else
+			// The index SQLite makes for a primary or unique key has no SQL, and is made again with its table
+			else if ($cur_index['sql'] !== null)
 				$table['indices'][] = $cur_index['sql'];
 
 			++$num_rows;
@@ -637,10 +639,11 @@ class DBLayer
 			$table_line = forum_trim($table_line);
 			if (substr($table_line, 0, 12) == 'CREATE TABLE')
 				continue;
+			// A rebuild adds its own separators, so a key line is kept without its comma
 			else if (substr($table_line, 0, 11) == 'PRIMARY KEY')
-				$table['primary_key'] = $table_line;
+				$table['primary_key'] = rtrim($table_line, ',');
 			else if (substr($table_line, 0, 6) == 'UNIQUE')
-				$table['unique'] = $table_line;
+				$table['unique'][] = rtrim($table_line, ',');
 			else if (substr($table_line, 0, strpos($table_line, ' ')) != '')
 				$table['columns'][substr($table_line, 0, strpos($table_line, ' '))] = forum_trim(substr($table_line, strpos($table_line, ' ')));
 		}
@@ -666,10 +669,11 @@ class DBLayer
 		$query = $field_type;
 		if (!$allow_null)
 			$query .= ' NOT NULL';
-		if ($default_value === null || $default_value === '')
-			$default_value = '\'\'';
-
-		$query .= ' DEFAULT '.$default_value;
+		// A NOT NULL column needs a default for the rows copied back below
+		if ($default_value === null && !$allow_null)
+			$default_value = '';
+		if ($default_value !== null)
+			$query .= ' DEFAULT '.(is_int($default_value) || is_float($default_value) ? $default_value : '\''.$this->escape($default_value).'\'');
 
 		$old_columns = array_keys($table['columns']);
 		array_insert($table['columns'], $after_field, $query.',', $field_name);
@@ -679,11 +683,11 @@ class DBLayer
 		foreach ($table['columns'] as $cur_column => $column_details)
 			$new_table .= "\n".$cur_column.' '.$column_details;
 
-		if (isset($table['unique']))
-			$new_table .= "\n".$table['unique'].',';
+		foreach ($table['unique'] as $unique)
+			$new_table .= "\n".$unique.',';
 
 		if (isset($table['primary_key']))
-			$new_table .= "\n".$table['primary_key'];
+			$new_table .= "\n".$table['primary_key'].',';
 
 		$new_table = trim($new_table, ',')."\n".');';
 
@@ -709,7 +713,49 @@ class DBLayer
 
 	public function alter_field($table_name, $field_name, $field_type, $allow_null, $default_value = null, $after_field = 0, $no_prefix = false)
 	{
-		return;
+		if (!$this->field_exists($table_name, $field_name, $no_prefix))
+			return;
+
+		$table = $this->get_table_info($table_name, $no_prefix);
+
+		// SQLite alters no column: the table is rebuilt with the new definition, as add_field() and drop_field() do
+		$now = time();
+		$tmptable = str_replace('CREATE TABLE '.($no_prefix ? '' : $this->prefix).$this->escape($table_name).' (', 'CREATE TABLE '.($no_prefix ? '' : $this->prefix).$this->escape($table_name).'_t'.$now.' (', $table['sql']);
+		$this->query($tmptable) or error(__FILE__, __LINE__);
+		$this->query('INSERT INTO '.($no_prefix ? '' : $this->prefix).$this->escape($table_name).'_t'.$now.' SELECT * FROM '.($no_prefix ? '' : $this->prefix).$this->escape($table_name)) or error(__FILE__, __LINE__);
+
+		$field_type = preg_replace(array_keys($this->datatype_transformations), array_values($this->datatype_transformations), $field_type);
+		$query = $field_type;
+		if (!$allow_null)
+			$query .= ' NOT NULL';
+		if ($default_value !== null)
+			$query .= ' DEFAULT '.(is_int($default_value) || is_float($default_value) ? $default_value : '\''.$this->escape($default_value).'\'');
+
+		$table['columns'][$field_name] = $query.',';
+		$columns = array_keys($table['columns']);
+
+		$new_table = 'CREATE TABLE '.($no_prefix ? '' : $this->prefix).$this->escape($table_name).' (';
+
+		foreach ($table['columns'] as $cur_column => $column_details)
+			$new_table .= "\n".$cur_column.' '.$column_details;
+
+		foreach ($table['unique'] as $unique)
+			$new_table .= "\n".$unique.',';
+
+		if (isset($table['primary_key']))
+			$new_table .= "\n".$table['primary_key'].',';
+
+		$new_table = trim($new_table, ',')."\n".');';
+
+		$this->drop_table($table_name, $no_prefix);
+		$this->query($new_table) or error(__FILE__, __LINE__);
+
+		foreach ($table['indices'] as $cur_index)
+			$this->query($cur_index) or error(__FILE__, __LINE__);
+
+		$this->query('INSERT INTO '.($no_prefix ? '' : $this->prefix).$this->escape($table_name).' ('.implode(', ', $columns).') SELECT '.implode(', ', $columns).' FROM '.($no_prefix ? '' : $this->prefix).$this->escape($table_name).'_t'.$now) or error(__FILE__, __LINE__);
+
+		$this->drop_table($table_name.'_t'.$now, $no_prefix);
 	}
 
 	public function drop_field($table_name, $field_name, $no_prefix = false)
@@ -734,11 +780,11 @@ class DBLayer
 		foreach ($table['columns'] as $cur_column => $column_details)
 			$new_table .= "\n".$cur_column.' '.$column_details;
 
-		if (isset($table['unique']))
-			$new_table .= "\n".$table['unique'].',';
+		foreach ($table['unique'] as $unique)
+			$new_table .= "\n".$unique.',';
 
 		if (isset($table['primary_key']))
-			$new_table .= "\n".$table['primary_key'];
+			$new_table .= "\n".$table['primary_key'].',';
 
 		$new_table = trim($new_table, ',')."\n".');';
 

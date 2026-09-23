@@ -194,7 +194,8 @@ function forum_config_add($name, $value)
 {
 	global $forum_db, $forum_config;
 
-	if (!empty($name) && !isset($forum_config[$name]))
+	// 'update:' holds the progress of a running update, which the update removes when it finishes
+	if (!empty($name) && !isset($forum_config[$name]) && !str_starts_with($name, 'update:'))
 	{
 		$query = array(
 			'INSERT'	=> 'conf_name, conf_value',

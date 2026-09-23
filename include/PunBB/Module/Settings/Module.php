@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace PunBB\Module\Settings;
 
+use PunBB\Module\Database\Schema\Column;
+use PunBB\Module\Database\Schema\Table;
+use PunBB\Module\Database\Schema\TableOwnerInterface;
 use PunBB\Module\Database\Sql\Connection;
+use PunBB\Module\Database\Sql\Platform;
 use PunBB\Module\Framework\Container\Container;
 use PunBB\Module\Framework\Event\EventDispatcher;
 use PunBB\Module\Framework\Modules\ModuleInterface;
@@ -34,7 +38,7 @@ use PunBB\Module\Site\Visitor\VisitorInterface;
  * the packs a setting chooses from are ConfigCacheInterface,
  * QuickjumpCacheInterface and PacksInterface, which the bootstrap's side wires.
  */
-final class Module implements ModuleInterface {
+final class Module implements ModuleInterface, TableOwnerInterface {
 	public function name(): string {
 		return 'Settings';
 	}
@@ -69,5 +73,14 @@ final class Module implements ModuleInterface {
 			$c->get(CsrfTokensInterface::class),
 			$c->get(FlashMessagesInterface::class)
 		));
+	}
+
+	public function tables(Platform $platform): array {
+		return array(
+			new Table('config', array(
+				new Column('conf_name', 'VARCHAR(255)', false, ''),
+				new Column('conf_value', 'TEXT', true),
+			), array('conf_name')),
+		);
 	}
 }

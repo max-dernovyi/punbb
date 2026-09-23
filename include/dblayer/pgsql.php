@@ -531,23 +531,31 @@ class DBLayer
 		if (!$this->field_exists($table_name, $field_name, $no_prefix))
 			return;
 
+		$table = ($no_prefix ? '' : $this->prefix).$table_name;
 		$field_type = preg_replace(array_keys($this->datatype_transformations), array_values($this->datatype_transformations), $field_type);
 
-		$this->add_field($table_name, 'tmp_'.$field_name, $field_type, $allow_null, $default_value, $after_field, $no_prefix);
-		$this->query('UPDATE '.($no_prefix ? '' : $this->prefix).$table_name.' SET tmp_'.$field_name.' = '.$field_name) or error(__FILE__, __LINE__);
-		$this->drop_field($table_name, $field_name, $no_prefix);
-		$this->query('ALTER TABLE '.($no_prefix ? '' : $this->prefix).$table_name.' RENAME COLUMN tmp_'.$field_name.' TO '.$field_name) or error(__FILE__, __LINE__);
+		// Altered in place, so the column keeps its position and every index and key over it; a SERIAL keeps its sequence
+		$serial = strtoupper($field_type) == 'SERIAL';
+		$field_type = $serial ? 'INTEGER' : $field_type;
 
-		// Set the default value
-		if ($default_value === null)
-			$default_value = 'NULL';
-		else if (!is_int($default_value) && !is_float($default_value))
-			$default_value = '\''.$this->escape($default_value).'\'';
+		// A character target takes the assignment cast, which rejects an over-length value; an explicit cast would truncate it
+		$using = preg_match('/^(VARCHAR|CHAR|CHARACTER|TEXT)\b/i', $field_type) ? '' : ' USING '.$field_name.'::'.$field_type;
+		$this->query('ALTER TABLE '.$table.' ALTER '.$field_name.' TYPE '.$field_type.$using) or error(__FILE__, __LINE__);
 
-		$this->query('ALTER TABLE '.($no_prefix ? '' : $this->prefix).$table_name.' ALTER '.$field_name.' SET DEFAULT '.$default_value) or error(__FILE__, __LINE__);
+		if (!$serial)
+		{
+			if ($default_value === null)
+				$this->query('ALTER TABLE '.$table.' ALTER '.$field_name.' DROP DEFAULT') or error(__FILE__, __LINE__);
+			else
+			{
+				if (!is_int($default_value) && !is_float($default_value))
+					$default_value = '\''.$this->escape($default_value).'\'';
 
-		if (!$allow_null)
-			$this->query('ALTER TABLE '.($no_prefix ? '' : $this->prefix).$table_name.' ALTER '.$field_name.' SET NOT NULL') or error(__FILE__, __LINE__);
+				$this->query('ALTER TABLE '.$table.' ALTER '.$field_name.' SET DEFAULT '.$default_value) or error(__FILE__, __LINE__);
+			}
+		}
+
+		$this->query('ALTER TABLE '.$table.' ALTER '.$field_name.' '.($allow_null ? 'DROP' : 'SET').' NOT NULL') or error(__FILE__, __LINE__);
 	}
 
 	public function drop_field($table_name, $field_name, $no_prefix = false)

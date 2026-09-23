@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace PunBB\Module\Install\Controller;
 
+use PunBB\Module\Database\Patch\PatchApplier;
 use PunBB\Module\Database\Schema\SchemaInterface;
+use PunBB\Module\Database\Schema\SchemaSynchronizer;
+use PunBB\Module\Database\Sql\Platform;
 use PunBB\Module\Install\Api\BoardInstallationInterface;
 use PunBB\Module\Install\Indexing\PostIndexInterface;
 use PunBB\Module\Install\Manifest\BundledExtensionsInterface;
@@ -16,18 +19,21 @@ use PunBB\Module\Install\Model\Welcome;
 use PunBB\Module\Layout\View\Html;
 use PunBB\Module\Setup\Database\DatabaseInterface;
 use PunBB\Module\Setup\Environment\EnvironmentInterface;
-use PunBB\Module\Setup\Schema\BoardSchema;
 use PunBB\Module\Site\Security\PasswordsInterface;
 use PunBB\Module\Site\Security\RandomKeysInterface;
 
 /**
  * An installation, over the database the form named once it is open: the
- * tables, and the rows a board starts with, in one transaction.
+ * tables every module declares, and the rows a board starts with, in one
+ * transaction. The rows are written in the shape the data patches lead to, so
+ * every patch is recorded as applied.
  */
 final class Installation {
 	public function __construct(
 		private readonly BoardInstallationInterface $board,
 		private readonly SchemaInterface $schema,
+		private readonly SchemaSynchronizer $synchronizer,
+		private readonly PatchApplier $patches,
 		private readonly DatabaseInterface $database,
 		private readonly EnvironmentInterface $environment,
 		private readonly PasswordsInterface $passwords,
@@ -48,8 +54,8 @@ final class Installation {
 	public function install(Submission $submission, array $strings, array $settingStrings): void {
 		$this->database->startTransaction();
 
-		foreach (BoardSchema::tables($submission->database->type) as $table)
-			$this->schema->createTable($table);
+		$this->synchronizer->synchronize(Platform::ofDbType($submission->database->type));
+		$this->patches->recordAll();
 
 		$now = time();
 

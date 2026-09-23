@@ -73,6 +73,12 @@ class PgsqlLifecycleTest extends TestCase {
 		$this->assertHarnessReports('EMPTY_RESULT=false');
 	}
 
+	/** An explicit cast into VARCHAR(n) truncates silently, so only a non-character target gets USING. */
+	public function testAlterFieldCastsExplicitlyOnlyIntoANonCharacterType(): void {
+		$this->assertHarnessReports("ALTER_TYPE=ALTER TABLE punbb_pgsql_harness ALTER num TYPE INTEGER USING num::INTEGER\n");
+		$this->assertHarnessReports("ALTER_TYPE=ALTER TABLE punbb_pgsql_harness ALTER label TYPE VARCHAR(40)\n");
+	}
+
 	/** pg_close() on an already-closed PgSql\Connection throws; close() must absorb it. */
 	public function testClosingTheConnectionTwiceReportsFailureInsteadOfThrowing(): void {
 		$this->assertHarnessReports('CLOSE_FIRST=true');

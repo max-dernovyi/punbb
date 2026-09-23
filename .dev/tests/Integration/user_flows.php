@@ -348,10 +348,10 @@ function user_flows_act(&$state, $session, $path)
 }
 
 
-/** One scalar out of this run's database, or null when it cannot be read. */
-function user_flows_value($sql)
+/** One scalar out of the database of the forum the pass walks, or null when it cannot be read. */
+function user_flows_value($state, $sql)
 {
-	$spec = user_flows_spec();
+	$spec = $state['spec'];
 	$link = install_matrix_mysql($spec);
 	mysqli_set_charset($link, 'utf8mb4');
 
@@ -372,9 +372,9 @@ function user_flows_value($sql)
 }
 
 
-function user_flows_count($table)
+function user_flows_count($state, $table)
 {
-	return (int) user_flows_value('SELECT COUNT(*) FROM `%p'.$table.'`');
+	return (int) user_flows_value($state, 'SELECT COUNT(*) FROM `%p'.$table.'`');
 }
 
 
@@ -425,7 +425,7 @@ function user_flows_step_register(&$state)
 	user_flows_assert(strpos((string) $index['body'], 'logout') !== false,
 		'the registration did not log the new member in: '.user_flows_summary($response['body']));
 
-	$id = user_flows_value('SELECT id FROM `%pusers` WHERE username = \''.USER_FLOWS_USERNAME.'\'');
+	$id = user_flows_value($state, 'SELECT id FROM `%pusers` WHERE username = \''.USER_FLOWS_USERNAME.'\'');
 	user_flows_assert($id !== null, 'the member was not stored');
 
 	$state['user_id'] = (int) $id;
@@ -473,11 +473,11 @@ function user_flows_step_new_topic(&$state)
 
 	user_flows_follow($state, 'member', $response);
 
-	$tid = user_flows_value('SELECT id FROM `%ptopics` WHERE subject = \''.USER_FLOWS_SUBJECT.'\'');
+	$tid = user_flows_value($state, 'SELECT id FROM `%ptopics` WHERE subject = \''.USER_FLOWS_SUBJECT.'\'');
 	user_flows_assert($tid !== null, 'the topic was not stored: '.user_flows_summary($response['body']));
 
 	$state['topic_id'] = (int) $tid;
-	$state['first_post_id'] = (int) user_flows_value('SELECT first_post_id FROM `%ptopics` WHERE id = '.$state['topic_id']);
+	$state['first_post_id'] = (int) user_flows_value($state, 'SELECT first_post_id FROM `%ptopics` WHERE id = '.$state['topic_id']);
 
 	$topic = user_flows_get($state, 'member', 'viewtopic.php?id='.$state['topic_id']);
 	user_flows_assert(strpos((string) $topic['body'], '<strong>bold</strong>') !== false,
@@ -497,7 +497,7 @@ function user_flows_step_reply(&$state)
 
 	user_flows_follow($state, 'member', $response);
 
-	$id = user_flows_value('SELECT id FROM `%pposts` WHERE topic_id = '.$state['topic_id'].' ORDER BY id DESC LIMIT 1');
+	$id = user_flows_value($state, 'SELECT id FROM `%pposts` WHERE topic_id = '.$state['topic_id'].' ORDER BY id DESC LIMIT 1');
 	user_flows_assert((int) $id !== $state['first_post_id'], 'the reply was not stored: '.user_flows_summary($response['body']));
 
 	$state['reply_id'] = (int) $id;
@@ -528,7 +528,7 @@ function user_flows_step_quote(&$state)
 
 	user_flows_follow($state, 'member', $response);
 
-	$id = user_flows_value('SELECT id FROM `%pposts` WHERE topic_id = '.$state['topic_id'].' ORDER BY id DESC LIMIT 1');
+	$id = user_flows_value($state, 'SELECT id FROM `%pposts` WHERE topic_id = '.$state['topic_id'].' ORDER BY id DESC LIMIT 1');
 	user_flows_assert((int) $id !== $state['reply_id'], 'the quoting reply was not stored: '.user_flows_summary($response['body']));
 
 	$state['quote_id'] = (int) $id;
@@ -550,7 +550,7 @@ function user_flows_step_quote(&$state)
  */
 function user_flows_step_emoji(&$state)
 {
-	$before = user_flows_count('posts');
+	$before = user_flows_count($state, 'posts');
 
 	$form = user_flows_get($state, 'member', 'post.php?tid='.$state['topic_id']);
 
@@ -565,7 +565,7 @@ function user_flows_step_emoji(&$state)
 		user_flows_assert(strpos((string) $response['body'], 'Sorry! The page could not be loaded.') !== false,
 			'a rejected 4-byte character produced HTTP 503 without the forum error page: '.user_flows_summary($response['body']));
 
-		user_flows_assert(user_flows_count('posts') === $before,
+		user_flows_assert(user_flows_count($state, 'posts') === $before,
 			'the rejected 4-byte post left a row behind');
 
 		return;
@@ -603,7 +603,7 @@ function user_flows_step_edit(&$state)
 
 function user_flows_step_delete(&$state)
 {
-	$before = user_flows_count('posts');
+	$before = user_flows_count($state, 'posts');
 	$form = user_flows_get($state, 'member', 'delete.php?id='.$state['quote_id']);
 
 	$response = user_flows_submit($state, 'member', $form, 'name="req_confirm"', array(
@@ -613,7 +613,7 @@ function user_flows_step_delete(&$state)
 
 	user_flows_follow($state, 'member', $response);
 
-	user_flows_assert(user_flows_count('posts') === $before - 1,
+	user_flows_assert(user_flows_count($state, 'posts') === $before - 1,
 		'the post was not deleted: '.user_flows_summary($response['body']));
 
 	$topic = user_flows_get($state, 'member', 'viewtopic.php?id='.$state['topic_id']);
@@ -653,7 +653,7 @@ function user_flows_step_profile_identity(&$state)
 
 	user_flows_follow($state, 'member', $response);
 
-	$stored = (string) user_flows_value('SELECT location FROM `%pusers` WHERE id = '.$state['user_id']);
+	$stored = (string) user_flows_value($state, 'SELECT location FROM `%pusers` WHERE id = '.$state['user_id']);
 	user_flows_assert($stored === USER_FLOWS_LOCATION,
 		'the location is \''.$stored.'\' after the save, expected \''.USER_FLOWS_LOCATION.'\'');
 
@@ -693,7 +693,7 @@ function user_flows_step_profile_settings(&$state)
 
 	foreach (array('language' => 'English', 'style' => 'Oxygen', 'disp_topics' => '25', 'disp_posts' => '10') as $column => $expected)
 	{
-		$stored = (string) user_flows_value('SELECT `'.$column.'` FROM `%pusers` WHERE id = '.$state['user_id']);
+		$stored = (string) user_flows_value($state, 'SELECT `'.$column.'` FROM `%pusers` WHERE id = '.$state['user_id']);
 		user_flows_assert($stored === $expected, $column.' is \''.$stored.'\' after the save, expected \''.$expected.'\'');
 	}
 
@@ -704,7 +704,7 @@ function user_flows_step_profile_settings(&$state)
 		'update' => '1',
 	));
 
-	user_flows_assert((string) user_flows_value('SELECT style FROM `%pusers` WHERE id = '.$state['user_id']) === 'Oxygen',
+	user_flows_assert((string) user_flows_value($state, 'SELECT style FROM `%pusers` WHERE id = '.$state['user_id']) === 'Oxygen',
 		'an unknown style was stored');
 
 	// ...and neither may an unknown language pack.
@@ -714,7 +714,7 @@ function user_flows_step_profile_settings(&$state)
 		'update' => '1',
 	));
 
-	user_flows_assert((string) user_flows_value('SELECT language FROM `%pusers` WHERE id = '.$state['user_id']) === 'English',
+	user_flows_assert((string) user_flows_value($state, 'SELECT language FROM `%pusers` WHERE id = '.$state['user_id']) === 'English',
 		'an unknown language pack was stored');
 }
 
@@ -731,7 +731,7 @@ function user_flows_step_signature(&$state)
 
 	user_flows_follow($state, 'member', $response);
 
-	$stored = (string) user_flows_value('SELECT signature FROM `%pusers` WHERE id = '.$state['user_id']);
+	$stored = (string) user_flows_value($state, 'SELECT signature FROM `%pusers` WHERE id = '.$state['user_id']);
 	user_flows_assert($stored === USER_FLOWS_SIGNATURE,
 		'the signature is \''.$stored.'\' after the save, expected \''.USER_FLOWS_SIGNATURE.'\'');
 
@@ -770,7 +770,7 @@ function user_flows_step_avatar(&$state)
 
 	user_flows_assert(is_file($stored), 'the avatar file was not written: '.user_flows_summary($response['body']));
 	// FORUM_AVATAR_PNG — the column stores the image type, not a flag.
-	$flag = (string) user_flows_value('SELECT avatar FROM `%pusers` WHERE id = '.$state['user_id']);
+	$flag = (string) user_flows_value($state, 'SELECT avatar FROM `%pusers` WHERE id = '.$state['user_id']);
 	user_flows_assert($flag === '3', 'the avatar column is \''.$flag.'\' after the upload, expected \'3\' (PNG)');
 
 	$profile = user_flows_get($state, 'member', 'profile.php?id='.$state['user_id']);
@@ -810,7 +810,7 @@ function user_flows_step_admin_settings(&$state)
 
 	user_flows_follow($state, 'admin', $response);
 
-	user_flows_assert((string) user_flows_value('SELECT conf_value FROM `%pconfig` WHERE conf_name = \'o_board_title\'') === USER_FLOWS_BOARD_TITLE,
+	user_flows_assert((string) user_flows_value($state, 'SELECT conf_value FROM `%pconfig` WHERE conf_name = \'o_board_title\'') === USER_FLOWS_BOARD_TITLE,
 		'the board title was not saved');
 
 	$index = user_flows_get($state, 'admin', 'index.php');
@@ -830,7 +830,7 @@ function user_flows_step_forum_create(&$state)
 
 	user_flows_follow($state, 'admin', $response);
 
-	$id = user_flows_value('SELECT id FROM `%pforums` WHERE forum_name = \''.USER_FLOWS_FORUM_NAME.'\'');
+	$id = user_flows_value($state, 'SELECT id FROM `%pforums` WHERE forum_name = \''.USER_FLOWS_FORUM_NAME.'\'');
 	user_flows_assert($id !== null, 'the forum was not created: '.user_flows_summary($response['body']));
 
 	$state['new_forum_id'] = (int) $id;
@@ -857,7 +857,7 @@ function user_flows_step_moderate_move(&$state)
 
 	user_flows_follow($state, 'admin', $response);
 
-	user_flows_assert((int) user_flows_value('SELECT forum_id FROM `%ptopics` WHERE id = '.$state['topic_id']) === $state['new_forum_id'],
+	user_flows_assert((int) user_flows_value($state, 'SELECT forum_id FROM `%ptopics` WHERE id = '.$state['topic_id']) === $state['new_forum_id'],
 		'the topic did not move: '.user_flows_summary($response['body']));
 
 	// ...and back, so the rest of the pass keeps its forum.
@@ -875,7 +875,7 @@ function user_flows_step_moderate_move(&$state)
 
 	user_flows_follow($state, 'admin', $response);
 
-	user_flows_assert((int) user_flows_value('SELECT forum_id FROM `%ptopics` WHERE id = '.$state['topic_id']) === 1,
+	user_flows_assert((int) user_flows_value($state, 'SELECT forum_id FROM `%ptopics` WHERE id = '.$state['topic_id']) === 1,
 		'the topic did not move back');
 }
 
@@ -889,7 +889,7 @@ function user_flows_step_moderate_close(&$state)
 	user_flows_assert($close !== '', 'the topic offers no Close option: '.implode(', ', array_keys($links)));
 	user_flows_act($state, 'admin', $close);
 
-	user_flows_assert((string) user_flows_value('SELECT closed FROM `%ptopics` WHERE id = '.$state['topic_id']) === '1',
+	user_flows_assert((string) user_flows_value($state, 'SELECT closed FROM `%ptopics` WHERE id = '.$state['topic_id']) === '1',
 		'the topic was not closed');
 
 	$topic = user_flows_get($state, 'admin', 'viewtopic.php?id='.$state['topic_id']);
@@ -899,7 +899,7 @@ function user_flows_step_moderate_close(&$state)
 	user_flows_assert($open !== '', 'a closed topic offers no Open option: '.implode(', ', array_keys($links)));
 	user_flows_act($state, 'admin', $open);
 
-	user_flows_assert((string) user_flows_value('SELECT closed FROM `%ptopics` WHERE id = '.$state['topic_id']) === '0',
+	user_flows_assert((string) user_flows_value($state, 'SELECT closed FROM `%ptopics` WHERE id = '.$state['topic_id']) === '0',
 		'the topic was not reopened');
 }
 
@@ -913,7 +913,7 @@ function user_flows_step_moderate_sticky(&$state)
 	user_flows_assert($stick !== '', 'the topic offers no Stick option: '.implode(', ', array_keys($links)));
 	user_flows_act($state, 'admin', $stick);
 
-	user_flows_assert((string) user_flows_value('SELECT sticky FROM `%ptopics` WHERE id = '.$state['topic_id']) === '1',
+	user_flows_assert((string) user_flows_value($state, 'SELECT sticky FROM `%ptopics` WHERE id = '.$state['topic_id']) === '1',
 		'the topic was not stuck');
 
 	$forum = user_flows_get($state, 'admin', 'viewforum.php?id=1');
@@ -926,7 +926,7 @@ function user_flows_step_moderate_sticky(&$state)
 	user_flows_assert($unstick !== '', 'a sticky topic offers no Unstick option: '.implode(', ', array_keys($links)));
 	user_flows_act($state, 'admin', $unstick);
 
-	user_flows_assert((string) user_flows_value('SELECT sticky FROM `%ptopics` WHERE id = '.$state['topic_id']) === '0',
+	user_flows_assert((string) user_flows_value($state, 'SELECT sticky FROM `%ptopics` WHERE id = '.$state['topic_id']) === '0',
 		'the topic was not unstuck');
 }
 
@@ -941,11 +941,11 @@ function user_flows_step_forum_delete(&$state)
 
 	user_flows_follow($state, 'admin', $response);
 
-	user_flows_assert(user_flows_value('SELECT id FROM `%pforums` WHERE id = '.$state['new_forum_id']) === null,
+	user_flows_assert(user_flows_value($state, 'SELECT id FROM `%pforums` WHERE id = '.$state['new_forum_id']) === null,
 		'the forum was not deleted: '.user_flows_summary($response['body']));
 
 	// The topic was moved back before the delete: it must have survived it.
-	user_flows_assert(user_flows_value('SELECT id FROM `%ptopics` WHERE id = '.$state['topic_id']) !== null,
+	user_flows_assert(user_flows_value($state, 'SELECT id FROM `%ptopics` WHERE id = '.$state['topic_id']) !== null,
 		'deleting the empty forum took the topic with it');
 }
 
@@ -966,7 +966,7 @@ function user_flows_step_ban(&$state)
 
 	user_flows_follow($state, 'admin', $response);
 
-	$ban = user_flows_value('SELECT id FROM `%pbans` WHERE username = \''.USER_FLOWS_USERNAME.'\'');
+	$ban = user_flows_value($state, 'SELECT id FROM `%pbans` WHERE username = \''.USER_FLOWS_USERNAME.'\'');
 	user_flows_assert($ban !== null, 'the ban was not stored: '.user_flows_summary($response['body']));
 
 	$page = user_flows_get($state, 'admin', 'admin/bans.php');
@@ -977,7 +977,7 @@ function user_flows_step_ban(&$state)
 
 	user_flows_act($state, 'admin', html_entity_decode($match[1], ENT_QUOTES, 'UTF-8'));
 
-	user_flows_assert(user_flows_value('SELECT id FROM `%pbans` WHERE id = '.$ban) === null, 'the ban was not removed');
+	user_flows_assert(user_flows_value($state, 'SELECT id FROM `%pbans` WHERE id = '.$ban) === null, 'the ban was not removed');
 }
 
 
@@ -993,7 +993,7 @@ function user_flows_step_maintenance(&$state)
 
 	user_flows_follow($state, 'admin', $response);
 
-	user_flows_assert((string) user_flows_value('SELECT conf_value FROM `%pconfig` WHERE conf_name = \'o_maintenance\'') === '1',
+	user_flows_assert((string) user_flows_value($state, 'SELECT conf_value FROM `%pconfig` WHERE conf_name = \'o_maintenance\'') === '1',
 		'maintenance mode was not switched on');
 
 	// A guest must be turned away; the administrator must still get through.
@@ -1014,7 +1014,7 @@ function user_flows_step_maintenance(&$state)
 
 	user_flows_follow($state, 'admin', $response);
 
-	user_flows_assert((string) user_flows_value('SELECT conf_value FROM `%pconfig` WHERE conf_name = \'o_maintenance\'') === '0',
+	user_flows_assert((string) user_flows_value($state, 'SELECT conf_value FROM `%pconfig` WHERE conf_name = \'o_maintenance\'') === '0',
 		'maintenance mode was not switched off again');
 
 	$guest = user_flows_get($state, 'guest', 'index.php');
@@ -1047,7 +1047,7 @@ function user_flows_step_reindex(&$state)
 
 	user_flows_assert(user_flows_redirect_target($response['body']) === '',
 		'the rebuild never finished');
-	user_flows_assert(user_flows_count('search_words') > 0, 'the rebuilt search index is empty');
+	user_flows_assert(user_flows_count($state, 'search_words') > 0, 'the rebuilt search index is empty');
 
 	$search = user_flows_follow($state, 'admin',
 		user_flows_get($state, 'admin', 'search.php?action=search&keywords='.USER_FLOWS_KEYWORD.'&show_as=topics'));
@@ -1170,9 +1170,8 @@ function user_flows_enable_idna()
  * Relaxed in the database rather than through the admin interface: this is
  * setup, not one of the flows under test.
  */
-function user_flows_relax_throttles()
+function user_flows_relax_throttles($spec)
 {
-	$spec = user_flows_spec();
 	$link = install_matrix_mysql($spec);
 
 	mysqli_query($link, 'UPDATE `'.$spec['prefix'].'groups` SET g_post_flood = 0, g_search_flood = 0, g_email_flood = 0');
@@ -1192,7 +1191,6 @@ function user_flows_clear_avatars($user_id)
 /** The whole pass. Returns the list of failures, empty when it went green. */
 function user_flows_run($base_url, $log)
 {
-	$failures = array();
 	$diagnostics = array();
 
 	install_matrix_truncate_log($log);
@@ -1213,10 +1211,33 @@ function user_flows_run($base_url, $log)
 		return array_merge(array($reason), $diagnostics);
 	}
 
-	user_flows_relax_throttles();
+	user_flows_relax_throttles(user_flows_spec());
+
+	$user_id = 0;
+	$failures = user_flows_walk($base_url, user_flows_spec(), array(INSTALL_MATRIX_USERNAME, INSTALL_MATRIX_PASSWORD), $diagnostics, $user_id);
+
+	foreach (array_unique(array_merge($diagnostics, install_matrix_log_diagnostics($log))) as $line)
+		$failures[] = $line;
+
+	user_flows_teardown($user_id);
+
+	return $failures;
+}
+
+
+/**
+ * The flows over a forum that is already serving from $spec's database, with
+ * its throttles relaxed and IDNA on, as the administrator $admin (username,
+ * password). $user_id is the member the flows registered, for the teardown.
+ * Returns the failures; diagnostics are added to $diagnostics.
+ */
+function user_flows_walk($base_url, $spec, $admin, &$diagnostics, &$user_id)
+{
+	$failures = array();
 
 	$state = array(
 		'base_url' => $base_url,
+		'spec' => $spec,
 		'jars' => array(
 			'member' => (string) tempnam(sys_get_temp_dir(), 'flowm'),
 			'admin' => (string) tempnam(sys_get_temp_dir(), 'flowa'),
@@ -1232,7 +1253,7 @@ function user_flows_run($base_url, $log)
 		'emoji_stored' => false,
 	);
 
-	$reason = install_matrix_login($base_url, $state['jars']['admin'], $state['diagnostics']);
+	$reason = install_matrix_login($base_url, $state['jars']['admin'], $state['diagnostics'], $admin[0], $admin[1]);
 
 	if ($reason !== '')
 		$failures[] = 'the administrator could not log in: '.$reason;
@@ -1268,12 +1289,8 @@ function user_flows_run($base_url, $log)
 	foreach ($state['jars'] as $jar)
 		@unlink($jar);
 
-	$diagnostics = array_merge($diagnostics, $state['diagnostics'], install_matrix_log_diagnostics($log));
-
-	foreach (array_unique($diagnostics) as $line)
-		$failures[] = $line;
-
-	user_flows_teardown($state['user_id']);
+	$diagnostics = array_merge($diagnostics, $state['diagnostics']);
+	$user_id = $state['user_id'];
 
 	return $failures;
 }

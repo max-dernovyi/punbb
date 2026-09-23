@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace PunBB\Module\Reports;
 
+use PunBB\Module\Database\Schema\Column;
+use PunBB\Module\Database\Schema\Table;
+use PunBB\Module\Database\Schema\TableOwnerInterface;
 use PunBB\Module\Database\Sql\Connection;
+use PunBB\Module\Database\Sql\Platform;
 use PunBB\Module\Framework\Container\Container;
 use PunBB\Module\Framework\Event\EventDispatcher;
 use PunBB\Module\Framework\Modules\ModuleInterface;
@@ -28,7 +32,7 @@ use PunBB\Module\Site\Visitor\VisitorInterface;
 /**
  * The administration's reports: the posts members reported, and marking them read.
  */
-final class Module implements ModuleInterface {
+final class Module implements ModuleInterface, TableOwnerInterface {
 	public function name(): string {
 		return 'Reports';
 	}
@@ -59,5 +63,23 @@ final class Module implements ModuleInterface {
 			$c->get(CsrfTokensInterface::class),
 			$c->get(FlashMessagesInterface::class)
 		));
+	}
+
+	public function tables(Platform $platform): array {
+		return array(
+			new Table('reports', array(
+				new Column('id', 'SERIAL'),
+				new Column('post_id', 'INT(10) UNSIGNED', false, 0),
+				new Column('topic_id', 'INT(10) UNSIGNED', false, 0),
+				new Column('forum_id', 'INT(10) UNSIGNED', false, 0),
+				new Column('reported_by', 'INT(10) UNSIGNED', false, 0),
+				new Column('created', 'INT(10) UNSIGNED', false, 0),
+				new Column('message', 'TEXT', true),
+				new Column('zapped', 'INT(10) UNSIGNED', true),
+				new Column('zapped_by', 'INT(10) UNSIGNED', true),
+			), array('id'), array(), array(
+				'zapped_idx'	=> array('zapped'),
+			)),
+		);
 	}
 }

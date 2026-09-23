@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace PunBB\Module\Forums;
 
+use PunBB\Module\Database\Schema\Column;
+use PunBB\Module\Database\Schema\Table;
+use PunBB\Module\Database\Schema\TableOwnerInterface;
 use PunBB\Module\Database\Sql\Connection;
+use PunBB\Module\Database\Sql\Platform;
 use PunBB\Module\Forums\Api\ForumsInterface;
 use PunBB\Module\Forums\Controller\ForumsController;
 use PunBB\Module\Forums\Interceptor\ForumsInterceptor;
@@ -32,7 +36,7 @@ use PunBB\Module\Site\Visitor\VisitorInterface;
  * ForumContentsInterface and the jump list is QuickjumpCacheInterface, which
  * the bootstrap's side wires.
  */
-final class Module implements ModuleInterface {
+final class Module implements ModuleInterface, TableOwnerInterface {
 	public function name(): string {
 		return 'Forums';
 	}
@@ -64,5 +68,33 @@ final class Module implements ModuleInterface {
 			$c->get(CsrfTokensInterface::class),
 			$c->get(FlashMessagesInterface::class)
 		));
+	}
+
+	public function tables(Platform $platform): array {
+		return array(
+			new Table('forum_perms', array(
+				new Column('group_id', 'INT(10)', false, 0),
+				new Column('forum_id', 'INT(10)', false, 0),
+				new Column('read_forum', 'TINYINT(1)', false, 1),
+				new Column('post_replies', 'TINYINT(1)', false, 1),
+				new Column('post_topics', 'TINYINT(1)', false, 1),
+			), array('group_id', 'forum_id')),
+
+			new Table('forums', array(
+				new Column('id', 'SERIAL'),
+				new Column('forum_name', 'VARCHAR(80)', false, 'New forum'),
+				new Column('forum_desc', 'TEXT', true),
+				new Column('redirect_url', 'VARCHAR(100)', true),
+				new Column('moderators', 'TEXT', true),
+				new Column('num_topics', 'MEDIUMINT(8) UNSIGNED', false, 0),
+				new Column('num_posts', 'MEDIUMINT(8) UNSIGNED', false, 0),
+				new Column('last_post', 'INT(10) UNSIGNED', true),
+				new Column('last_post_id', 'INT(10) UNSIGNED', true),
+				new Column('last_poster', 'VARCHAR(200)', true),
+				new Column('sort_by', 'TINYINT(1)', false, 0),
+				new Column('disp_position', 'INT(10)', false, 0),
+				new Column('cat_id', 'INT(10) UNSIGNED', false, 0),
+			), array('id'), removedColumns: array('approval')),
+		);
 	}
 }

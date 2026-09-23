@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace PunBB\Module\Update\Controller;
 
+use PunBB\Module\Database\Patch\PatchApplier;
+use PunBB\Module\Database\Patch\PatchException;
 use PunBB\Module\Database\Schema\SchemaInterface;
+use PunBB\Module\Database\Schema\SchemaSynchronizer;
+use PunBB\Module\Database\Sql\Platform;
 use PunBB\Module\Framework\Http\Request;
 use PunBB\Module\Framework\Http\Response;
 use PunBB\Module\Layout\View\Html;
@@ -12,6 +16,7 @@ use PunBB\Module\Layout\View\TemplateRenderer;
 use PunBB\Module\Setup\Config\BoardConfiguration;
 use PunBB\Module\Setup\Config\ConfigFile;
 use PunBB\Module\Setup\Database\DatabaseInterface;
+use PunBB\Module\Setup\Database\DatabaseSettings;
 use PunBB\Module\Setup\Environment\EnvironmentInterface;
 use PunBB\Module\Setup\Files\BoardFilesInterface;
 use PunBB\Module\Setup\Page\SetupPage;
@@ -20,11 +25,21 @@ use PunBB\Module\Update\Api\BoardSettingsInterface;
 use PunBB\Module\Update\Charset\ConversionException;
 use PunBB\Module\Update\Charset\Utf8Text;
 use PunBB\Module\Update\Model\Setting;
+use PunBB\Module\Update\Patch\BoardOptions;
+use PunBB\Module\Update\Patch\ConvertRows;
 use PunBB\Module\Update\View\UpdateView;
 
 /**
  * An update over the database config.php names, once it is open: the checks
  * that it is a board this release updates, then the stage the request names.
+ * The start brings the schema to what the modules declare, each request after
+ * it applies a batch of the first data patch the board has not recorded, and
+ * the finish records the release.
+ *
+ * There is no rollback: a patch that fails stops the update unrecorded, its
+ * batch discarded where the database keeps transactions, and the next run goes
+ * on from it. MySQL commits a schema change as it makes it, and MyISAM keeps
+ * every row written before the failure.
  */
 final class Update {
 	private const FORM = __DIR__.'/../templates/form.phtml';
@@ -47,7 +62,8 @@ final class Update {
 		private readonly BoardFilesInterface $files,
 		private readonly SetupPage $pages,
 		private readonly TemplateRenderer $templates,
-		private readonly Stages $stages
+		private readonly SchemaSynchronizer $synchronizer,
+		private readonly PatchApplier $patches
 	) {}
 
 	public function run(Request $request, BoardConfiguration $configuration): Response {
@@ -95,18 +111,72 @@ final class Update {
 			return $this->pages->text(new Html('Unknown character set. Set req_old_charset to an encoding this PHP installation supports.'));
 
 		$stage = is_string($request->query['stage'] ?? null) ? $request->query['stage'] : '';
-		$startAt = is_scalar($request->query['start_at'] ?? null) ? max(0, min(PHP_INT_MAX - Stages::PER_PAGE, intval($request->query['start_at']))) : 0;
+		$startAt = is_scalar($request->query['start_at'] ?? null) ? max(0, min(PHP_INT_MAX - ConvertRows::PER_PAGE, intval($request->query['start_at']))) : 0;
+		$patch = is_string($request->query['patch'] ?? null) ? $request->query['patch'] : '';
 
 		try {
 			return match ($stage) {
 				''			=> $this->form($request, $version, $baseUrl),
+				'start'		=> $this->stage($this->start($database, $version, $charset, isset($request->query['convert_charset']))),
+				'patch'		=> $this->stage($this->patch($patch, $startAt)),
 				'finish'	=> $this->finish($configuration, $config, $baseUrl),
-				default		=> $this->stage($this->stages->run($stage, $database, $version, $config, $charset, $startAt, isset($request->query['convert_charset']))),
+				default		=> $this->stage(new StageResult()),
 			};
 		}
-		catch (ConversionException $e) {
-			return $this->pages->text(Html::escape($e->getMessage()));
+		catch (PatchException $e) {
+			$this->database->rollBack();
+
+			// Text the named character set cannot convert is for the one running the update to fix; anything else is a fault
+			$cause = $e->getPrevious();
+			if (!$cause instanceof ConversionException)
+				throw $e;
+
+			return $this->pages->text(Html::format('%s: %s The patches before it are applied; the update goes on from this one when it is run again.', $e->getMessage(), $cause->getMessage()));
 		}
+	}
+
+	/** The schema every module declares, and for a 1.2 board the character set its text is converted from. */
+	private function start(DatabaseSettings $database, string $version, string $charset, bool $convert): StageResult {
+		// Kept in the options: the patches read it over as many requests as they take
+		if (str_starts_with($version, '1.2'))
+		{
+			$this->settings->remove(BoardOptions::LEGACY_CHARSET);
+
+			if ($convert)
+				$this->settings->add(new Setting(BoardOptions::LEGACY_CHARSET, $charset));
+		}
+
+		// The online list holds visits alone, and the unique key the schema declares over it must not meet one twice
+		$this->data->emptyOnline();
+
+		$lines = array();
+		foreach ($this->synchronizer->synchronize(Platform::ofDbType($database->type)) as $change)
+			$lines[] = Html::escape(ucfirst($change->describe()).'…');
+
+		// Every update supersedes the hotfixes of the releases before it, so this is no patch recorded once
+		foreach ($this->data->supersededHotfixes($this->environment->version()) as $hotfix)
+			$this->data->removeExtension($hotfix);
+
+		return new StageResult($lines, $this->patches->pending() !== array() ? '?stage=patch' : '?stage=finish');
+	}
+
+	/** A batch of the first patch the board has not recorded, from $startAt on where it is patch $name's next. */
+	private function patch(string $name, int $startAt): StageResult {
+		$pending = $this->patches->pending();
+		if ($pending === array())
+			return new StageResult(next: '?stage=finish');
+
+		$patch = $pending[0];
+		$step = $this->patches->apply($patch, $patch->name === $name ? $startAt : 0);
+
+		$lines = array(Html::format('Applying %s…', $patch->name));
+		foreach ($step->lines as $line)
+			$lines[] = Html::escape($line);
+
+		if ($step->next !== null)
+			return new StageResult($lines, '?stage=patch&patch='.rawurlencode($patch->name).'&start_at='.$step->next);
+
+		return new StageResult($lines, count($pending) > 1 ? '?stage=patch' : '?stage=finish');
 	}
 
 	private function form(Request $request, string $version, string $baseUrl): Response {
@@ -115,9 +185,11 @@ final class Update {
 
 	/** @param array<string, ?string> $config */
 	private function finish(BoardConfiguration $configuration, array $config, string $baseUrl): Response {
-		$this->database->setNames('utf8');
+		// Recording the release before every patch has run would refuse the rerun that applies the rest
+		if ($this->patches->pending() !== array())
+			return $this->stage(new StageResult(next: '?stage=patch'));
 
-		$this->settings->update(new Setting('o_cur_version', $this->environment->version()), new Setting('o_database_revision', (string) $this->environment->databaseRevision()));
+		$this->database->setNames('utf8');
 
 		// This feels like a good time to synchronize the forums
 		foreach ($this->data->forumIds() as $forumId)
@@ -127,18 +199,24 @@ final class Update {
 		$this->data->emptySearchCache();
 		$this->data->emptyOnline();
 
+		$this->settings->remove(...BoardOptions::progress($this->settings));
+
 		$this->files->clearCache();
 
-		// A board that kept its address in the database keeps it in config.php from now on
+		// A board that kept its address in the database keeps it in config.php from now on; until the copy
+		// offered in its place is saved, the stored address is what the forum and a rerun fall back to
 		$unwritten = null;
 		if (array_key_exists('o_base_url', $config))
 		{
 			$source = ConfigFile::updated(new BoardConfiguration($configuration->database, $baseUrl, $configuration->cookieName, $configuration->cookieDomain, $configuration->cookiePath, $configuration->cookieSecure));
-			if (!$this->files->replaceConfig($source))
+			if ($this->files->replaceConfig($source))
+				$this->settings->remove('o_base_url');
+			else
 				$unwritten = $source;
-
-			$this->settings->remove('o_base_url');
 		}
+
+		// Recorded last, so an interrupted finish is run again rather than refused
+		$this->settings->update(new Setting('o_cur_version', $this->environment->version()), new Setting('o_database_revision', (string) $this->environment->databaseRevision()));
 
 		return self::page($this->templates->render(self::FINISHED, UpdateView::finished($baseUrl, $unwritten)));
 	}

@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace PunBB\Module\Ranks;
 
+use PunBB\Module\Database\Schema\Column;
+use PunBB\Module\Database\Schema\Table;
+use PunBB\Module\Database\Schema\TableOwnerInterface;
 use PunBB\Module\Database\Sql\Connection;
+use PunBB\Module\Database\Sql\Platform;
 use PunBB\Module\Framework\Container\Container;
 use PunBB\Module\Framework\Event\EventDispatcher;
 use PunBB\Module\Framework\Modules\ModuleInterface;
@@ -30,7 +34,7 @@ use PunBB\Module\Site\Visitor\VisitorInterface;
  * list poster titles are chosen from is RankCacheInterface, which the
  * bootstrap's side wires.
  */
-final class Module implements ModuleInterface {
+final class Module implements ModuleInterface, TableOwnerInterface {
 	public function name(): string {
 		return 'Ranks';
 	}
@@ -61,5 +65,15 @@ final class Module implements ModuleInterface {
 			$c->get(CsrfTokensInterface::class),
 			$c->get(FlashMessagesInterface::class)
 		));
+	}
+
+	public function tables(Platform $platform): array {
+		return array(
+			new Table('ranks', array(
+				new Column('id', 'SERIAL'),
+				new Column('rank', 'VARCHAR(50)', false, ''),
+				new Column('min_posts', 'MEDIUMINT(8) UNSIGNED', false, 0),
+			), array('id')),
+		);
 	}
 }

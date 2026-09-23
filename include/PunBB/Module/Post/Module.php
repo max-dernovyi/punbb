@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace PunBB\Module\Post;
 
+use PunBB\Module\Database\Schema\Column;
+use PunBB\Module\Database\Schema\Table;
+use PunBB\Module\Database\Schema\TableOwnerInterface;
 use PunBB\Module\Database\Sql\Connection;
+use PunBB\Module\Database\Sql\Platform;
 use PunBB\Module\Framework\Container\Container;
 use PunBB\Module\Framework\Event\EventDispatcher;
 use PunBB\Module\Framework\Modules\ModuleInterface;
@@ -32,7 +36,7 @@ use PunBB\Module\Site\Visitor\VisitorInterface;
  * Posting a reply or a new topic. Storing the post is PostCreationInterface,
  * which the bootstrap's side wires.
  */
-final class Module implements ModuleInterface {
+final class Module implements ModuleInterface, TableOwnerInterface {
 	public function name(): string {
 		return 'Post';
 	}
@@ -66,5 +70,49 @@ final class Module implements ModuleInterface {
 			$c->get(UsernameRulesInterface::class),
 			$c->get(EmailAddressesInterface::class)
 		), checksOwnToken: true);
+	}
+
+	public function tables(Platform $platform): array {
+		return array(
+			new Table('posts', array(
+				new Column('id', 'SERIAL'),
+				new Column('poster', 'VARCHAR(200)', false, ''),
+				new Column('poster_id', 'INT(10) UNSIGNED', false, 1),
+				new Column('poster_ip', 'VARCHAR(39)', true),
+				new Column('poster_email', 'VARCHAR(80)', true),
+				new Column('message', 'TEXT', true),
+				new Column('hide_smilies', 'TINYINT(1)', false, 0),
+				new Column('posted', 'INT(10) UNSIGNED', false, 0),
+				new Column('edited', 'INT(10) UNSIGNED', true),
+				new Column('edited_by', 'VARCHAR(200)', true),
+				new Column('topic_id', 'INT(10) UNSIGNED', false, 0),
+			), array('id'), array(), array(
+				'topic_id_idx'	=> array('topic_id'),
+				'multi_idx'		=> array('poster_id', 'topic_id'),
+				'posted_idx'	=> array('posted'),
+			), removedColumns: array('approved'), removedIndexes: array('message_idx')),
+
+			new Table('topics', array(
+				new Column('id', 'SERIAL'),
+				new Column('poster', 'VARCHAR(200)', false, ''),
+				new Column('subject', 'VARCHAR(255)', false, ''),
+				new Column('posted', 'INT(10) UNSIGNED', false, 0),
+				new Column('first_post_id', 'INT(10) UNSIGNED', false, 0),
+				new Column('last_post', 'INT(10) UNSIGNED', false, 0),
+				new Column('last_post_id', 'INT(10) UNSIGNED', false, 0),
+				new Column('last_poster', 'VARCHAR(200)', true),
+				new Column('num_views', 'MEDIUMINT(8) UNSIGNED', false, 0),
+				new Column('num_replies', 'MEDIUMINT(8) UNSIGNED', false, 0),
+				new Column('closed', 'TINYINT(1)', false, 0),
+				new Column('sticky', 'TINYINT(1)', false, 0),
+				new Column('moved_to', 'INT(10) UNSIGNED', true),
+				new Column('forum_id', 'INT(10) UNSIGNED', false, 0),
+			), array('id'), array(), array(
+				'forum_id_idx'		=> array('forum_id'),
+				'moved_to_idx'		=> array('moved_to'),
+				'last_post_idx'		=> array('last_post'),
+				'first_post_id_idx'	=> array('first_post_id'),
+			), removedIndexes: array('subject_idx')),
+		);
 	}
 }
