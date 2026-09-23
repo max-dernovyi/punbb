@@ -1,7 +1,10 @@
 <?php
 
-// Define the version and database revision that this code was written for
+// Define the version that this code was written for
 define('FORUM_VERSION', '2.0.0');
+
+// The last schema revision a board records as one number: a board below it is from
+// before 2.0 and needs the legacy conversion. It stays 7; each module's version moves.
 define('FORUM_DB_REVISION', 7);
 
 // The PHP version this release requires

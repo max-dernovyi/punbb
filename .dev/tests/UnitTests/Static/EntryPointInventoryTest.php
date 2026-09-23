@@ -15,6 +15,7 @@
 
 use PHPUnit\Framework\TestCase;
 use PunBB\Module\Framework\Modules\ModuleRegistry;
+use PunBB\Module\Framework\Modules\ModuleTree;
 use PunBB\Module\Framework\Routing\Router;
 
 class EntryPointInventoryTest extends TestCase {
@@ -81,7 +82,7 @@ class EntryPointInventoryTest extends TestCase {
 	private const SETUP = array('admin/install.php', 'admin/db_update.php');
 
 	private static function router(): Router {
-		return ModuleRegistry::discover(FORUM_ROOT.'include/PunBB/Module', 'PunBB\\Module\\')->router();
+		return ModuleRegistry::discover(ModuleTree::core(FORUM_ROOT))->router();
 	}
 
 	/** @return list<string> the PHP files directly below $dir, relative to FORUM_ROOT, sorted */

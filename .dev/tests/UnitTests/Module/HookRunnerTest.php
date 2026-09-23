@@ -19,6 +19,7 @@ use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use PHPUnit\Framework\TestCase;
 use PunBB\Module\Framework\Event\EventInterface;
 use PunBB\Module\Framework\Modules\ModuleRegistry;
+use PunBB\Module\Framework\Modules\ModuleTree;
 use PunBB\Module\LegacyBridge\Hook\HookException;
 use PunBB\Module\LegacyBridge\Hook\HookMap;
 use PunBB\Module\LegacyBridge\Hook\MarkupHookRunner;
@@ -367,7 +368,7 @@ class HookRunnerTest extends TestCase {
 	}
 
 	public function testTheModuleWiresBothRunnersOverTheHooksCache(): void {
-		$container = ModuleRegistry::discover(FORUM_ROOT.'include/PunBB/Module', 'PunBB\\Module\\')->container();
+		$container = ModuleRegistry::discover(ModuleTree::core(FORUM_ROOT))->container();
 		$this->expectUserDeprecationMessage(self::RUN_NOTICE);
 		$this->expectUserDeprecationMessage(self::RENDER_NOTICE);
 

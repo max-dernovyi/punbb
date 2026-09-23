@@ -1,9 +1,10 @@
 <?php
 /**
  * The fixture modules under .dev/tests/fixtures/modules, wired by the real
- * registry: Greeting owns the greeter contract and the sending event, and plugs
- * and observes them; Courtesy depends on Greeting and plugs the same method and
- * observes the same event.
+ * registry and discovered as a third-party tree: Greeting owns the greeter
+ * contract, the sending event and a table, and plugs and observes them;
+ * Courtesy depends on Greeting and plugs the same method and observes the same
+ * event.
  *
  * @copyright (C) 2008-2012 PunBB, partially based on code (C) 2008-2009 FluxBB.org
  * @license http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
@@ -11,10 +12,17 @@
  */
 
 use PHPUnit\Framework\TestCase;
+use PunBB\Module\Database\Module as DatabaseModule;
+use PunBB\Module\Database\Schema\DeclaredSchema;
+use PunBB\Module\Database\Schema\Table;
+use PunBB\Module\Database\Sql\Platform;
+use PunBB\Module\Database\Version\InstalledVersionsInterface;
+use PunBB\Module\Database\Version\ModuleVersions;
 use PunBB\Module\Framework\Container\Container;
 use PunBB\Module\Framework\Module as FrameworkModule;
 use PunBB\Module\Framework\Modules\ModuleInterface;
 use PunBB\Module\Framework\Modules\ModuleRegistry;
+use PunBB\Module\Framework\Modules\ModuleTree;
 use PunBBFixture\Module\Courtesy\Module as CourtesyModule;
 use PunBBFixture\Module\Greeting\Api\GreeterInterface;
 use PunBBFixture\Module\Greeting\Interceptor\GreeterInterceptor;
@@ -25,7 +33,7 @@ use PunBBFixture\Module\Greeting\Module as GreetingModule;
 
 class FixtureModulesTest extends TestCase {
 	private static function container(ModuleInterface ...$modules): Container {
-		return (new ModuleRegistry(new FrameworkModule(), ...$modules))->container();
+		return (new ModuleRegistry(new FrameworkModule(), new DatabaseModule(), ...$modules))->container();
 	}
 
 	/** @return list<string> */
@@ -33,14 +41,41 @@ class FixtureModulesTest extends TestCase {
 		return $container->get(Journal::class)->entries();
 	}
 
-	public function testTheFixtureTreeIsDiscoveredOnTopOfTheForumsModules(): void {
-		$registry = ModuleRegistry::discover(
-			FORUM_ROOT.'.dev/tests/fixtures/modules',
-			'PunBBFixture\\Module\\',
-			...ModuleRegistry::discover(FORUM_ROOT.'include/PunBB/Module', 'PunBB\\Module\\')->modules()
-		);
+	private static function discovered(): ModuleRegistry {
+		return ModuleRegistry::discover(ModuleTree::core(FORUM_ROOT), new ModuleTree(FORUM_ROOT.'.dev/tests/fixtures/modules', 'PunBBFixture\\Module\\'));
+	}
+
+	public function testTheFixtureTreeIsDiscoveredAsThirdPartyAfterTheForumsModules(): void {
+		$registry = self::discovered();
 
 		$this->assertSame(array('Framework', 'Database', 'Layout', 'Setup', 'Site', 'Extern', 'Install', 'Message', 'AdminIndex', 'Bans', 'Categories', 'Censoring', 'Delete', 'Edit', 'Extensions', 'Forums', 'Groups', 'Help', 'Index', 'Login', 'Misc', 'Moderate', 'Post', 'Profile', 'Prune', 'Ranks', 'Register', 'Reindex', 'Reports', 'Search', 'Settings', 'Update', 'Userlist', 'Users', 'Viewforum', 'Viewtopic', 'LegacyBridge', 'Greeting', 'Courtesy'), $registry->names());
+		$this->assertSame(array(), $registry->skipped());
+	}
+
+	/** Found outside the core tree, it still wires services, contracts, plugins, observers and routes, owns tables and declares a version. */
+	public function testADiscoveredThirdPartyModuleIsAModuleInEverySense(): void {
+		$registry = self::discovered();
+		$container = $registry->container();
+
+		$this->assertSame('Hello, Dr. Rick. Welcome back!', $container->get(GreeterInterface::class)->greet(' rick ')->text());
+		$this->assertSame('Hello, Rick -- the forum P.S. Mind the gap.', $container->get(Postman::class)->send(new Greeting('Rick', 'Hello, Rick'))->text());
+		$this->assertSame('Greeting', $registry->router()->match('greeting.php')?->module);
+
+		$tables = $container->get(DeclaredSchema::class)->tablesOf('Greeting', Platform::ofDbType('sqlite3'));
+		$this->assertSame(array('greetings'), array_map(static fn (Table $table): string => $table->name, $tables));
+
+		$versions = new ModuleVersions(new class implements InstalledVersionsInterface {
+			public function all(): array {
+				return array();
+			}
+
+			public function recordSchema(string $module, string $version): void {}
+
+			public function recordData(string $module, string $version): void {}
+		}, ...$registry->modules());
+
+		$this->assertSame(array('Greeting' => '1.0.0', 'Courtesy' => '1.0.0'), array_slice($versions->declared(), -2, null, true));
+		$this->assertSame(array('Greeting', 'Courtesy'), array_slice($versions->behindOnSchema(), -2));
 	}
 
 	public function testPluginsOnOneMethodRunInModuleOrderWhateverTheRegistrationOrder(): void {

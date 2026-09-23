@@ -53,7 +53,7 @@ class InstalledSchemaTest extends TestCase {
 
 	#[DataProvider('drivers')]
 	public function testEveryDeclaredTableIsCreated(string $driver): void {
-		$this->assertStringContainsString("CREATED:21\n", $this->harness($driver));
+		$this->assertStringContainsString("CREATED:22\n", $this->harness($driver));
 	}
 
 	#[DataProvider('drivers')]

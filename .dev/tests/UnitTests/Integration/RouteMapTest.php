@@ -14,6 +14,7 @@
 use PHPUnit\Framework\TestCase;
 use PunBB\Module\Framework\Http\Request;
 use PunBB\Module\Framework\Modules\ModuleRegistry;
+use PunBB\Module\Framework\Modules\ModuleTree;
 use PunBB\Module\Framework\Routing\RewriteRules;
 
 class RouteMapTest extends TestCase {
@@ -39,7 +40,7 @@ class RouteMapTest extends TestCase {
 	/** The own path of the page index.php serves $url with under $scheme, or null for the 404 page. */
 	private static function resolve(string $url, string $scheme): ?string {
 		static $router = null;
-		$router ??= ModuleRegistry::discover(FORUM_ROOT.'include/PunBB/Module', 'PunBB\\Module\\')->router();
+		$router ??= ModuleRegistry::discover(ModuleTree::core(FORUM_ROOT))->router();
 
 		$request = Request::fromGlobals(array('SCRIPT_NAME' => '/index.php', 'REQUEST_URI' => '/'.$url), array(), array(), array());
 		$route = $router->match($request->path);

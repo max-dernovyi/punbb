@@ -43,6 +43,10 @@ final class Module implements ModuleInterface {
 		return array();
 	}
 
+	public function version(): string {
+		return '2.0.0';
+	}
+
 	public function wire(Wiring $wiring): void {
 		$wiring->contract(PrunableTopicsInterface::class, PrunableTopicsInterceptor::class, fn (Container $c): object => new PrunableTopics($c->get(Connection::class)));
 

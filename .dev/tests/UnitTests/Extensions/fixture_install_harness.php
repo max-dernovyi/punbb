@@ -33,7 +33,7 @@ function fixture_installer_schema($table)
 {
 	global $db_type;
 
-	$declared = new PunBB\Module\Database\Schema\DeclaredSchema(...PunBB\Module\Framework\Modules\ModuleRegistry::discover(FORUM_ROOT.'include/PunBB/Module', 'PunBB\\Module\\')->modules());
+	$declared = new PunBB\Module\Database\Schema\DeclaredSchema(...PunBB\Module\Framework\Modules\ModuleRegistry::discover(PunBB\Module\Framework\Modules\ModuleTree::core(FORUM_ROOT))->modules());
 
 	return PunBB\Module\Database\Schema\DbLayerSchema::definition($declared->table($table, PunBB\Module\Database\Sql\Platform::ofDbType($db_type)));
 }

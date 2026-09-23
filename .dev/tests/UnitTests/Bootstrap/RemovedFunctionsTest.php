@@ -27,7 +27,7 @@ class RemovedFunctionsTest extends TestCase {
 	);
 
 	/** Trees PHPStan also skips: third-party code and generated files. */
-	private const SKIP = array('vendor', '.git', '.dev', 'cache', 'extensions', 'img', 'lang', 'style');
+	private const SKIP = array('vendor', '.git', '.dev', 'cache', 'extensions', 'modules', 'img', 'lang', 'style');
 
 	/**
 	 * @return array<string, list<string>> file => list of "line: function"

@@ -61,7 +61,17 @@ else
 ($hook = get_hook('co_modify_url_scheme')) ? eval($hook) : null;
 
 // The composition root: past this point the user, the language pack and the URL scheme exist.
-$forum_container = PunBB\Module\Framework\Modules\ModuleRegistry::discover(FORUM_ROOT.'include/PunBB/Module', 'PunBB\\Module\\')->container();
+$forum_container = PunBB\Module\Framework\Modules\ModuleRegistry::forum(FORUM_ROOT, error_log(...))->container();
+
+// A third-party module moves between releases, which essentials.php cannot see: one ahead of the board waits for the update as a release does
+if ($forum_container->get(PunBB\Module\Framework\Modules\ModuleRegistry::class)->thirdParty() !== array() && $forum_container->get(PunBB\Module\Database\Version\ModuleVersions::class)->behind() !== array())
+{
+	// The Update module is removed once an update has run, and without it db_update.php is a page not found
+	if (!in_array('Update', $forum_container->get(PunBB\Module\Framework\Modules\ModuleRegistry::class)->names(), true))
+		error('Your PunBB database is out-of-date and must be upgraded in order to continue.<br />Restore include/PunBB/Module/Update/ from this release and run admin/db_update.php, or remove the new module from modules/.');
+
+	error('Your PunBB database is out-of-date and must be upgraded in order to continue.<br />Please run <a href="'.$base_url.'/admin/db_update.php">db_update.php</a> in order to complete the upgrade process.');
+}
 
 // Check if we are to display a maintenance message
 if ($forum_config['o_maintenance'] && $forum_user['g_id'] > FORUM_ADMIN && !defined('FORUM_TURN_OFF_MAINT'))

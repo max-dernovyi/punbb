@@ -17,6 +17,7 @@
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use PunBB\Module\Framework\Modules\ModuleRegistry;
+use PunBB\Module\Framework\Modules\ModuleTree;
 
 class RewriteTargetTest extends TestCase
 {
@@ -122,7 +123,7 @@ class RewriteTargetTest extends TestCase
 	#[DataProvider('rulesetProvider')]
 	public function testEveryShippedRuleNamesARoutedPage(string $file): void
 	{
-		$router = ModuleRegistry::discover(FORUM_ROOT.'include/PunBB/Module', 'PunBB\\Module\\')->router();
+		$router = ModuleRegistry::discover(ModuleTree::core(FORUM_ROOT))->router();
 
 		$forum_rewrite_rules = array();
 		require $file;

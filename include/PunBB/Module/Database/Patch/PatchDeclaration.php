@@ -21,4 +21,9 @@ final readonly class PatchDeclaration {
 		public array $dependencies,
 		public Closure $factory
 	) {}
+
+	/** The module that declares it: its name up to the '::'. */
+	public function module(): string {
+		return explode('::', $this->name, 2)[0];
+	}
 }

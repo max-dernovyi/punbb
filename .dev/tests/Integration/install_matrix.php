@@ -47,7 +47,7 @@ function install_matrix_expected_tables()
 {
 	return array(
 		'bans', 'categories', 'censoring', 'config', 'data_patches', 'extension_hooks', 'extensions',
-		'forum_perms', 'forum_subscriptions', 'forums', 'groups', 'online', 'posts',
+		'forum_perms', 'forum_subscriptions', 'forums', 'groups', 'modules', 'online', 'posts',
 		'ranks', 'reports', 'search_cache', 'search_matches', 'search_words',
 		'subscriptions', 'topics', 'users',
 	);
@@ -64,9 +64,15 @@ function install_matrix_installer_tables($db_type)
 }
 
 
+function install_matrix_modules()
+{
+	return PunBB\Module\Framework\Modules\ModuleRegistry::discover(PunBB\Module\Framework\Modules\ModuleTree::core(INSTALL_MATRIX_ROOT))->modules();
+}
+
+
 function install_matrix_declared_schema()
 {
-	return new PunBB\Module\Database\Schema\DeclaredSchema(...PunBB\Module\Framework\Modules\ModuleRegistry::discover(INSTALL_MATRIX_ROOT.'include/PunBB/Module', 'PunBB\\Module\\')->modules());
+	return new PunBB\Module\Database\Schema\DeclaredSchema(...install_matrix_modules());
 }
 
 
@@ -99,6 +105,16 @@ function install_matrix_schema_gap($db_type, $spec)
 			$gap[] = $change->describe();
 
 	return $gap;
+}
+
+
+/** The modules an installed forum records short of their declared version, schema or data; none after a fresh install. */
+function install_matrix_modules_behind($spec)
+{
+	$connection = install_matrix_connection($spec);
+	$installed = new PunBB\Module\Database\Version\InstalledVersions($connection, new PunBB\Module\Database\Schema\SchemaReader($connection));
+
+	return (new PunBB\Module\Database\Version\ModuleVersions($installed, ...install_matrix_modules()))->behind();
 }
 
 
@@ -457,8 +473,13 @@ function install_matrix_run_driver($db_type, $spec, $base_url, $log)
 	if ($missing)
 		$failures[] = count($missing).' table(s) missing: '.implode(', ', $missing);
 	else
+	{
 		foreach (install_matrix_schema_gap($db_type, $spec) as $change)
 			$failures[] = 'the installed schema is not the declared one, it needs: '.$change;
+
+		foreach (install_matrix_modules_behind($spec) as $module)
+			$failures[] = 'module '.$module.' is not recorded at its declared version';
+	}
 
 	// A schema alone proves nothing: the installer also seeds these.
 	foreach (array('users' => 2, 'config' => 1, 'forums' => 1, 'topics' => 1, 'posts' => 1, 'groups' => 1) as $table => $least)

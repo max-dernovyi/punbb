@@ -12,6 +12,7 @@
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use PunBB\Module\Database\Module as DatabaseModule;
 use PunBB\Module\Framework\Http\Request;
 use PunBB\Module\Framework\Http\Response;
 use PunBB\Module\Framework\Module as FrameworkModule;
@@ -43,6 +44,10 @@ class RoutingTest extends TestCase {
 
 			public function loadAfter(): array {
 				return array();
+			}
+
+			public function version(): string {
+				return '1.0.0';
 			}
 
 			public function wire(Wiring $wiring): void {
@@ -261,7 +266,7 @@ class RoutingTest extends TestCase {
 
 	/** Greeting routes to its controller; the response carries what both modules' plugins made of the greeting. */
 	public function testAModulesControllerAnswersItsRouteWithAResponse(): void {
-		$registry = new ModuleRegistry(new FrameworkModule(), new CourtesyModule(), new GreetingModule());
+		$registry = new ModuleRegistry(new FrameworkModule(), new DatabaseModule(), new CourtesyModule(), new GreetingModule());
 		$route = $registry->router()->match('greeting/');
 		$this->assertInstanceOf(Route::class, $route);
 

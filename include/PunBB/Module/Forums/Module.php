@@ -49,6 +49,10 @@ final class Module implements ModuleInterface, TableOwnerInterface {
 		return array();
 	}
 
+	public function version(): string {
+		return '1.4.0';
+	}
+
 	public function wire(Wiring $wiring): void {
 		$wiring->contract(ForumsInterface::class, ForumsInterceptor::class, fn (Container $c): object => new Forums($c->get(Connection::class)));
 

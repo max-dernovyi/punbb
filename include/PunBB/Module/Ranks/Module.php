@@ -47,6 +47,10 @@ final class Module implements ModuleInterface, TableOwnerInterface {
 		return array();
 	}
 
+	public function version(): string {
+		return '1.4.0';
+	}
+
 	public function wire(Wiring $wiring): void {
 		$wiring->contract(RanksInterface::class, RanksInterceptor::class, fn (Container $c): object => new Ranks($c->get(Connection::class)));
 

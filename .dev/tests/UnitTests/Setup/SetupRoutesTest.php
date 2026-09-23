@@ -1,9 +1,10 @@
 <?php
 /**
  * The installer and the updater through the front controller, on a scratch
- * forum the installer installed: what each answers on an installed board, and
- * an update of a board set back to 1.4.4, from its form through each data
- * patch to its finish.
+ * forum the installer installed: what each answers on an installed board, an
+ * update of a board at this release with one module set back, and an update
+ * of a board set back to 1.4.4, without module versions, from its form
+ * through each data patch to its finish.
  *
  * @copyright (C) 2008-2012 PunBB, partially based on code (C) 2008-2009 FluxBB.org
  * @license http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
@@ -11,6 +12,8 @@
  */
 
 use PHPUnit\Framework\TestCase;
+use PunBB\Module\Framework\Modules\ModuleRegistry;
+use PunBB\Module\Framework\Modules\ModuleTree;
 
 require_once FORUM_ROOT.'.dev/tests/UnitTests/Extensions/ScratchForum.php';
 
@@ -50,6 +53,22 @@ class SetupRoutesTest extends TestCase {
 		$this->assertNotSame(array(), self::forum()->rows('SELECT word_id FROM search_matches WHERE post_id=1'), 'the welcome post is in the search index');
 	}
 
+	/** @return list<array{name: string, schema_version: string, data_version: string}> every module at the version it declares, by name */
+	private static function declaredVersions(): array {
+		$declared = array();
+		foreach (ModuleRegistry::discover(ModuleTree::core(FORUM_ROOT))->modules() as $module)
+			$declared[$module->name()] = array('name' => $module->name(), 'schema_version' => $module->version(), 'data_version' => $module->version());
+
+		ksort($declared);
+
+		return array_values($declared);
+	}
+
+	/** Nothing to upgrade after a fresh install: every module at the version it declares, schema and data. */
+	public function testTheInstallerRecordedEveryModuleAtItsDeclaredVersion(): void {
+		$this->assertSame(self::declaredVersions(), self::forum()->rows('SELECT name, schema_version, data_version FROM modules ORDER BY name'));
+	}
+
 	public function testAnInstalledBoardAnswersTheInstallerWithItsIndex(): void {
 		$output = self::forum()->requestAsGuest('admin/install.php');
 
@@ -72,6 +91,32 @@ class SetupRoutesTest extends TestCase {
 		self::$forum->rows('UPDATE config SET conf_value=\''.FORUM_DB_REVISION.'\' WHERE conf_name=\'o_database_revision\'');
 	}
 
+	public function testABoardAtThisReleaseBringsUpTheModuleSetBackAndNoOther(): void {
+		$forum = self::forum();
+
+		// Censoring recorded a release behind with its table gone; Reports' table gone too, Reports current
+		$forum->rows('UPDATE modules SET schema_version=\'1.3.0\', data_version=\'1.3.0\' WHERE name=\'Censoring\'');
+		$forum->rows('DROP TABLE censoring');
+		$forum->rows('DROP TABLE reports');
+
+		$this->assertStringContainsString('value="Start update"', $forum->requestAsGuest('admin/db_update.php'));
+
+		$start = $forum->requestAsGuest('admin/db_update.php', array('stage' => 'start'));
+		$this->assertStringStartsWith("Create table censoring…<br />\n<script", $start);
+		$this->assertStringContainsString('window.location="db_update.php?stage=finish"', $start, 'Censoring declares no patch');
+		$this->assertStringContainsString('PunBB Database Update completed!', $forum->requestAsGuest('admin/db_update.php', array('stage' => 'finish')));
+
+		$this->assertSame(array(), $forum->rows('SELECT name FROM sqlite_master WHERE name=\'reports\''), 'the table of a module whose schema is current is left as it is');
+		$this->assertSame(self::declaredVersions(), $forum->rows('SELECT name, schema_version, data_version FROM modules ORDER BY name'));
+		$this->assertStringContainsString('already as up-to-date', $forum->requestAsGuest('admin/db_update.php'));
+
+		// Set back in turn, Reports gets its table
+		$forum->rows('UPDATE modules SET schema_version=\'1.3.0\' WHERE name=\'Reports\'');
+		$this->assertStringStartsWith("Create table reports…<br />\n<script", $forum->requestAsGuest('admin/db_update.php', array('stage' => 'start')));
+		$this->assertStringContainsString('PunBB Database Update completed!', $forum->requestAsGuest('admin/db_update.php', array('stage' => 'finish')));
+		$this->assertSame(self::declaredVersions(), $forum->rows('SELECT name, schema_version, data_version FROM modules ORDER BY name'));
+	}
+
 	public function testABoardSetBackTo144IsUpdatedFromItsFormToItsFinish(): void {
 		$forum = self::forum();
 		$forum->rows('UPDATE config SET conf_value=\'1.4.4\' WHERE conf_name=\'o_cur_version\'');
@@ -79,12 +124,14 @@ class SetupRoutesTest extends TestCase {
 		$forum->rows('DELETE FROM config WHERE conf_name IN (\'o_mask_passwords\', \'o_show_moderators\')');
 		$forum->rows('UPDATE forums SET num_topics=7, num_posts=9 WHERE id=1');
 
-		// A 1.4.4 board has recorded no data patch
+		// A 1.4.4 board has recorded no data patch, and has no module versions to record
 		$forum->rows('DELETE FROM data_patches');
+		$forum->rows('DROP TABLE modules');
 
 		$this->assertStringContainsString('value="Start update"', $forum->requestAsGuest('admin/db_update.php'));
 
 		$pages = $page = $forum->requestAsGuest('admin/db_update.php', array('stage' => 'start'));
+		$this->assertStringStartsWith("Create table modules…<br />\n<script", $page, 'every module is brought up, and only that table is missing');
 		$this->assertStringContainsString('window.location="db_update.php?stage=patch"', $page);
 
 		$requests = 0;
@@ -103,6 +150,8 @@ class SetupRoutesTest extends TestCase {
 
 		$config = self::config();
 		$this->assertSame(array(FORUM_VERSION, (string) FORUM_DB_REVISION), array($config['o_cur_version'], $config['o_database_revision']));
+		$this->assertSame(self::declaredVersions(), $forum->rows('SELECT name, schema_version, data_version FROM modules ORDER BY name'), 'every module recorded, as a fresh install records it');
+		$this->assertStringContainsString('already as up-to-date', $forum->requestAsGuest('admin/db_update.php'));
 		$this->assertSame(array(array('num_topics' => 1, 'num_posts' => 1)), $forum->rows('SELECT num_topics, num_posts FROM forums WHERE id=1'), 'the forums are synchronised');
 
 		$this->assertStringContainsString('Test forum', $forum->request('index.php'), 'the board runs on the updated database');

@@ -30,6 +30,10 @@ final class Module implements ModuleInterface {
 		return array();
 	}
 
+	public function version(): string {
+		return '1.0.0';
+	}
+
 	public function wire(Wiring $wiring): void {
 		$wiring->plugin(GreeterInterface::class, HonorificPlugin::class, fn (Container $c): object => new HonorificPlugin($c->get(Journal::class)));
 		$wiring->observer(GreetingSending::class, PostscriptObserver::class, fn (Container $c): object => new PostscriptObserver($c->get(Journal::class)));

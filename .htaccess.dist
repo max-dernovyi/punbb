@@ -13,10 +13,10 @@
 	# Uncomment and properly set the RewriteBase if the rewrite rules are not working properly
 	#RewriteBase /
 
-	# The Composer tree, the npm tree, the development tree and the class tree are never served.
+	# The Composer tree, the npm tree, the development tree and the class trees are never served.
 	# The pattern is relative to this file's directory, so it stays scoped to the
 	# forum root in a subdirectory install and cannot match an SEF URL segment.
-	RewriteRule ^(vendor|node_modules|\.dev|include/PunBB)/ - [F,L]
+	RewriteRule ^(vendor|node_modules|\.dev|modules|include/PunBB)/ - [F,L]
 
 	# Every path that is not a file is a page: index.php routes it
 	RewriteCond %{REQUEST_FILENAME} !-f
@@ -83,7 +83,7 @@ AddCharset utf-8 .html .css .js .xml .json .rss
 # without mod_rewrite anyway.
 <IfModule !mod_rewrite.c>
     <IfModule mod_alias.c>
-        RedirectMatch 404 (^|/)(vendor|node_modules|\.dev|include/PunBB)/
+        RedirectMatch 404 (^|/)(vendor|node_modules|\.dev|modules|include/PunBB)/
     </IfModule>
 </IfModule>
 

@@ -18,7 +18,8 @@
     },
     "autoload": {
         "psr-4": {
-            "PunBB\\": "include/PunBB/"
+            "PunBB\\": "include/PunBB/",
+            "PunBBModule\\": "modules/"
         }
     },
     "autoload-dev": {

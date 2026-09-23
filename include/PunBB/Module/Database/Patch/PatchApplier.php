@@ -46,9 +46,12 @@ final class PatchApplier {
 		return $step;
 	}
 
-	/** Records every patch without applying it: a fresh install writes its data in the shape the patches lead to. */
-	public function recordAll(): void {
+	/** Records every patch but those of the modules $except without applying it: a fresh install writes its data in the shape the patches lead to. */
+	public function recordAll(string ...$except): void {
+		$except = array_flip($except);
+
 		foreach ($this->pending() as $patch)
-			$this->applied->record($patch->name);
+			if (!isset($except[$patch->module()]))
+				$this->applied->record($patch->name);
 	}
 }

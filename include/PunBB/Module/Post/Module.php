@@ -49,6 +49,10 @@ final class Module implements ModuleInterface, TableOwnerInterface {
 		return array();
 	}
 
+	public function version(): string {
+		return '1.4.0';
+	}
+
 	public function wire(Wiring $wiring): void {
 		$wiring->contract(PostingInterface::class, PostingInterceptor::class, fn (Container $c): object => new Posting($c->get(Connection::class)));
 

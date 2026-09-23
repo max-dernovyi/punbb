@@ -87,7 +87,8 @@ final class LegacyChromeSource implements ChromeSourceInterface {
 			($config['o_show_version'] ?? null) == '1' ? Markers::markup($config['o_cur_version'] ?? '') : null,
 			($config['o_report_method'] ?? null) == 1,
 			$updates,
-			($config['o_database_revision'] ?? 0) > self::constant('FORUM_DB_REVISION')
+			// A database a newer release updated: the release moves, FORUM_DB_REVISION stays at 7
+			version_compare(Markers::markup($config['o_cur_version'] ?? ''), Markers::markup(self::constant('FORUM_VERSION')), '>')
 		);
 	}
 

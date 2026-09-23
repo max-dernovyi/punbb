@@ -658,6 +658,10 @@ final class Module implements ModuleInterface {
 		return array('Install', 'Update');
 	}
 
+	public function version(): string {
+		return '2.0.0';
+	}
+
 	public function wire(Wiring $wiring): void {
 		$wiring->service(HookMap::class, fn (): object => new HookMap());
 		$wiring->service(PointEvaluator::class, fn (Container $c): object => new PointEvaluator($c->get(HookMap::class), self::storedCode(...)));

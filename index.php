@@ -23,7 +23,8 @@ if (empty($_SERVER['QUERY_STRING']) && isset($_SERVER['REQUEST_URI']) && strpos(
 }
 
 $forum_request = PunBB\Module\Framework\Http\Request::fromGlobals($_SERVER, $_GET, $_POST, $_COOKIE, $_FILES);
-$forum_router = PunBB\Module\Framework\Modules\ModuleRegistry::discover(FORUM_ROOT.'include/PunBB/Module', 'PunBB\\Module\\')->router();
+// include/common.php or include/setup.php reports a third-party module skipped
+$forum_router = PunBB\Module\Framework\Modules\ModuleRegistry::forum(FORUM_ROOT)->router();
 $forum_route = $forum_router->match($forum_request->path);
 
 if ($forum_route === null)

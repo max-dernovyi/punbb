@@ -31,4 +31,11 @@ $_SERVER['REMOTE_ADDR'] = '127.0.0.1';
 
 chdir($root);
 
+// vendor/ links into the checkout, whose Composer map looks for PunBBModule\ in the checkout's modules/: this root's goes first
+require_once $root.'/vendor/autoload.php';
+spl_autoload_register(static function (string $class) use ($root): void {
+	if (str_starts_with($class, 'PunBBModule\\') && is_file($file = $root.'/modules/'.str_replace('\\', '/', substr($class, strlen('PunBBModule\\'))).'.php'))
+		require $file;
+}, true, true);
+
 require $root.'/'.$served;

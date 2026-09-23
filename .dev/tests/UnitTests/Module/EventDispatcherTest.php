@@ -70,6 +70,10 @@ class EventDispatcherTest extends TestCase {
 				return array();
 			}
 
+			public function version(): string {
+				return '1.0.0';
+			}
+
 			public function wire(Wiring $wiring): void {
 				($this->wire)($wiring);
 			}

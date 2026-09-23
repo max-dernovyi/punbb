@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace PunBB\Module\Update\Controller;
 
-use PunBB\Module\Database\Patch\PatchApplier;
 use PunBB\Module\Database\Patch\PatchException;
+use PunBB\Module\Database\Schema\SchemaException;
 use PunBB\Module\Database\Schema\SchemaInterface;
-use PunBB\Module\Database\Schema\SchemaSynchronizer;
 use PunBB\Module\Database\Sql\Platform;
+use PunBB\Module\Database\Version\ModuleUpgrade;
 use PunBB\Module\Framework\Http\Request;
 use PunBB\Module\Framework\Http\Response;
 use PunBB\Module\Layout\View\Html;
@@ -32,9 +32,13 @@ use PunBB\Module\Update\View\UpdateView;
 /**
  * An update over the database config.php names, once it is open: the checks
  * that it is a board this release updates, then the stage the request names.
- * The start brings the schema to what the modules declare, each request after
- * it applies a batch of the first data patch the board has not recorded, and
- * the finish records the release.
+ * The start brings the tables of each module whose schema is behind to what it
+ * declares, each request after it applies a batch of the first data patch of a
+ * module whose data is behind, and the finish records the release.
+ *
+ * A board below FORUM_DB_REVISION is from before 2.0 and always goes through;
+ * any other is up to date once its release is, no module is behind and no
+ * update its start began is left to finish.
  *
  * There is no rollback: a patch that fails stops the update unrecorded, its
  * batch discarded where the database keeps transactions, and the next run goes
@@ -62,8 +66,7 @@ final class Update {
 		private readonly BoardFilesInterface $files,
 		private readonly SetupPage $pages,
 		private readonly TemplateRenderer $templates,
-		private readonly SchemaSynchronizer $synchronizer,
-		private readonly PatchApplier $patches
+		private readonly ModuleUpgrade $upgrade
 	) {}
 
 	public function run(Request $request, BoardConfiguration $configuration): Response {
@@ -92,7 +95,8 @@ final class Update {
 		foreach ($this->settings->all() as $setting)
 			$config[$setting->name()] = $setting->value();
 
-		if (isset($config['o_database_revision']) && (int) $config['o_database_revision'] >= $this->environment->databaseRevision() && version_compare($config['o_cur_version'] ?? '', $this->environment->version(), '>='))
+		$legacy = !isset($config['o_database_revision']) || (int) $config['o_database_revision'] < $this->environment->databaseRevision();
+		if (!$legacy && version_compare($config['o_cur_version'] ?? '', $this->environment->version(), '>=') && !array_key_exists(BoardOptions::UNDER_WAY, $config) && $this->upgrade->behind() === array())
 			return $this->pages->error(new Html('Your database is already as up-to-date as this script can make it.'), $config['o_board_title'] ?? 'PunBB');
 
 		$baseUrl = $configuration->baseUrl ?? $config['o_base_url'] ?? '';
@@ -123,11 +127,18 @@ final class Update {
 				default		=> $this->stage(new StageResult()),
 			};
 		}
+		catch (SchemaException $e) {
+			return $this->pages->text(Html::format('%s. Remove the module at fault from modules/ and run the update again.', $e->getMessage()));
+		}
 		catch (PatchException $e) {
 			$this->database->rollBack();
 
-			// Text the named character set cannot convert is for the one running the update to fix; anything else is a fault
+			// Modules declaring patches that do not fit together, a third-party one most likely
 			$cause = $e->getPrevious();
+			if ($cause === null)
+				return $this->pages->text(Html::format('%s. Remove the module at fault from modules/ and run the update again.', $e->getMessage()));
+
+			// Text the named character set cannot convert is for the one running the update to fix; anything else is a fault
 			if (!$cause instanceof ConversionException)
 				throw $e;
 
@@ -135,7 +146,7 @@ final class Update {
 		}
 	}
 
-	/** The schema every module declares, and for a 1.2 board the character set its text is converted from. */
+	/** The tables of each module whose schema is behind, and for a 1.2 board the character set its text is converted from. */
 	private function start(DatabaseSettings $database, string $version, string $charset, bool $convert): StageResult {
 		// Kept in the options: the patches read it over as many requests as they take
 		if (str_starts_with($version, '1.2'))
@@ -150,24 +161,29 @@ final class Update {
 		$this->data->emptyOnline();
 
 		$lines = array();
-		foreach ($this->synchronizer->synchronize(Platform::ofDbType($database->type)) as $change)
+		foreach ($this->upgrade->schema(Platform::ofDbType($database->type)) as $change)
 			$lines[] = Html::escape(ucfirst($change->describe()).'…');
 
 		// Every update supersedes the hotfixes of the releases before it, so this is no patch recorded once
 		foreach ($this->data->supersededHotfixes($this->environment->version()) as $hotfix)
 			$this->data->removeExtension($hotfix);
 
-		return new StageResult($lines, $this->patches->pending() !== array() ? '?stage=patch' : '?stage=finish');
+		$next = $this->upgrade->pending() !== array() ? '?stage=patch' : '?stage=finish';
+
+		// The modules brought up here are no longer behind, and the finish still has to run; a failed start leaves no mark holding the update open
+		BoardOptions::store($this->settings, BoardOptions::UNDER_WAY, '1');
+
+		return new StageResult($lines, $next);
 	}
 
 	/** A batch of the first patch the board has not recorded, from $startAt on where it is patch $name's next. */
 	private function patch(string $name, int $startAt): StageResult {
-		$pending = $this->patches->pending();
+		$pending = $this->upgrade->pending();
 		if ($pending === array())
 			return new StageResult(next: '?stage=finish');
 
 		$patch = $pending[0];
-		$step = $this->patches->apply($patch, $patch->name === $name ? $startAt : 0);
+		$step = $this->upgrade->apply($patch, $patch->name === $name ? $startAt : 0);
 
 		$lines = array(Html::format('Applying %s…', $patch->name));
 		foreach ($step->lines as $line)
@@ -186,8 +202,10 @@ final class Update {
 	/** @param array<string, ?string> $config */
 	private function finish(BoardConfiguration $configuration, array $config, string $baseUrl): Response {
 		// Recording the release before every patch has run would refuse the rerun that applies the rest
-		if ($this->patches->pending() !== array())
+		if ($this->upgrade->pending() !== array())
 			return $this->stage(new StageResult(next: '?stage=patch'));
+
+		$this->upgrade->recordData();
 
 		$this->database->setNames('utf8');
 
@@ -217,6 +235,7 @@ final class Update {
 
 		// Recorded last, so an interrupted finish is run again rather than refused
 		$this->settings->update(new Setting('o_cur_version', $this->environment->version()), new Setting('o_database_revision', (string) $this->environment->databaseRevision()));
+		$this->settings->remove(BoardOptions::UNDER_WAY);
 
 		return self::page($this->templates->render(self::FINISHED, UpdateView::finished($baseUrl, $unwritten)));
 	}

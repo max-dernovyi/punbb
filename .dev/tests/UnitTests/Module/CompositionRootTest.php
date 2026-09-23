@@ -12,7 +12,10 @@
 use PHPUnit\Framework\TestCase;
 
 class CompositionRootTest extends TestCase {
-	private const ROOT = 'ModuleRegistry::discover(';
+	private const ROOT = 'ModuleRegistry::forum(';
+
+	/** The root that builds the container reports each third-party module it skips to the PHP error log. */
+	private const REPORTING_ROOT = 'ModuleRegistry::forum(FORUM_ROOT, error_log(...))->container();';
 
 	private static function source(string $file): string {
 		return (string) file_get_contents(FORUM_ROOT.$file);
@@ -26,6 +29,7 @@ class CompositionRootTest extends TestCase {
 		$this->assertNotFalse($user);
 		$this->assertGreaterThan($user, strpos($common, self::ROOT));
 		$this->assertMatchesRegularExpression('/^\$forum_container = PunBB\\\\Module\\\\Framework\\\\Modules\\\\'.preg_quote(self::ROOT, '/').'/m', $common);
+		$this->assertStringContainsString(self::REPORTING_ROOT, $common);
 	}
 
 	/** The installer and the updater compose it in include/setup.php, which boots no board. */
@@ -34,6 +38,7 @@ class CompositionRootTest extends TestCase {
 
 		$this->assertSame(1, substr_count($setup, self::ROOT));
 		$this->assertMatchesRegularExpression('/^\$forum_container = PunBB\\\\Module\\\\Framework\\\\Modules\\\\'.preg_quote(self::ROOT, '/').'/m', $setup);
+		$this->assertStringContainsString(self::REPORTING_ROOT, $setup);
 		$this->assertStringNotContainsString('include/essentials.php', $setup);
 		$this->assertStringNotContainsString('include/common.php', $setup);
 	}

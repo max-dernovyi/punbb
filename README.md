@@ -8,7 +8,7 @@ PunBB is a fast and lightweight PHP-powered discussion board. It is released und
  1. [Download the latest revision of PunBB](https://punbb.informer.com/downloads.php). Decompress the PunBB archive to a directory.
  2. Copy (or upload) all the files contained in this archive into the directory where you want to run your forums. (e.g. /home/user/www/punbb/)
  3. Run `composer install --no-dev` in that directory to generate `vendor/autoload.php`. PunBB does not start without it.
- 4. Copy `.htaccess.dist` to `.htaccess` (merge into it if you already have one). It denies access to `vendor/`, `.dev/` and the tooling manifests, and hands every request that is not a file to `index.php`, which serves every page.
+ 4. Copy `.htaccess.dist` to `.htaccess` (merge into it if you already have one). It denies access to `vendor/`, `.dev/`, the class trees `include/PunBB/` and `modules/` and the tooling manifests, and hands every request that is not a file to `index.php`, which serves every page.
  5. Open `admin/install.php` in your browser (e.g. http://example.com/punbb/admin/install.php). Follow the instructions.
 
 ## Requirements
@@ -30,7 +30,7 @@ Back up the forum directory and the database before you start.
 
  1. If `$db_type` in `config.php` is `mysql`, `mysql_innodb` or `sqlite`, change it to `mysqli`, `mysqli_innodb` or `sqlite3` first. `admin/db_update.php` stops on a removed driver and names the replacement.
  2. Turn maintenance mode on and disable every extension in the administration console.
- 3. Delete every `.php` file in the forum root except `config.php`, and the `admin/` directory: every page is now served through `index.php`, and an old script left in place would still run. Then copy the new files over, keeping `config.php`, `img/avatars/` and `extensions/`.
+ 3. Delete every `.php` file in the forum root except `config.php`, and the `admin/` directory: every page is now served through `index.php`, and an old script left in place would still run. Then copy the new files over, keeping `config.php`, `img/avatars/`, `extensions/` and `modules/`.
  4. Merge `.htaccess.dist` into `.htaccess` again: `rewrite.php` is gone and requests now go to `index.php`. Run `composer install --no-dev` and empty the `cache/` directory.
  5. Open `admin/db_update.php` in your browser and follow it to the end.
  6. Delete `include/PunBB/Module/Update/`, the module serving `admin/db_update.php`. It has no permission check: while it is there, any visitor can drive the migration.
@@ -46,6 +46,12 @@ Extensions written for PunBB 1.4 may need changes: `ChangeLog` lists the breakin
  3. Click the "Install extension" link to install the extension.
 
 NOTE: You may use the pun_repository official PunBB extension to download and install extensions from PunBB repository with one click.
+
+## Module installation
+ 1. Unpack the module into `modules/<Name>/`, so that `modules/<Name>/Module.php` exists. A newer release of it is unpacked over the old one.
+ 2. Put `include/PunBB/Module/Update/` back if you deleted it, open `admin/db_update.php` and follow it to the end, then delete the Update module again. Every page answers that the database is out of date until the update has run.
+
+Deleting `modules/<Name>/` uninstalls a module; its tables and their rows are kept. A module that fails to load is skipped and logged to the PHP error log, with every module depending on it.
 
 ## Performance
  - Enable OPcache. It ships with PHP and only needs turning on.

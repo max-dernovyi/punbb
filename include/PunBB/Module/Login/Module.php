@@ -50,6 +50,10 @@ final class Module implements ModuleInterface {
 		return array();
 	}
 
+	public function version(): string {
+		return '2.0.0';
+	}
+
 	public function wire(Wiring $wiring): void {
 		$wiring->contract(AccountsInterface::class, AccountsInterceptor::class, fn (Container $c): object => new Accounts($c->get(Connection::class)));
 		$wiring->contract(VisitsInterface::class, VisitsInterceptor::class, fn (Container $c): object => new Visits($c->get(Connection::class)));

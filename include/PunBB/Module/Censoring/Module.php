@@ -46,6 +46,10 @@ final class Module implements ModuleInterface, TableOwnerInterface {
 		return array();
 	}
 
+	public function version(): string {
+		return '1.4.0';
+	}
+
 	public function wire(Wiring $wiring): void {
 		$wiring->contract(CensorsInterface::class, CensorsInterceptor::class, fn (Container $c): object => new Censors($c->get(Connection::class)));
 

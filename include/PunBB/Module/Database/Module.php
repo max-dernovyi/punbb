@@ -11,11 +11,16 @@ use PunBB\Module\Database\Patch\PatchApplier;
 use PunBB\Module\Database\Schema\Column;
 use PunBB\Module\Database\Schema\DeclaredSchema;
 use PunBB\Module\Database\Schema\SchemaInterface;
+use PunBB\Module\Database\Schema\SchemaReader;
 use PunBB\Module\Database\Schema\SchemaSynchronizer;
 use PunBB\Module\Database\Schema\Table;
 use PunBB\Module\Database\Schema\TableOwnerInterface;
 use PunBB\Module\Database\Sql\Connection;
 use PunBB\Module\Database\Sql\Platform;
+use PunBB\Module\Database\Version\InstalledVersions;
+use PunBB\Module\Database\Version\InstalledVersionsInterface;
+use PunBB\Module\Database\Version\ModuleUpgrade;
+use PunBB\Module\Database\Version\ModuleVersions;
 use PunBB\Module\Framework\Container\Container;
 use PunBB\Module\Framework\Modules\ModuleInterface;
 use PunBB\Module\Framework\Modules\ModuleRegistry;
@@ -25,7 +30,9 @@ use PunBB\Module\Framework\Modules\Wiring;
  * Prepared statements over the forum's database connection, for the
  * repositories behind the modules' service contracts; the schema the modules
  * declare, synchronized through the schema driver; and the data patches they
- * declare, applied once and recorded in data_patches.
+ * declare, applied once and recorded in data_patches; and the version each
+ * module declares, recorded in modules once a board has its schema and data,
+ * which the upgrade brings up module by module.
  *
  * The connection itself is opened by the bootstrap: the bootstrap's side
  * wires Sql\Connection over its handle, and the SchemaInterface over its driver.
@@ -43,12 +50,19 @@ final class Module implements ModuleInterface, TableOwnerInterface {
 		return array();
 	}
 
+	public function version(): string {
+		return '2.0.0';
+	}
+
 	public function wire(Wiring $wiring): void {
 		$wiring->service(DeclaredSchema::class, fn (Container $c): object => new DeclaredSchema(...$c->get(ModuleRegistry::class)->modules()));
 		$wiring->service(SchemaSynchronizer::class, fn (Container $c): object => new SchemaSynchronizer($c->get(DeclaredSchema::class), $c->get(SchemaInterface::class)));
 		$wiring->service(DeclaredPatches::class, fn (Container $c): object => new DeclaredPatches(...$c->get(ModuleRegistry::class)->modules()));
 		$wiring->service(AppliedPatchesInterface::class, fn (Container $c): object => new AppliedPatches($c->get(Connection::class)));
 		$wiring->service(PatchApplier::class, fn (Container $c): object => new PatchApplier($c->get(DeclaredPatches::class), $c->get(AppliedPatchesInterface::class), $c));
+		$wiring->service(InstalledVersionsInterface::class, fn (Container $c): object => new InstalledVersions($c->get(Connection::class), new SchemaReader($c->get(Connection::class))));
+		$wiring->service(ModuleVersions::class, fn (Container $c): object => new ModuleVersions($c->get(InstalledVersionsInterface::class), ...$c->get(ModuleRegistry::class)->modules()));
+		$wiring->service(ModuleUpgrade::class, fn (Container $c): object => new ModuleUpgrade($c->get(ModuleVersions::class), $c->get(SchemaSynchronizer::class), $c->get(PatchApplier::class)));
 	}
 
 	public function tables(Platform $platform): array {
@@ -56,6 +70,12 @@ final class Module implements ModuleInterface, TableOwnerInterface {
 			new Table('data_patches', array(
 				new Column('name', 'VARCHAR(150)', false, ''),
 				new Column('applied', 'INT(10) UNSIGNED', false, 0),
+			), array('name')),
+			// A module's schema and data versions apart, as Magento's setup_module keeps them
+			new Table('modules', array(
+				new Column('name', 'VARCHAR(50)', false, ''),
+				new Column('schema_version', 'VARCHAR(50)', false, '0'),
+				new Column('data_version', 'VARCHAR(50)', false, '0'),
 			), array('name')),
 		);
 	}

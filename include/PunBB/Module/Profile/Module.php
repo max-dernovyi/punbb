@@ -66,6 +66,10 @@ final class Module implements ModuleInterface {
 		return array();
 	}
 
+	public function version(): string {
+		return '2.0.0';
+	}
+
 	public function wire(Wiring $wiring): void {
 		$wiring->contract(ProfilesInterface::class, ProfilesInterceptor::class, fn (Container $c): object => new Profiles($c->get(Connection::class)));
 		$wiring->service(UploadedFilesInterface::class, fn (): object => new UploadedFiles());

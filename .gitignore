@@ -8,6 +8,7 @@ img/avatars/
 db.sqlite
 test.php
 /extensions/
+/modules/
 .htaccess
 /vendor/
 /.dev/tmp/

@@ -30,6 +30,10 @@ final class Module implements ModuleInterface {
 		return array();
 	}
 
+	public function version(): string {
+		return '2.0.0';
+	}
+
 	public function wire(Wiring $wiring): void {
 		$wiring->service(TemplateRenderer::class, fn (): object => new TemplateRenderer());
 		$wiring->service(Layout::class, fn (Container $c): object => new Layout($c->get(EventDispatcher::class), $c->get(TemplateRenderer::class)));

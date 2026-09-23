@@ -2,8 +2,9 @@
 /**
  * The Composer manifest as a runtime contract: the extensions the forum calls
  * into must be declared in `require`, the vendor tree must stay out of the
- * repository while the lock file stays in it, and the PunBB\ namespace — and
- * the fixture modules' namespace in development — map onto trees of modules.
+ * repository while the lock file stays in it, and the PunBB\ namespace, the
+ * installed modules' PunBBModule\ and, in development, the fixture modules'
+ * namespace map onto trees of modules.
  *
  * @copyright (C) 2008-2012 PunBB, partially based on code (C) 2008-2009 FluxBB.org
  * @license http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
@@ -14,11 +15,10 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use PunBB\Module\Framework\Container\Container;
 use PunBB\Module\Framework\Modules\ModuleRegistry;
+use PunBB\Module\Framework\Modules\ModuleTree;
 
 class ComposerManifestTest extends TestCase {
 	private const NAMESPACE_ROOT = 'include/PunBB/';
-
-	private const MODULE_DIRECTORY = FORUM_ROOT.'include/PunBB/Module';
 
 	private const FIXTURE_ROOT = '.dev/tests/fixtures/modules/';
 
@@ -137,8 +137,9 @@ class ComposerManifestTest extends TestCase {
 		);
 	}
 
-	public function testThePunbbNamespaceIsMappedOntoItsTree(): void {
-		$this->assertSame(array('psr-4' => array('PunBB\\' => self::NAMESPACE_ROOT)), $this->manifest()['autoload']);
+	/** A third-party module unpacked into modules/ autoloads through the PSR-4 map: nothing to dump or compile. */
+	public function testThePunbbNamespacesAreMappedOntoTheirTrees(): void {
+		$this->assertSame(array('psr-4' => array('PunBB\\' => self::NAMESPACE_ROOT, 'PunBBModule\\' => 'modules/')), $this->manifest()['autoload']);
 	}
 
 	/** The fixture modules autoload in development only; a --no-dev install never sees them. */
@@ -233,11 +234,11 @@ class ComposerManifestTest extends TestCase {
 		$this->assertSame(array(), $problems, implode("\n", $problems));
 	}
 
-	/** The fixture modules register on top of the forum's, as a test registers them. */
+	/** The fixture modules register on top of the forum's, as a third-party tree. */
 	private static function registry(string $tree, string $namespace): ModuleRegistry {
-		$forum = ModuleRegistry::discover(self::MODULE_DIRECTORY, 'PunBB\\Module\\');
+		$forum = ModuleTree::core(FORUM_ROOT);
 
-		return $tree === self::NAMESPACE_ROOT ? $forum : ModuleRegistry::discover(FORUM_ROOT.$tree, $namespace, ...$forum->modules());
+		return $tree === self::NAMESPACE_ROOT ? ModuleRegistry::discover($forum) : ModuleRegistry::discover($forum, new ModuleTree(FORUM_ROOT.$tree, $namespace));
 	}
 
 	#[DataProvider('namespaceTreeProvider')]
@@ -256,6 +257,7 @@ class ComposerManifestTest extends TestCase {
 	#[DataProvider('namespaceTreeProvider')]
 	public function testTheModuleGraphHasNoCycleAndWiresAContainer(string $tree, string $namespace): void {
 		$registry = self::registry($tree, $namespace);
+		$this->assertSame(array(), $registry->skipped());
 		$position = array_flip($registry->names());
 
 		foreach ($registry->modules() as $module)

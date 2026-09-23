@@ -20,16 +20,36 @@ final class SchemaSynchronizer {
 
 	/** @return list<ChangeInterface> what the database lacks of the declared schema, table by table in declared order */
 	public function changes(Platform $platform): array {
+		return $this->diff($this->declared->tables($platform), $platform);
+	}
+
+	/** @return list<ChangeInterface> the changes made */
+	public function synchronize(Platform $platform): array {
+		return $this->apply($this->changes($platform));
+	}
+
+	/** @return list<ChangeInterface> the changes made to the tables module $module declares, and to no other */
+	public function synchronizeModule(string $module, Platform $platform): array {
+		return $this->apply($this->diff($this->declared->tablesOf($module, $platform), $platform));
+	}
+
+	/**
+	 * @param list<Table> $tables
+	 * @return list<ChangeInterface>
+	 */
+	private function diff(array $tables, Platform $platform): array {
 		$changes = array();
-		foreach ($this->declared->tables($platform) as $table)
+		foreach ($tables as $table)
 			array_push($changes, ...$this->differ->diff($table, $this->schema->describe($table->name), $platform));
 
 		return $changes;
 	}
 
-	/** @return list<ChangeInterface> the changes made */
-	public function synchronize(Platform $platform): array {
-		$changes = $this->changes($platform);
+	/**
+	 * @param list<ChangeInterface> $changes
+	 * @return list<ChangeInterface>
+	 */
+	private function apply(array $changes): array {
 		foreach ($changes as $change)
 			$change->applyTo($this->schema);
 

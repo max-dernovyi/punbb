@@ -38,6 +38,10 @@ final class Module implements ModuleInterface {
 		return array();
 	}
 
+	public function version(): string {
+		return '2.0.0';
+	}
+
 	public function wire(Wiring $wiring): void {
 		$wiring->contract(MemberDirectoryInterface::class, MemberDirectoryInterceptor::class, fn (Container $c): object => new MemberDirectory($c->get(Connection::class)));
 

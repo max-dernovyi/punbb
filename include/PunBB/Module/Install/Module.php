@@ -8,8 +8,10 @@ use PunBB\Module\Database\Schema\SchemaInterface;
 use PunBB\Module\Database\Patch\PatchApplier;
 use PunBB\Module\Database\Schema\SchemaSynchronizer;
 use PunBB\Module\Database\Sql\Connection;
+use PunBB\Module\Database\Version\ModuleVersions;
 use PunBB\Module\Framework\Container\Container;
 use PunBB\Module\Framework\Modules\ModuleInterface;
+use PunBB\Module\Framework\Modules\ModuleRegistry;
 use PunBB\Module\Framework\Modules\Wiring;
 use PunBB\Module\Install\Api\BoardInstallationInterface;
 use PunBB\Module\Install\Controller\InstallController;
@@ -46,6 +48,10 @@ final class Module implements ModuleInterface {
 		return array();
 	}
 
+	public function version(): string {
+		return '2.0.0';
+	}
+
 	public function wire(Wiring $wiring): void {
 		$wiring->contract(BoardInstallationInterface::class, BoardInstallationInterceptor::class, fn (Container $c): object => new BoardInstallation($c->get(Connection::class)));
 
@@ -65,12 +71,14 @@ final class Module implements ModuleInterface {
 				$c->get(SchemaInterface::class),
 				$c->get(SchemaSynchronizer::class),
 				$c->get(PatchApplier::class),
+				$c->get(ModuleVersions::class),
 				$c->get(DatabaseInterface::class),
 				$c->get(EnvironmentInterface::class),
 				$c->get(PasswordsInterface::class),
 				$c->get(RandomKeysInterface::class),
 				$c->get(PostIndexInterface::class),
-				$c->get(BundledExtensionsInterface::class)
+				$c->get(BundledExtensionsInterface::class),
+				$c->get(ModuleRegistry::class)->thirdParty()
 			)
 		), setup: true);
 	}

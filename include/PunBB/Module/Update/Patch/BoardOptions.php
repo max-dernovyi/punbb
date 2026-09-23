@@ -38,6 +38,9 @@ final class BoardOptions {
 	/** The option naming the column ConvertTables is altering, whether its collation is binary and its type: 'users:username:0:varchar(200)'. */
 	public const ALTERED_COLUMN = 'update:altering';
 
+	/** The option marking an update its start began, removed as its finish ends: the finish of a board with no module left behind. */
+	public const UNDER_WAY = 'update:under_way';
+
 	/** The options that hold an update's progress, removed when it finishes; forum_config_add() refuses the 'update:' prefix. */
 	public const PROGRESS = array(self::LEGACY_CHARSET, self::CONVERSION_CURSOR, self::MISC_DIGESTS, self::MISC_DIGESTS_WRITTEN, self::GROUP_REORDER, self::ALTERED_COLUMN);
 

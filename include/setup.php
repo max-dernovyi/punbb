@@ -42,4 +42,4 @@ if (function_exists('set_time_limit'))
 	set_time_limit(0);
 
 // The composition root of a setup route: nothing past this point is the board's
-$forum_container = PunBB\Module\Framework\Modules\ModuleRegistry::discover(FORUM_ROOT.'include/PunBB/Module', 'PunBB\\Module\\')->container();
+$forum_container = PunBB\Module\Framework\Modules\ModuleRegistry::forum(FORUM_ROOT, error_log(...))->container();

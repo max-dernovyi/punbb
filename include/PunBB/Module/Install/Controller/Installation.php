@@ -8,6 +8,7 @@ use PunBB\Module\Database\Patch\PatchApplier;
 use PunBB\Module\Database\Schema\SchemaInterface;
 use PunBB\Module\Database\Schema\SchemaSynchronizer;
 use PunBB\Module\Database\Sql\Platform;
+use PunBB\Module\Database\Version\ModuleVersions;
 use PunBB\Module\Install\Api\BoardInstallationInterface;
 use PunBB\Module\Install\Indexing\PostIndexInterface;
 use PunBB\Module\Install\Manifest\BundledExtensionsInterface;
@@ -25,8 +26,9 @@ use PunBB\Module\Site\Security\RandomKeysInterface;
 /**
  * An installation, over the database the form named once it is open: the
  * tables every module declares, and the rows a board starts with, in one
- * transaction. The rows are written in the shape the data patches lead to, so
- * every patch is recorded as applied.
+ * transaction. The forum's own rows are written in the shape its data patches
+ * lead to, so those are recorded as applied; a third-party module's patches
+ * run once the rows are there, and its data version is recorded after them.
  */
 final class Installation {
 	public function __construct(
@@ -34,12 +36,15 @@ final class Installation {
 		private readonly SchemaInterface $schema,
 		private readonly SchemaSynchronizer $synchronizer,
 		private readonly PatchApplier $patches,
+		private readonly ModuleVersions $versions,
 		private readonly DatabaseInterface $database,
 		private readonly EnvironmentInterface $environment,
 		private readonly PasswordsInterface $passwords,
 		private readonly RandomKeysInterface $keys,
 		private readonly PostIndexInterface $index,
-		private readonly BundledExtensionsInterface $extensions
+		private readonly BundledExtensionsInterface $extensions,
+		/** @var list<string> the third-party modules, whose patches no row written here stands in for */
+		private readonly array $thirdParty = array()
 	) {}
 
 	/** Whether a board is installed in the database already. */
@@ -55,7 +60,8 @@ final class Installation {
 		$this->database->startTransaction();
 
 		$this->synchronizer->synchronize(Platform::ofDbType($submission->database->type));
-		$this->patches->recordAll();
+		$this->patches->recordAll(...$this->thirdParty);
+		$this->versions->recordAll(...$this->thirdParty);
 
 		$now = time();
 
@@ -99,6 +105,13 @@ final class Installation {
 		$this->index->index($postId, $message, $subject);
 
 		$this->board->addRanks(new Rank(self::text($strings, 'Default rank 1'), 0), new Rank(self::text($strings, 'Default rank 2'), 10));
+
+		foreach ($this->patches->pending() as $patch)
+			for ($startAt = 0; $startAt !== null; $startAt = $this->patches->apply($patch, $startAt)->next);
+
+		// Recorded only now, so a patch that failed on MyISAM is run again by the update.
+		foreach ($this->thirdParty as $module)
+			$this->versions->recordData($module);
 
 		$this->database->endTransaction();
 	}

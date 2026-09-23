@@ -4,30 +4,44 @@
  * it opens the database, the checks that a board is one it updates, the start
  * form, the schema the start brings a board to, the data patches applied a
  * batch per request — a 1.4 board's and a 1.2 board's conversion — a patch
- * that fails, and the finish.
+ * that fails, and the finish; each module brought up only when its recorded
+ * version is behind, and a board that records none brought up whole.
  *
  * @copyright (C) 2008-2012 PunBB, partially based on code (C) 2008-2009 FluxBB.org
  * @license http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
  * @package PunBB
  */
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use PunBB\Module\Database\Patch\DataPatchInterface;
 use PunBB\Module\Database\Patch\DeclaredPatches;
 use PunBB\Module\Database\Patch\PatchApplier;
+use PunBB\Module\Database\Patch\PatchDeclaration;
 use PunBB\Module\Database\Patch\PatchException;
+use PunBB\Module\Database\Patch\PatchOwnerInterface;
+use PunBB\Module\Database\Schema\Column;
 use PunBB\Module\Database\Schema\DeclaredSchema;
 use PunBB\Module\Database\Schema\InstalledColumn;
 use PunBB\Module\Database\Schema\InstalledIndex;
 use PunBB\Module\Database\Schema\InstalledTable;
 use PunBB\Module\Database\Schema\SchemaInterface;
 use PunBB\Module\Database\Schema\SchemaSynchronizer;
+use PunBB\Module\Database\Schema\Table;
+use PunBB\Module\Database\Schema\TableOwnerInterface;
 use PunBB\Module\Database\Sql\Connection;
 use PunBB\Module\Database\Sql\Driver\DriverInterface;
 use PunBB\Module\Database\Sql\Platform;
+use PunBB\Module\Database\Version\InstalledVersion;
+use PunBB\Module\Database\Version\ModuleUpgrade;
+use PunBB\Module\Database\Version\ModuleVersions;
 use PunBB\Module\Framework\Container\Container;
 use PunBB\Module\Framework\Http\Request;
 use PunBB\Module\Framework\Http\Response;
+use PunBB\Module\Framework\Modules\ModuleInterface;
 use PunBB\Module\Framework\Modules\ModuleRegistry;
+use PunBB\Module\Framework\Modules\ModuleTree;
+use PunBB\Module\Framework\Modules\Wiring;
 use PunBB\Module\Layout\View\TemplateRenderer;
 use PunBB\Module\Setup\Config\BoardConfiguration;
 use PunBB\Module\Setup\Database\DatabaseInterface;
@@ -247,7 +261,15 @@ class UpdateControllerTest extends TestCase {
 
 	private JournalAppliedPatches $applied;
 
+	private JournalInstalledVersions $versions;
+
+	/** @var array<string, string> module => its declared version */
+	private array $declared = array();
+
 	private UpdateController $controller;
+
+	/** @var Closure(list<ModuleInterface>): UpdateController the updater of these modules */
+	private Closure $updater;
 
 	protected function setUp(): void {
 		$this->journal = new SetupJournal();
@@ -260,9 +282,13 @@ class UpdateControllerTest extends TestCase {
 		$this->data = new FakeBoardData($this->journal);
 		$this->conversion = new FakeConversion($this->journal);
 		$this->applied = new JournalAppliedPatches($this->journal);
+		$this->versions = new JournalInstalledVersions($this->journal);
 		$database = new FakeSetupDatabase($this->journal);
 		$pages = new SetupPage(new TemplateRenderer());
-		$modules = ModuleRegistry::discover(FORUM_ROOT.'include/PunBB/Module', 'PunBB\\Module\\')->modules();
+		$modules = ModuleRegistry::discover(ModuleTree::core(FORUM_ROOT))->modules();
+
+		foreach ($modules as $module)
+			$this->declared[$module->name()] = $module->version();
 
 		// What the Update module's patches are built from
 		$container = new Container(array(
@@ -277,10 +303,27 @@ class UpdateControllerTest extends TestCase {
 			Connection::class				=> fn (): object => new Connection(new IdleMysqlDriver(), 'pun_'),
 		));
 
-		$this->controller = new UpdateController($this->environment, $this->configuration, $database, $pages,
-			fn (): Update => new Update($this->settings, $this->data, $this->schema, $database, $this->environment, $this->files, $pages, new TemplateRenderer(),
+		$this->updater = fn (array $modules): UpdateController => new UpdateController($this->environment, $this->configuration, $database, $pages,
+			fn (): Update => new Update($this->settings, $this->data, $this->schema, $database, $this->environment, $this->files, $pages, new TemplateRenderer(), new ModuleUpgrade(
+				new ModuleVersions($this->versions, ...$modules),
 				new SchemaSynchronizer(new DeclaredSchema(...$modules), $this->schema),
-				new PatchApplier(new DeclaredPatches(...$modules), $this->applied, $container)));
+				new PatchApplier(new DeclaredPatches(...$modules), $this->applied, $container)
+			)));
+		$this->controller = ($this->updater)($modules);
+	}
+
+	/**
+	 * A board at this release: every patch applied, every module recorded at its version but one in $behind.
+	 *
+	 * @param array<string, InstalledVersion> $behind module => what the board records for it
+	 */
+	private function atRelease(array $behind = array()): void {
+		$this->settings->config['o_cur_version'] = '1.5.1';
+		$this->settings->config['o_database_revision'] = '6';
+		$this->applied->names = self::PATCHES;
+
+		foreach ($this->declared as $module => $version)
+			$this->versions->versions[$module] = $behind[$module] ?? new InstalledVersion($version, $version);
 	}
 
 	/** @param array<string, string> $query */
@@ -366,14 +409,37 @@ class UpdateControllerTest extends TestCase {
 	}
 
 	public function testAnUpToDateBoardIsToldSoUnderItsTitle(): void {
-		$this->settings->config['o_cur_version'] = '1.5.1';
-		$this->settings->config['o_database_revision'] = '6';
+		$this->atRelease();
 
 		$response = $this->get();
 
 		$this->assertSame(503, $response->status);
 		$this->assertStringContainsString('<title>Error - Board &amp; co</title>', $response->body);
 		$this->assertStringContainsString("\t<h1>Sorry! The page could not be loaded.</h1>\n<p>Your database is already as up-to-date as this script can make it.</p>\n</body>\n</html>\n", $response->body);
+	}
+
+	/** The release and the revision current, the board is still updated while a module is behind or none is recorded at all. */
+	public function testABoardAtTheReleaseWithAModuleBehindIsOfferedTheUpdate(): void {
+		$this->atRelease(array('Ranks' => new InstalledVersion('1.4.0', '1.3.0')));
+		$this->assertStringContainsString('value="Start update"', $this->get()->body, 'data behind');
+
+		$this->atRelease(array('Ranks' => new InstalledVersion('1.3.0', '1.4.0')));
+		$this->assertStringContainsString('value="Start update"', $this->get()->body, 'schema behind');
+
+		$this->atRelease();
+		$this->versions->versions = array();
+		$this->assertStringContainsString('value="Start update"', $this->get()->body, 'a board from before module versions');
+	}
+
+	/** Below the revision a board is from before 2.0, whatever it records of its modules. */
+	public function testABoardBelowTheRevisionIsUpdatedWithEveryModuleRecorded(): void {
+		$this->atRelease();
+		$this->settings->config['o_database_revision'] = '5';
+
+		$this->assertStringContainsString('value="Start update"', $this->get()->body);
+
+		unset($this->settings->config['o_database_revision']);
+		$this->assertStringContainsString('value="Start update"', $this->get()->body, 'a board older than the revision itself');
 	}
 
 	public function testTheFormOffersTheConversionOnlyToA12Board(): void {
@@ -424,13 +490,106 @@ class UpdateControllerTest extends TestCase {
 
 		$body = $this->get(array('stage' => 'start'))->body;
 
-		$this->assertStringStartsWith("Create table data_patches…<br />\nDrop index online.user_id_idx…<br />\nCreate table users…<br />", $body);
+		$this->assertStringStartsWith("Create table data_patches…<br />\nCreate table modules…<br />\nDrop index online.user_id_idx…<br />\nCreate table users…<br />", $body);
 		$this->assertStringContainsString('<script type="text/javascript">window.location="db_update.php?stage=patch"</script><br />JavaScript seems to be disabled. <a href="db_update.php?stage=patch">Click here to continue</a>.', $body);
-		$this->assertCount(20, $this->journal->starting('create'), 'every table but the one the board has');
+		$this->assertCount(21, $this->journal->starting('create'), 'every table but the one the board has');
 		$this->assertLessThan(array_search('create data_patches', $this->journal->entries, true), array_search('empty online', $this->journal->entries, true), 'the online list is empty before a key over it is added');
 		$this->assertSame(array(), $this->journal->starting('record'), 'no patch is applied yet');
 		$this->assertSame(array(), $this->journal->starting('remove setting'), 'a 1.4 board has no text to convert');
 		$this->assertSame(array('remove extension hotfix_1_4_3'), $this->journal->starting('remove extension'));
+
+		// A board from before module versions records none: every module's tables are brought up, and recorded once they are
+		$this->assertSame(array_map(static fn (string $module, string $version): string => 'version '.$module.' schema '.$version, array_keys($this->declared), $this->declared), $this->journal->starting('version'), 'every module\'s schema, in load order, and no data yet');
+		$this->assertGreaterThan(array_search('create users', $this->journal->entries, true), array_search('version Framework schema 2.0.0', $this->journal->entries, true), 'recorded once the table recording it is created');
+	}
+
+	public function testTheStartSynchronizesOnlyTheTablesOfAModuleBehind(): void {
+		$this->atRelease(array('Ranks' => new InstalledVersion('1.3.0', '1.3.0'), 'Reports' => new InstalledVersion('1.4.0', '1.3.0')));
+
+		$body = $this->get(array('stage' => 'start'))->body;
+
+		// The fake database has no table at all: every one would be created, were its module brought up
+		$this->assertStringStartsWith("Create table ranks…<br />\n<script", $body);
+		$this->assertSame(array('create ranks'), $this->journal->starting('create'), 'not Reports\', whose schema is current, nor any other');
+		$this->assertSame(array('version Ranks schema 1.4.0'), $this->journal->starting('version'), 'the data waits for the patches');
+		$this->assertSame(array('stage' => 'finish'), self::next($body), 'neither declares a patch');
+
+		$this->get(array('stage' => 'finish'));
+
+		$this->assertSame(array('version Ranks schema 1.4.0', 'version Ranks data 1.4.0', 'version Reports data 1.4.0'), $this->journal->starting('version'));
+		$this->assertSame(array(), $this->journal->starting('record'));
+	}
+
+	/** Its schema brought up by the start, no module is behind; the update under way still reaches its finish, and only then is the board up to date. */
+	public function testABoardWhoseModulesTheStartBroughtUpIsLetOnToTheFinish(): void {
+		$this->atRelease(array('Reports' => new InstalledVersion('1.3.0', '1.4.0')));
+
+		$this->assertSame(array('stage' => 'finish'), self::next($this->get(array('stage' => 'start'))->body));
+		$this->assertSame(array('add setting update:under_way=1'), $this->journal->starting('add setting'));
+		$this->assertSame(array('version Reports schema 1.4.0'), $this->journal->starting('version'));
+
+		$this->assertStringContainsString('PunBB Database Update completed!', $this->get(array('stage' => 'finish'))->body);
+		$this->assertSame(array('set o_cur_version=1.5.1', 'set o_database_revision=6', 'remove setting update:under_way'), array_slice(array_values(array_filter($this->journal->entries, static fn (string $entry): bool => preg_match('/^(set o_|remove setting update:under_way)/', $entry) === 1)), -3), 'the mark goes last');
+		$this->assertStringContainsString('already as up-to-date', $this->get(array('stage' => 'finish'))->body);
+	}
+
+	public function testOnlyThePatchesOfAModuleWhoseDataIsBehindAreApplied(): void {
+		$this->atRelease();
+		$this->settings->config['o_cur_version'] = '1.4.4';
+		$this->applied->names = array();
+
+		$this->assertSame(array('stage' => 'finish'), self::next($this->get(array('stage' => 'start'))->body), 'the Update module\'s data is current, so its patches are not looked for');
+		$this->assertSame(array(), $this->journal->starting('record'));
+		$this->assertSame(array(), $this->journal->starting('version'));
+	}
+
+	/** @return array<string, array{list<Table>, list<PatchDeclaration>, string}> */
+	public static function clashingModuleProvider(): array {
+		return array(
+			'a table another module declares'	=> array(array(new Table('users', array(new Column('id', 'SERIAL')), array('id'))), array(), 'Modules Site and Clashing both declare table &quot;users&quot;. Remove the module at fault from modules/ and run the update again.'),
+			'a patch named for another module'	=> array(array(), array(new PatchDeclaration('Site::clash', array(), static fn (): DataPatchInterface => throw new LogicException('never built'))), 'Module Clashing declares data patch &quot;Site::clash&quot;; a patch is named Clashing::&lt;lowercase_name&gt;, at most 150 characters. Remove the module at fault from modules/ and run the update again.'),
+		);
+	}
+
+	/**
+	 * A third-party module whose declarations do not fit the forum's is named on the page, and nothing is changed for it.
+	 *
+	 * @param list<Table> $tables
+	 * @param list<PatchDeclaration> $patches
+	 */
+	#[DataProvider('clashingModuleProvider')]
+	public function testAModuleClashingWithAnotherIsNamedForTheOneRunningTheUpdate(array $tables, array $patches, string $message): void {
+		$modules = ModuleRegistry::discover(ModuleTree::core(FORUM_ROOT))->modules();
+		$modules[] = new class ($tables, $patches) implements ModuleInterface, TableOwnerInterface, PatchOwnerInterface {
+			/**
+			 * @param list<Table> $tables
+			 * @param list<PatchDeclaration> $patches
+			 */
+			public function __construct(private readonly array $tables, private readonly array $patches) {}
+
+			public function name(): string { return 'Clashing'; }
+
+			public function dependencies(): array { return array(); }
+
+			public function loadAfter(): array { return array(); }
+
+			public function version(): string { return '1.0.0'; }
+
+			public function wire(Wiring $wiring): void {}
+
+			public function tables(Platform $platform): array { return $this->tables; }
+
+			public function patches(): array { return $this->patches; }
+		};
+		$this->controller = ($this->updater)($modules);
+		$this->atRelease();
+
+		$body = $this->get(array('stage' => 'start'))->body;
+
+		$this->assertStringContainsString($message, $body);
+		$this->assertSame(array(), $this->journal->starting('create'));
+		$this->assertNotContains('version Clashing data 1.0.0', $this->journal->entries);
+		$this->assertNotContains('add setting update:under_way=1', $this->journal->entries, 'a failed start leaves the update closed once the module is removed');
 	}
 
 	public function testThe12TextsCharacterSetIsKeptForThePatches(): void {
@@ -465,6 +624,8 @@ class UpdateControllerTest extends TestCase {
 		$this->assertCount(16, $this->applyAll());
 
 		$this->assertSame(array_map(static fn (string $patch): string => 'record '.$patch, self::PATCHES), $this->journal->starting('record'));
+		$this->assertSame(array('version Update data 2.0.0'), $this->journal->starting('version'), 'the one module declaring patches, once they are all applied');
+		$this->assertSame(array('record Update::preparse_signatures', 'version Update data 2.0.0'), array_slice(array_values(array_filter($this->journal->entries, static fn (string $entry): bool => preg_match('/^(record|version) /', $entry) === 1)), -2));
 		$this->assertSame(array('avatar 3 3 60x60'), $this->journal->starting('avatar'));
 		$this->assertSame(array('remove avatar 4.jpg', 'remove avatar 5.gif'), $this->journal->starting('remove avatar'));
 		$this->assertContains('add setting o_sef=Default', $this->journal->entries);
@@ -734,7 +895,7 @@ class UpdateControllerTest extends TestCase {
 
 		$this->get(array('stage' => 'finish'));
 
-		$this->assertSame(array('remove setting update:converted_misc_1,update:converted_misc_3,update:charset,update:converted,update:converted_misc,update:converted_misc_written,update:groups,update:altering'), $this->journal->starting('remove setting'), 'the parts go before the lists naming them');
+		$this->assertSame(array('remove setting update:converted_misc_1,update:converted_misc_3,update:charset,update:converted,update:converted_misc,update:converted_misc_written,update:groups,update:altering', 'remove setting update:under_way'), $this->journal->starting('remove setting'), 'the parts go before the lists naming them');
 		$this->assertArrayNotHasKey('update:converted_misc_written', $this->settings->config);
 		$this->assertArrayNotHasKey('update:converted_misc_1', $this->settings->config);
 		$this->assertArrayNotHasKey('update:converted_misc_3', $this->settings->config, 'a part the interrupted write claimed is removed');
@@ -848,6 +1009,7 @@ class UpdateControllerTest extends TestCase {
 
 		$this->assertSame('roll back', array_slice($this->journal->entries, -1)[0]);
 		$this->assertSame(array(), $this->journal->starting('record'));
+		$this->assertSame(array(), $this->journal->starting('version'));
 	}
 
 	public function testABoardWithEveryPatchRecordedGoesOnToTheFinish(): void {
@@ -867,6 +1029,34 @@ class UpdateControllerTest extends TestCase {
 		$this->assertSame('4', $this->settings->config['o_database_revision']);
 		$this->assertSame(array(), $this->journal->starting('set o_'));
 		$this->assertSame(array(), $this->journal->starting('remove setting'));
+		$this->assertSame(array(), $this->journal->starting('version'), 'no module\'s data is done');
+	}
+
+	public function testABoardFromBeforeModuleVersionsIsRecordedWholeAndARunAgainChangesNothing(): void {
+		$this->get(array('stage' => 'start'));
+		$this->applyAll();
+		$this->get(array('stage' => 'finish'));
+
+		$recorded = array();
+		foreach ($this->declared as $module => $version)
+			$recorded[$module] = new InstalledVersion($version, $version);
+
+		$this->assertEquals($recorded, $this->versions->versions, 'every module at its version, schema and data');
+		$this->assertLessThan(array_search('set o_cur_version=1.5.1', $this->journal->entries, true), array_search('version Framework data 2.0.0', $this->journal->entries, true), 'the release is recorded last');
+		$this->assertStringContainsString('already as up-to-date', $this->get()->body);
+
+		// Set back to its release, it goes from the start straight to the finish
+		$this->settings->config['o_cur_version'] = '1.4.4';
+		$this->settings->config['o_database_revision'] = '4';
+		$this->journal->entries = array();
+
+		$body = $this->get(array('stage' => 'start'))->body;
+		$this->assertStringNotContainsString('…', $body);
+		$this->assertSame(array('stage' => 'finish'), self::next($body));
+
+		$this->get(array('stage' => 'finish'));
+		$this->assertSame(array(), array_merge($this->journal->starting('create'), $this->journal->starting('record'), $this->journal->starting('version')));
+		$this->assertEquals($recorded, $this->versions->versions);
 	}
 
 	public function testTheFinishRecordsTheReleaseAndMovesTheAddressIntoConfigPhp(): void {
@@ -874,7 +1064,7 @@ class UpdateControllerTest extends TestCase {
 		$body = $this->get(array('stage' => 'finish'))->body;
 
 		$this->assertSame(array('sync 1', 'sync 2', 'empty search cache', 'empty online', 'clear cache', 'set o_cur_version=1.5.1', 'set o_database_revision=6'), array_values(array_filter($this->journal->entries, static fn (string $entry): bool => preg_match('/^(set o_(cur|database)|sync|empty|clear)/', $entry) === 1)));
-		$this->assertSame(array('remove setting update:charset,update:converted,update:converted_misc,update:converted_misc_written,update:groups,update:altering'), $this->journal->starting('remove setting'));
+		$this->assertSame(array('remove setting update:charset,update:converted,update:converted_misc,update:converted_misc_written,update:groups,update:altering', 'remove setting update:under_way'), $this->journal->starting('remove setting'));
 		$this->assertStringContainsString('<h1 class="hn"><span>PunBB Database Update completed!</span></h1>', $body);
 		$this->assertStringContainsString('You may <a href="http://forum.test/index.php">go to the forum index</a> now.', $body);
 		$this->assertSame(array(), $this->journal->starting('replace config'));
@@ -887,7 +1077,7 @@ class UpdateControllerTest extends TestCase {
 
 		$body = $this->get(array('stage' => 'finish'))->body;
 
-		$this->assertSame(array('remove setting update:charset,update:converted,update:converted_misc,update:converted_misc_written,update:groups,update:altering'), $this->journal->starting('remove setting'));
+		$this->assertSame(array('remove setting update:charset,update:converted,update:converted_misc,update:converted_misc_written,update:groups,update:altering', 'remove setting update:under_way'), $this->journal->starting('remove setting'));
 		$this->assertSame('http://old.test', $this->settings->config['o_base_url'], 'until the copy is saved, the stored address is what the forum and a rerun fall back to');
 		$this->assertStringContainsString(htmlspecialchars("\$p_connect = true;\n\n\$base_url = 'http://old.test';\n\n\$cookie_name = 'cookie';\n\$cookie_domain = '.forum.test';\n\$cookie_path = '/forum/';\n\$cookie_secure = 1;\n\ndefine('FORUM', 1);", ENT_QUOTES).'</textarea>', $body);
 		$this->assertStringNotContainsString('FORUM_DEBUG', $body, 'an updated config.php offers no options');

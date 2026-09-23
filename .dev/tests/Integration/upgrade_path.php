@@ -6,9 +6,10 @@
  * against, then for each starting release restores its committed fixture under
  * a table prefix of its own and drives admin/db_update.php over HTTP until it
  * reports completion. It asserts that the version rows advanced, that every
- * piece of non-ASCII content came through untouched, that the schema is the
- * one the modules declare and the one the fresh install has, that a second run
- * changes nothing, and that not one PHP diagnostic was emitted along the way.
+ * piece of non-ASCII content came through untouched, that the schema, the
+ * recorded patches and the recorded module versions are the fresh install's,
+ * that a second run changes nothing, and that not one PHP diagnostic was
+ * emitted along the way.
  * It then walks the upgraded forum over HTTP — pages, the fixture extension's
  * hook, login, posting and search, the extension flows and, on MySQL, the user
  * flows — so the upgraded data is exercised, not only asserted on. It also
@@ -375,6 +376,13 @@ function upgrade_path_patches($spec)
 }
 
 
+/** The version a board records for each module, schema and data, by module. */
+function upgrade_path_modules($spec)
+{
+	return extension_flows_rows($spec, 'SELECT name, schema_version, data_version FROM %pmodules ORDER BY name');
+}
+
+
 /**
  * Every piece of text the upgrade must not touch, in a stable order. Compared
  * before and after the run: the update script rewrites schema, never content.
@@ -515,7 +523,7 @@ function upgrade_path_fresh($db_type, $base_url, $log, &$failures)
 			return null;
 		}
 
-		return array('schema' => upgrade_path_schema($spec), 'patches' => upgrade_path_patches($spec));
+		return array('schema' => upgrade_path_schema($spec), 'patches' => upgrade_path_patches($spec), 'modules' => upgrade_path_modules($spec));
 	}
 	finally
 	{
@@ -624,6 +632,7 @@ function upgrade_path_state($spec)
 		'schema' => upgrade_path_schema($spec),
 		'content' => upgrade_path_content($spec),
 		'patches' => extension_flows_rows($spec, 'SELECT name, applied FROM %pdata_patches ORDER BY name'),
+		'modules' => upgrade_path_modules($spec),
 	);
 }
 
@@ -631,8 +640,8 @@ function upgrade_path_state($spec)
 /**
  * The update run a second time over the board it just upgraded. As it stands
  * the script refuses, the board being up to date; set back to the version rows
- * of $fixture, it finds nothing to change in the schema and every patch
- * recorded, so it goes from the start straight to the finish. Returns the list
+ * of $fixture, it finds every module recorded at its version and every patch
+ * applied, so it goes from the start straight to the finish. Returns the list
  * of failures.
  */
 function upgrade_path_rerun($fixture, $spec, $base_url, $jar, &$diagnostics)
@@ -676,6 +685,9 @@ function upgrade_path_rerun($fixture, $spec, $base_url, $jar, &$diagnostics)
 
 	if ($after['patches'] !== $before['patches'])
 		$failures[] = 'the second run changed the recorded patches: '.json_encode($after['patches']);
+
+	if ($after['modules'] !== $before['modules'])
+		$failures[] = 'the second run changed the recorded module versions: '.json_encode($after['modules']);
 
 	return $failures;
 }
@@ -919,6 +931,10 @@ function upgrade_path_run($release, $db_type, $spec, $fresh, $base_url, $log)
 
 		if (($patches = upgrade_path_patches($spec)) !== $fresh['patches'])
 			$failures[] = 'the upgrade recorded the patches '.implode(', ', $patches).', a fresh install records '.implode(', ', $fresh['patches']);
+
+		// The fixtures predate module versions: every module is brought up and recorded as a fresh install records it
+		if (($modules = upgrade_path_modules($spec)) !== $fresh['modules'])
+			$failures[] = 'the upgrade recorded the module versions '.json_encode($modules).', a fresh install records '.json_encode($fresh['modules']);
 	}
 
 	if (!$failures)

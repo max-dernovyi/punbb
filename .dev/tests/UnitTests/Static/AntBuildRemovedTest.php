@@ -16,7 +16,7 @@ use PHPUnit\Framework\TestCase;
 
 class AntBuildRemovedTest extends TestCase {
 	/** Trees that are not ours, plus the prose that documents the removal. */
-	private const SKIP = array('vendor', '.git', 'cache', 'img', 'node_modules', 'docs', 'extensions', 'tmp');
+	private const SKIP = array('vendor', '.git', 'cache', 'img', 'node_modules', 'docs', 'extensions', 'modules', 'tmp');
 
 	/** Code and config, not prose — a ChangeLog entry naming Ant is fine. */
 	private const EXTENSIONS = array('php', 'xml', 'dist', 'neon', 'json', 'mjs', 'yml', 'yaml', 'sh');

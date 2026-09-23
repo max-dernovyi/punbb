@@ -35,6 +35,10 @@ final class Module implements ModuleInterface {
 		return array();
 	}
 
+	public function version(): string {
+		return '2.0.0';
+	}
+
 	public function wire(Wiring $wiring): void {
 		$wiring->route(array('help.php'), HelpController::class, fn (Container $c): object => new HelpController(
 			$c->get(EventDispatcher::class),

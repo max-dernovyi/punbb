@@ -11,14 +11,23 @@
  */
 
 use PHPUnit\Framework\TestCase;
+use PunBB\Module\Database\Patch\DataPatchInterface;
 use PunBB\Module\Database\Patch\DeclaredPatches;
 use PunBB\Module\Database\Patch\PatchApplier;
+use PunBB\Module\Database\Patch\PatchDeclaration;
+use PunBB\Module\Database\Patch\PatchOwnerInterface;
+use PunBB\Module\Database\Patch\PatchStep;
 use PunBB\Module\Database\Schema\DeclaredSchema;
 use PunBB\Module\Database\Schema\SchemaSynchronizer;
+use PunBB\Module\Database\Version\InstalledVersion;
+use PunBB\Module\Database\Version\ModuleVersions;
 use PunBB\Module\Framework\Container\Container;
 use PunBB\Module\Framework\Http\Request;
 use PunBB\Module\Framework\Http\Response;
+use PunBB\Module\Framework\Modules\ModuleInterface;
 use PunBB\Module\Framework\Modules\ModuleRegistry;
+use PunBB\Module\Framework\Modules\ModuleTree;
+use PunBB\Module\Framework\Modules\Wiring;
 use PunBB\Module\Install\Api\BoardInstallationInterface;
 use PunBB\Module\Install\Api\Data\AdministratorInterface;
 use PunBB\Module\Install\Api\Data\ExtensionInterface;
@@ -40,6 +49,35 @@ use PunBB\Module\Site\Security\PasswordsInterface;
 use PunBB\Module\Site\Security\RandomKeysInterface;
 
 require_once __DIR__.'/SetupFakes.php';
+
+/** A third-party module with one data patch of two batches, each journalled. */
+final class SeedingModule implements ModuleInterface, PatchOwnerInterface {
+	public function __construct(private readonly SetupJournal $journal) {}
+
+	public function name(): string { return 'Seeding'; }
+
+	public function dependencies(): array { return array(); }
+
+	public function loadAfter(): array { return array(); }
+
+	public function version(): string { return '1.0.0'; }
+
+	public function wire(Wiring $wiring): void {}
+
+	public function patches(): array {
+		$journal = $this->journal;
+
+		return array(new PatchDeclaration('Seeding::seed', array(), static fn (): DataPatchInterface => new class ($journal) implements DataPatchInterface {
+			public function __construct(private readonly SetupJournal $journal) {}
+
+			public function apply(int $startAt): PatchStep {
+				$this->journal->add('seed from '.$startAt);
+
+				return new PatchStep(array(), $startAt === 0 ? 1 : null);
+			}
+		}));
+	}
+}
 
 final class FakeBoardInstallation implements BoardInstallationInterface {
 	public bool $installed = false;
@@ -155,6 +193,8 @@ class InstallControllerTest extends TestCase {
 
 	private FakeBundledExtensions $extensions;
 
+	private ModuleVersions $moduleVersions;
+
 	private InstallController $controller;
 
 	protected function setUp(): void {
@@ -166,12 +206,19 @@ class InstallControllerTest extends TestCase {
 		$this->board = new FakeBoardInstallation($this->journal);
 		$this->language = new FakeInstallerLanguage();
 		$this->extensions = new FakeBundledExtensions();
-		$services = new FakeInstallerServices($this->journal);
-		$modules = ModuleRegistry::discover(FORUM_ROOT.'include/PunBB/Module', 'PunBB\\Module\\')->modules();
-		$patches = new PatchApplier(new DeclaredPatches(...$modules), new JournalAppliedPatches($this->journal), new Container(array()));
+		$this->controller = $this->installer();
+	}
 
-		$this->controller = new InstallController($this->environment, $this->files, $this->database, $this->language, $this->extensions, $services, $services, new SetupPage(new TemplateRenderer()), new TemplateRenderer(),
-			fn (): Installation => new Installation($this->board, $this->schema, new SchemaSynchronizer(new DeclaredSchema(...$modules), $this->schema), $patches, $this->database, $this->environment, $services, $services, $services, $this->extensions));
+	/** The installer of the forum's own modules and each of $thirdParty found in modules/. */
+	private function installer(ModuleInterface ...$thirdParty): InstallController {
+		$services = new FakeInstallerServices($this->journal);
+		$registry = ModuleRegistry::withThirdParty(ModuleRegistry::discover(ModuleTree::core(FORUM_ROOT))->modules(), array_values($thirdParty));
+		$modules = $registry->modules();
+		$patches = new PatchApplier(new DeclaredPatches(...$modules), new JournalAppliedPatches($this->journal), new Container(array()));
+		$this->moduleVersions = new ModuleVersions(new JournalInstalledVersions($this->journal), ...$modules);
+
+		return new InstallController($this->environment, $this->files, $this->database, $this->language, $this->extensions, $services, $services, new SetupPage(new TemplateRenderer()), new TemplateRenderer(),
+			fn (): Installation => new Installation($this->board, $this->schema, new SchemaSynchronizer(new DeclaredSchema(...$modules), $this->schema), $patches, $this->moduleVersions, $this->database, $this->environment, $services, $services, $services, $this->extensions, $registry->thirdParty()));
 	}
 
 	/** @param array<string, mixed> $post */
@@ -317,12 +364,17 @@ class InstallControllerTest extends TestCase {
 	public function testAnInstallationStoresTheBoardInOneTransactionAndWritesConfigPhp(): void {
 		$response = $this->post(self::form());
 
+		$versions = array();
+		foreach ($this->moduleVersions->declared() as $module => $version)
+			array_push($versions, 'version '.$module.' schema '.$version, 'version '.$module.' data '.$version);
+
 		$this->assertSame(array(
 			'open sqlite3 forum.sqlite ',
 			'start transaction',
-			'create data_patches', 'create online', 'create users', 'create bans', 'create categories', 'create censoring', 'create extensions', 'create extension_hooks', 'create forum_perms', 'create forums', 'create groups', 'create subscriptions', 'create forum_subscriptions', 'create posts', 'create topics', 'create ranks', 'create reports', 'create search_cache', 'create search_matches', 'create search_words', 'create config',
+			'create data_patches', 'create modules', 'create online', 'create users', 'create bans', 'create categories', 'create censoring', 'create extensions', 'create extension_hooks', 'create forum_perms', 'create forums', 'create groups', 'create subscriptions', 'create forum_subscriptions', 'create posts', 'create topics', 'create ranks', 'create reports', 'create search_cache', 'create search_matches', 'create search_words', 'create config',
 			'record Update::avatars', 'record Update::options', 'record Update::moderator_groups', 'record Update::group_mail', 'record Update::first_posts', 'record Update::unverified_users', 'record Update::linkedin_addresses',
 			'record Update::convert_misc', 'record Update::convert_reports', 'record Update::convert_search_words', 'record Update::convert_users', 'record Update::convert_topics', 'record Update::convert_posts', 'record Update::convert_tables', 'record Update::preparse_posts', 'record Update::preparse_signatures',
+			...$versions,
 			'groups', 'guest', 'administrator admin', 'settings', 'welcome by 2', 'index 1 Test post', 'ranks New member 0, Member 10',
 			'end transaction',
 			'clear cache',
@@ -334,6 +386,9 @@ class InstallControllerTest extends TestCase {
 		$this->assertSame(array('1.5.1', '6', 'English', 'admin@example.com', '1', '0', null, 'Sample announcement'), array($this->board->settings['o_cur_version'], $this->board->settings['o_database_revision'], $this->board->settings['o_default_lang'], $this->board->settings['o_admin_email'], $this->board->settings['o_avatars'], $this->board->settings['o_check_for_updates'], $this->board->settings['o_smtp_host'], $this->board->settings['o_announcement_heading']));
 		$this->assertSame(array('Test category', 'Test forum', 'Test post', 'admin'), array($this->board->welcome?->category(), $this->board->welcome?->forum(), $this->board->welcome?->subject(), $this->board->welcome?->poster()));
 
+		$this->assertSame(array(), $this->moduleVersions->behind(), 'every module is recorded at its declared version, schema and data');
+		$this->assertEquals(new InstalledVersion('1.5.0', '1.5.0'), $this->moduleVersions->installed('Site'));
+
 		$this->assertStringContainsString("\$base_url = 'https://forum.test';\n\n\$cookie_name = 'forum_cookie_aaaaaa';", (string) $this->files->written);
 		$this->assertStringContainsString("\$cookie_secure = 1;", (string) $this->files->written);
 
@@ -341,6 +396,18 @@ class InstallControllerTest extends TestCase {
 		$this->assertStringContainsString('Final instructions', $response->body);
 		$this->assertStringContainsString('PunBB has been fully installed! You may now <a href="../index.php">go to the forum index</a>.', $response->body);
 		$this->assertStringNotContainsString('Warning!', $response->body);
+	}
+
+	/** No row the installer writes stands in for a third-party module's data, so its patches run, batch by batch, once the board's rows are there. */
+	public function testAThirdPartyModulesPatchesRunAfterTheBoardsRows(): void {
+		$this->controller = $this->installer(new SeedingModule($this->journal));
+		$this->post(self::form());
+
+		$entries = $this->journal->entries;
+		$this->assertNotContains('record Seeding::seed', array_slice($entries, 0, (int) array_search('ranks New member 0, Member 10', $entries, true)));
+		$this->assertSame(array('ranks New member 0, Member 10', 'seed from 0', 'seed from 1', 'record Seeding::seed', 'version Seeding data 1.0.0', 'end transaction'), array_slice($entries, (int) array_search('ranks New member 0, Member 10', $entries, true), 6), 'its data version follows its patches');
+		$this->assertContains('record Update::avatars', $entries, 'the forum\'s own patches are still recorded unapplied');
+		$this->assertSame(array(), $this->moduleVersions->behind());
 	}
 
 	public function testConfigPhpItCouldNotWriteIsOfferedWithWhatToLookAfter(): void {

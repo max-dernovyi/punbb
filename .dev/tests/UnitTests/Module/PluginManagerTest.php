@@ -258,6 +258,10 @@ class PluginManagerTest extends TestCase {
 				return array();
 			}
 
+			public function version(): string {
+				return '1.0.0';
+			}
+
 			public function wire(Wiring $wiring): void {
 				$wiring->contract(GreeterInterface::class, GreeterInterceptor::class, fn (Container $c): object => new Greeter(new Journal()));
 				$wiring->plugin(GreeterInterface::class, $this->plugin, fn (): object => new ($this->plugin)());

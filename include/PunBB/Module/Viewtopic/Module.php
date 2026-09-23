@@ -39,6 +39,10 @@ final class Module implements ModuleInterface {
 		return array();
 	}
 
+	public function version(): string {
+		return '2.0.0';
+	}
+
 	public function wire(Wiring $wiring): void {
 		$wiring->contract(TopicPostsInterface::class, TopicPostsInterceptor::class, fn (Container $c): object => new TopicPosts($c->get(Connection::class)));
 

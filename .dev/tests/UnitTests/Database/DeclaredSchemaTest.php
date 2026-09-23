@@ -20,6 +20,7 @@ use PunBB\Module\Database\Sql\DatabaseException;
 use PunBB\Module\Database\Sql\Platform;
 use PunBB\Module\Framework\Modules\ModuleInterface;
 use PunBB\Module\Framework\Modules\ModuleRegistry;
+use PunBB\Module\Framework\Modules\ModuleTree;
 use PunBB\Module\Framework\Modules\Wiring;
 
 class DeclaredSchemaTest extends TestCase {
@@ -34,6 +35,8 @@ class DeclaredSchemaTest extends TestCase {
 			public function dependencies(): array { return array(); }
 
 			public function loadAfter(): array { return array(); }
+
+			public function version(): string { return '1.0.0'; }
 
 			public function wire(Wiring $wiring): void {}
 
@@ -51,6 +54,8 @@ class DeclaredSchemaTest extends TestCase {
 
 			public function loadAfter(): array { return array(); }
 
+			public function version(): string { return '1.0.0'; }
+
 			public function wire(Wiring $wiring): void {}
 		};
 	}
@@ -62,11 +67,25 @@ class DeclaredSchemaTest extends TestCase {
 		$this->assertSame('INTEGER', $schema->tables(Platform::Sqlite)[0]->columns[0]->type);
 	}
 
+	public function testEachModulesOwnTablesAreItsAlone(): void {
+		$schema = new DeclaredSchema(self::owner('Topic', array('topics', 'posts')), self::bystander(), self::owner('Poll', array('polls')));
+		$names = static fn (string $module): array => array_map(static fn (Table $table): string => $table->name, $schema->tablesOf($module, Platform::Mysql));
+
+		$this->assertSame(array(array('topics', 'posts'), array('polls'), array(), array()), array($names('Topic'), $names('Poll'), $names('Bystander'), $names('Absent')));
+	}
+
 	public function testATableHasOneOwner(): void {
 		$this->expectException(SchemaException::class);
 		$this->expectExceptionMessage('Modules Topic and Archive both declare table "posts"');
 
 		(new DeclaredSchema(self::owner('Topic', array('topics', 'posts')), self::owner('Archive', array('posts'))))->tables(Platform::Pgsql);
+	}
+
+	public function testATableHasOneOwnerWhenOneModulesTablesAreAskedFor(): void {
+		$this->expectException(SchemaException::class);
+		$this->expectExceptionMessage('Modules Topic and Archive both declare table "posts"');
+
+		(new DeclaredSchema(self::owner('Topic', array('topics', 'posts')), self::owner('Archive', array('posts'))))->tablesOf('Topic', Platform::Pgsql);
 	}
 
 	/** @return array<string, array{Platform}> */
@@ -75,7 +94,7 @@ class DeclaredSchemaTest extends TestCase {
 	}
 
 	private static function forum(): ModuleRegistry {
-		return ModuleRegistry::discover(FORUM_ROOT.'include/PunBB/Module', 'PunBB\\Module\\');
+		return ModuleRegistry::discover(ModuleTree::core(FORUM_ROOT));
 	}
 
 	#[DataProvider('platforms')]
@@ -85,7 +104,7 @@ class DeclaredSchemaTest extends TestCase {
 
 		$this->assertSame(array(
 			'bans', 'categories', 'censoring', 'config', 'data_patches', 'extension_hooks', 'extensions',
-			'forum_perms', 'forum_subscriptions', 'forums', 'groups', 'online', 'posts',
+			'forum_perms', 'forum_subscriptions', 'forums', 'groups', 'modules', 'online', 'posts',
 			'ranks', 'reports', 'search_cache', 'search_matches', 'search_words',
 			'subscriptions', 'topics', 'users',
 		), $tables);
@@ -103,7 +122,7 @@ class DeclaredSchemaTest extends TestCase {
 			'Bans'			=> array('bans'),
 			'Categories'	=> array('categories'),
 			'Censoring'		=> array('censoring'),
-			'Database'		=> array('data_patches'),
+			'Database'		=> array('data_patches', 'modules'),
 			'Extensions'	=> array('extensions', 'extension_hooks'),
 			'Forums'		=> array('forum_perms', 'forums'),
 			'Groups'		=> array('groups'),

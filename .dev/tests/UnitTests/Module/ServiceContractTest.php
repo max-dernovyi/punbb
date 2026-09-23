@@ -14,6 +14,7 @@
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use PunBB\Module\Framework\Modules\ModuleRegistry;
+use PunBB\Module\Framework\Modules\ModuleTree;
 use PunBB\Module\Framework\Modules\Wiring;
 use PunBBFixture\Module\Greeting\Api\GreeterInterface;
 
@@ -37,9 +38,9 @@ class ServiceContractTest extends TestCase {
 	}
 
 	private static function registry(string $directory, string $namespace): ModuleRegistry {
-		$forum = ModuleRegistry::discover(FORUM_ROOT.'include/PunBB/Module', 'PunBB\\Module\\');
+		$forum = ModuleTree::core(FORUM_ROOT);
 
-		return $namespace === 'PunBB\\Module\\' ? $forum : ModuleRegistry::discover($directory, $namespace, ...$forum->modules());
+		return $namespace === $forum->namespace ? ModuleRegistry::discover($forum) : ModuleRegistry::discover($forum, new ModuleTree($directory, $namespace));
 	}
 
 	/**

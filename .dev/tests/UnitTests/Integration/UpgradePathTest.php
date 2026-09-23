@@ -77,14 +77,14 @@ class UpgradePathTest extends TestCase {
 		);
 	}
 
-	/** A table missing from a fixture is a table the update never touches, but for the record of the data patches 2.0 applies. */
+	/** A table missing from a fixture is a table the update never touches, but for the records of the data patches and the module versions 2.0 keeps. */
 	#[DataProvider('fixtures')]
 	public function testTheFixtureCarriesTheWholeSchema(string $release, string $backend): void {
 		preg_match_all('/CREATE TABLE `?%PREFIX%([a-z_]+)/', self::fixture($release, $backend), $matches);
 		$tables = $matches[1];
 		sort($tables);
 
-		$this->assertSame(array_values(array_diff(install_matrix_expected_tables(), array('data_patches'))), $tables);
+		$this->assertSame(array_values(array_diff(install_matrix_expected_tables(), array('data_patches', 'modules'))), $tables);
 	}
 
 	/** users.password held the 40 bytes of a SHA-1 until 1.5 widened it for password_hash(). */

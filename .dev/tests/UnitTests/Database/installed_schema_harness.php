@@ -29,6 +29,7 @@ use PunBB\Module\Database\Sql\Driver\PgsqlDriver;
 use PunBB\Module\Database\Sql\Driver\Sqlite3Driver;
 use PunBB\Module\Database\Sql\Platform;
 use PunBB\Module\Framework\Modules\ModuleRegistry;
+use PunBB\Module\Framework\Modules\ModuleTree;
 
 define('FORUM_ROOT', dirname(__DIR__, 4).'/');
 
@@ -64,7 +65,7 @@ $connection = new Connection(match ($backend) {
 }, $forum_db->prefix);
 
 $platform = Platform::ofDbType($db_type);
-$declared = new DeclaredSchema(...ModuleRegistry::discover(FORUM_ROOT.'include/PunBB/Module', 'PunBB\\Module\\')->modules());
+$declared = new DeclaredSchema(...ModuleRegistry::discover(ModuleTree::core(FORUM_ROOT))->modules());
 $schema = new DbLayerSchema($forum_db, $connection);
 $synchronizer = new SchemaSynchronizer($declared, $schema);
 

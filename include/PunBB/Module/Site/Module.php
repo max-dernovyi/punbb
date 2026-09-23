@@ -31,6 +31,10 @@ final class Module implements ModuleInterface, TableOwnerInterface {
 		return array();
 	}
 
+	public function version(): string {
+		return '1.5.0';
+	}
+
 	public function wire(Wiring $wiring): void {}
 
 	public function tables(Platform $platform): array {

@@ -74,6 +74,8 @@ class PatchApplierTest extends TestCase {
 
 			public function loadAfter(): array { return array(); }
 
+			public function version(): string { return '1.0.0'; }
+
 			public function wire(Wiring $wiring): void {}
 
 			public function patches(): array {

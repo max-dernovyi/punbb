@@ -4,8 +4,8 @@
  * request per process through its front controller, logged in as the admin.
  *
  * The root is a temporary directory of symlinks into the checkout with its own
- * config.php, cache/, extensions/ and database, so nothing touches the forum
- * the checkout may have installed.
+ * config.php, cache/, extensions/, modules/ and database, so nothing touches
+ * the forum the checkout may have installed.
  *
  * @copyright (C) 2008-2012 PunBB, partially based on code (C) 2008-2009 FluxBB.org
  * @license http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
@@ -29,11 +29,15 @@ final class ScratchForum {
 	/** @var array<string, string> php.ini settings every request runs with */
 	private array $ini = array('display_errors' => '1', 'error_reporting' => '-1');
 
-	public function __construct() {
+	/** @param array<string, string> $modules fixture modules in modules/ before the install, name => version */
+	public function __construct(array $modules = array()) {
 		$this->root = sys_get_temp_dir().'/punbb_scratch_'.bin2hex(random_bytes(6));
 
-		foreach (array('cache', 'extensions') as $dir)
+		foreach (array('cache', 'extensions', 'modules') as $dir)
 			mkdir($this->root.'/'.$dir, 0777, true);
+
+		foreach ($modules as $name => $version)
+			$this->addModule($name, $version);
 
 		foreach (glob(FORUM_ROOT.'*.php') as $file)
 			if (basename($file) !== 'config.php')
@@ -90,6 +94,34 @@ final class ScratchForum {
 	/** Makes a fixture extension under .dev/tests/fixtures/extensions/ available to install. */
 	public function addExtension(string $id): void {
 		symlink(FORUM_ROOT.'.dev/tests/fixtures/extensions/'.$id, $this->root.'/extensions/'.$id);
+	}
+
+	/**
+	 * Unpacks release $version of fixture module $name, under
+	 * .dev/tests/fixtures/installed_modules/, into modules/$name over what is
+	 * there: a later release replaces the files it ships and keeps the rest.
+	 */
+	public function addModule(string $name, string $version): void {
+		$fixture = FORUM_ROOT.'.dev/tests/fixtures/installed_modules/'.$version.'/'.$name;
+		$files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($fixture, FilesystemIterator::SKIP_DOTS));
+
+		foreach ($files as $file)
+		{
+			$target = $this->root.'/modules/'.$name.substr($file->getPathname(), strlen($fixture));
+
+			if (!is_dir(dirname($target)))
+				mkdir(dirname($target), 0777, true);
+
+			if (is_link($target))
+				unlink($target);
+
+			symlink($file->getPathname(), $target);
+		}
+	}
+
+	/** Deletes modules/$name, as an administrator uninstalls a module. */
+	public function removeModule(string $name): void {
+		self::removeTree($this->root.'/modules/'.$name);
 	}
 
 	/** Makes an extension consisting of this manifest alone available to install. */
@@ -166,8 +198,9 @@ final class ScratchForum {
 	public function rows(string $sql): array {
 		$result = $this->db->query($sql);
 
+		// Fetching from a statement that returns no columns runs it again
 		$rows = array();
-		while ($row = $result->fetchArray(SQLITE3_ASSOC))
+		while ($result->numColumns() > 0 && ($row = $result->fetchArray(SQLITE3_ASSOC)))
 			$rows[] = $row;
 
 		$result->finalize();

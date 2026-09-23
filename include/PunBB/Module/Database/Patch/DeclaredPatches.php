@@ -12,7 +12,8 @@ use PunBB\Module\Framework\Modules\ModuleInterface;
  * order its module declares them.
  */
 final class DeclaredPatches {
-	private const NAME_PATTERN = '/^([A-Z][A-Za-z0-9]*)::[a-z][a-z0-9_]*$/';
+	/** At most 150 characters, as data_patches records a name. */
+	private const NAME_PATTERN = '/^(?=.{1,150}$)([A-Z][A-Za-z0-9]*)::[a-z][a-z0-9_]*$/D';
 
 	/** @var list<ModuleInterface> */
 	private readonly array $modules;
@@ -45,7 +46,7 @@ final class DeclaredPatches {
 			foreach ($module->patches() as $patch)
 			{
 				if (preg_match(self::NAME_PATTERN, $patch->name, $matches) !== 1 || $matches[1] !== $module->name())
-					throw new PatchException(sprintf('Module %s declares data patch "%s"; a patch is named %s::<lowercase_name>', $module->name(), $patch->name, $module->name()));
+					throw new PatchException(sprintf('Module %s declares data patch "%s"; a patch is named %s::<lowercase_name>, at most 150 characters', $module->name(), $patch->name, $module->name()));
 
 				if (isset($patches[$patch->name]))
 					throw new PatchException(sprintf('Data patch %s is declared twice', $patch->name));

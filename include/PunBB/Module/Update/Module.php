@@ -5,12 +5,11 @@ declare(strict_types=1);
 namespace PunBB\Module\Update;
 
 use Closure;
-use PunBB\Module\Database\Patch\PatchApplier;
 use PunBB\Module\Database\Patch\PatchDeclaration;
 use PunBB\Module\Database\Patch\PatchOwnerInterface;
 use PunBB\Module\Database\Schema\SchemaInterface;
-use PunBB\Module\Database\Schema\SchemaSynchronizer;
 use PunBB\Module\Database\Sql\Connection;
+use PunBB\Module\Database\Version\ModuleUpgrade;
 use PunBB\Module\Framework\Container\Container;
 use PunBB\Module\Framework\Modules\ModuleInterface;
 use PunBB\Module\Framework\Modules\Wiring;
@@ -46,9 +45,10 @@ use PunBB\Module\Update\Patch\SchemeLinkedinAddresses;
 
 /**
  * Updating a board's database to this release, a stage per request: the
- * schema every module declares, then each data patch a batch per request. The
- * patches here carry an older board's data to this release's shape. The
- * preparser is declared here and wired by the bootstrap's side.
+ * tables of each module behind its version, then each data patch of a module
+ * behind, a batch per request. The patches here carry an older board's data
+ * to this release's shape. The preparser is declared here and wired by the
+ * bootstrap's side.
  *
  * It has no permission check: remove this module's directory once the update
  * has run, and admin/db_update.php is a page not found.
@@ -64,6 +64,10 @@ final class Module implements ModuleInterface, PatchOwnerInterface {
 
 	public function loadAfter(): array {
 		return array();
+	}
+
+	public function version(): string {
+		return '2.0.0';
 	}
 
 	public function wire(Wiring $wiring): void {
@@ -86,8 +90,7 @@ final class Module implements ModuleInterface, PatchOwnerInterface {
 				$c->get(BoardFilesInterface::class),
 				$c->get(SetupPage::class),
 				$c->get(TemplateRenderer::class),
-				$c->get(SchemaSynchronizer::class),
-				$c->get(PatchApplier::class)
+				$c->get(ModuleUpgrade::class)
 			)
 		), setup: true);
 	}

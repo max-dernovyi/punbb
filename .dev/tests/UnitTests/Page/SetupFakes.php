@@ -14,6 +14,8 @@ use PunBB\Module\Database\Schema\Column;
 use PunBB\Module\Database\Schema\InstalledTable;
 use PunBB\Module\Database\Schema\SchemaInterface;
 use PunBB\Module\Database\Schema\Table;
+use PunBB\Module\Database\Version\InstalledVersion;
+use PunBB\Module\Database\Version\InstalledVersionsInterface;
 use PunBB\Module\Setup\Config\BoardConfiguration;
 use PunBB\Module\Setup\Config\ConfigurationInterface;
 use PunBB\Module\Setup\Database\DatabaseInterface;
@@ -194,5 +196,24 @@ final class JournalAppliedPatches implements AppliedPatchesInterface {
 	public function record(string $name): void {
 		$this->names[] = $name;
 		$this->journal->add('record '.$name);
+	}
+}
+
+final class JournalInstalledVersions implements InstalledVersionsInterface {
+	/** @var array<string, InstalledVersion> */
+	public array $versions = array();
+
+	public function __construct(private readonly SetupJournal $journal) {}
+
+	public function all(): array { return $this->versions; }
+
+	public function recordSchema(string $module, string $version): void {
+		$this->versions[$module] = new InstalledVersion($version, ($this->versions[$module] ?? new InstalledVersion())->data);
+		$this->journal->add('version '.$module.' schema '.$version);
+	}
+
+	public function recordData(string $module, string $version): void {
+		$this->versions[$module] = new InstalledVersion(($this->versions[$module] ?? new InstalledVersion())->schema, $version);
+		$this->journal->add('version '.$module.' data '.$version);
 	}
 }

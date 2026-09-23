@@ -18,6 +18,7 @@ use PunBB\Module\Database\Patch\PatchStep;
 use PunBB\Module\Framework\Container\Container;
 use PunBB\Module\Framework\Modules\ModuleInterface;
 use PunBB\Module\Framework\Modules\ModuleRegistry;
+use PunBB\Module\Framework\Modules\ModuleTree;
 use PunBB\Module\Framework\Modules\Wiring;
 
 class DeclaredPatchesTest extends TestCase {
@@ -32,6 +33,8 @@ class DeclaredPatchesTest extends TestCase {
 			public function dependencies(): array { return array(); }
 
 			public function loadAfter(): array { return array(); }
+
+			public function version(): string { return '1.0.0'; }
 
 			public function wire(Wiring $wiring): void {}
 
@@ -74,6 +77,23 @@ class DeclaredPatchesTest extends TestCase {
 		(new DeclaredPatches(self::owner('Forums', array('Users::counts' => array()))))->ordered();
 	}
 
+	/** data_patches records a name in VARCHAR(150). */
+	public function testAPatchNameIsAtMost150CharactersOnOneLine(): void {
+		$fits = 'Forums::'.str_repeat('a', 142);
+		$this->assertSame(array($fits), self::names(new DeclaredPatches(self::owner('Forums', array($fits => array())))));
+
+		foreach (array($fits.'a', "Forums::counts\n") as $name)
+		{
+			try {
+				(new DeclaredPatches(self::owner('Forums', array($name => array()))))->ordered();
+				$this->fail('accepted data patch '.$name);
+			}
+			catch (PatchException $e) {
+				$this->assertStringContainsString('a patch is named Forums::<lowercase_name>, at most 150 characters', $e->getMessage());
+			}
+		}
+	}
+
 	public function testAPatchIsDeclaredOnce(): void {
 		$this->expectException(PatchException::class);
 		$this->expectExceptionMessage('Data patch Forums::counts is declared twice');
@@ -97,7 +117,7 @@ class DeclaredPatchesTest extends TestCase {
 
 	/** The forum's patches: the update's conversion of an older board, a step each. */
 	public function testTheForumAppliesTheUpdatesConversionInOrder(): void {
-		$patches = ModuleRegistry::discover(FORUM_ROOT.'include/PunBB/Module', 'PunBB\\Module\\')->container()->get(DeclaredPatches::class);
+		$patches = ModuleRegistry::discover(ModuleTree::core(FORUM_ROOT))->container()->get(DeclaredPatches::class);
 
 		$this->assertSame(array(
 			'Update::avatars',

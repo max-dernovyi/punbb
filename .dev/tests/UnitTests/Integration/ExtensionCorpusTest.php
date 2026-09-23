@@ -17,6 +17,7 @@
 
 use PHPUnit\Framework\TestCase;
 use PunBB\Module\Framework\Modules\ModuleRegistry;
+use PunBB\Module\Framework\Modules\ModuleTree;
 
 class ExtensionCorpusTest extends TestCase {
 	private const FIXTURES = FORUM_ROOT.'.dev/tests/fixtures/extensions';
@@ -356,7 +357,7 @@ class ExtensionCorpusTest extends TestCase {
 	}
 
 	public function testEveryStopOfTheWalkIsARoutedPage(): void {
-		$router = ModuleRegistry::discover(FORUM_ROOT.'include/PunBB/Module', 'PunBB\\Module\\')->router();
+		$router = ModuleRegistry::discover(ModuleTree::core(FORUM_ROOT))->router();
 
 		foreach (extension_corpus_walk() as $entry)
 		{
