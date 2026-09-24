@@ -1,5 +1,5 @@
 PunBB 2.0.0
-unreleased
+2026-09-24
 ====================
 
  * Fixed cross-site request forgery in post.php. FORUM_SKIP_CSRF_CONFIRM turned the global confirmation gate off for the whole script, and the token check that replaced it ran only for administrators and moderators, so any page a logged-in member visited could post in their name. Every 1.4 and 1.5 forum is affected. Backported for a 1.5.1 patch release.
@@ -35,6 +35,8 @@ unreleased
  * create_table() builds a field without allow_null as NOT NULL and raises no warning. 1.4 extensions leave the key out; 1.4.4's E_NOTICE for it was hidden, PHP 8's E_WARNING is not.
  * Running extension code through eval($hook) is deprecated since 2.0 and goes in 2.1; events and plugged service contracts replace it. Every E_USER_DEPRECATED, an extension's own included, is now logged through error_log() as "PunBB deprecation: ..." and never displayed - once per notice per request, once per call site under FORUM_DEBUG.
  * The new core lives under include/PunBB/ (PSR-4, namespace PunBB\) and brings the first runtime Composer package, psr/container. Run 'composer install --no-dev' after upgrading.
+ * The schema is declared by the module that owns each table, and data changes are declared patches applied once and recorded; the update computes the DDL instead of running hand-written ALTER statements. Each module carries its own schema and data version in a new modules table, and an update brings up only the modules that are behind. A board from 1.4.4 or 1.5.1 upgrades on all four drivers to the schema a fresh install has.
+ * Third-party modules: a module unpacked into modules/<Name>/ (namespace PunBBModule\) registers with the core, and may own tables, versions, routes, plugins and observers. Deleting its directory uninstalls it and keeps its data. The 1.4-style extensions in extensions/ keep working through eval($hook) until 2.1.
  * Mail is sent through phpmailer/phpmailer (LGPL-2.1) and remote files are fetched through rmccue/requests (ISC), both runtime Composer packages. Removed for extensions: smtp_mail(), server_parse() and ForumMailException; forum_mail() keeps its signature and hooks. At em_fn_forum_mail_pre_send $subject is plain text, and header lines the library writes itself or that name a recipient are dropped from $headers. get_remote_file() needs cURL, or fsockopen() and stream_socket_client(); the allow_url_fopen fallback is gone.
  * Removed the IE conditional comments and responsive-nav.min.js from the Oxygen style; its menus are no longer collapsed behind a toggle on narrow screens.
  * Added SECURITY.md, which describes how to report a vulnerability in this fork and what is out of scope. Three things it names are worth repeating here: admin/db_update.php still has no permission check, so delete include/PunBB/Module/Update/ once an upgrade is finished; FORUM_SHOW_QUERIES prints every statement to whoever made the request, guest included, so do not set it on a public forum; and neither the login form nor the password reset form is rate limited.
