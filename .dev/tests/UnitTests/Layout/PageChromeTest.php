@@ -226,7 +226,6 @@ class PageChromeTest extends TestCase {
 		$this->assertStringContainsString("<div id=\"brd-main\">\n\t\t<h1 class=\"main-title\">Topic &lt;1&gt;</h1>\n", $page);
 		$this->assertStringContainsString("<span>&lt;b&gt;Subject&lt;/b&gt;</span>", $page);
 		$this->assertStringContainsString('<p class="post" data-id="1">Hi &amp; bye</p>', $page);
-		$this->assertStringContainsString('label: "Board \\u0026 Co"', $page, 'the board title reaches the script escaped for it');
 		$this->assertStringContainsString('<!-- rendered --></body>', $page);
 		$this->assertStringNotContainsString('<!-- forum_', $page, 'a region the page does not fill is empty, not a marker');
 		$this->assertSame('PageRendered', end($this->dispatched));

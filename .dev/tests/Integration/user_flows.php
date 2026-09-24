@@ -6,9 +6,11 @@
  * register, log in, post, quote, edit, delete, search, change the profile,
  * upload an avatar, log out — and, as the administrator, moderate the topic,
  * save settings, create and delete a forum, ban and unban, flip maintenance
- * mode, rebuild the search index and read every syndication format. Every step
- * asserts the status code, a marker only the intended page carries, and the
- * absence of any PHP diagnostic.
+ * mode, rebuild the search index and read every syndication format — and send
+ * mail through a relay of its own: a password reset, a report to the mailing
+ * list, and both against a relay that refuses. Every step asserts the status
+ * code, a marker only the intended page carries, and the absence of any PHP
+ * diagnostic and of any markup smoke_dead_markup() names.
  *
  * Run it from inside the web container — like the other integration runs it
  * needs the forum both as files (it rewrites config.php) and as a running site.
@@ -28,6 +30,7 @@
 // The install matrix owns the shared pieces: the curl helpers it pulls in, the
 // connection helper, the installer form and the config.php stash.
 require_once __DIR__.'/install_matrix.php';
+require_once __DIR__.'/smtp_relay.php';
 
 define('USER_FLOWS_ROOT', dirname(__DIR__, 3).'/');
 
@@ -53,6 +56,10 @@ const USER_FLOWS_SIGNATURE = '[b]Подпись участника[/b]';
 const USER_FLOWS_BOARD_TITLE = 'Flow board Ärger';
 const USER_FLOWS_FORUM_NAME = 'Flow forum Ümlaut';
 const USER_FLOWS_BAN_MESSAGE = 'Flow ban message';
+const USER_FLOWS_REPORT_REASON = 'Flow report reason';
+
+// o_mailing_list is typed by hand: only the administrator's address may reach the envelope.
+const USER_FLOWS_MAILING_JUNK = ', not an address, Bcc: victim@example.invalid';
 
 // A bare IDN URL in a post: the parser has to linkify it and store the host as
 // punycode (plan 04's UTS-46 conversion), while still displaying the unicode form.
@@ -252,7 +259,7 @@ function user_flows_assert($condition, $message)
 }
 
 
-/** One request, with its body swept for diagnostics and its status checked. */
+/** One request, with its body swept for diagnostics and dead markup and its status checked. */
 function user_flows_request(&$state, $session, $url, $post = null, $allowed = array(200, 302), $headers = array())
 {
 	$response = smoke_request($url, $state['jars'][$session], $post, array(), $headers);
@@ -265,6 +272,10 @@ function user_flows_request(&$state, $session, $url, $post = null, $allowed = ar
 
 	if (!in_array($response['status'], $allowed, true))
 		throw new UserFlowsFailure($url.' returned HTTP '.$response['status'].': '.user_flows_summary($response['body']));
+
+	$markup = smoke_dead_markup($response['body']);
+	if ($markup !== array())
+		throw new UserFlowsFailure($url.' carries '.implode(' and ', $markup));
 
 	return $response;
 }
@@ -1084,6 +1095,150 @@ function user_flows_step_feeds(&$state)
 }
 
 
+// ------------------------------------------------------------------ mail --
+
+/** Statements run straight against the database of the forum the pass walks. */
+function user_flows_execute($state, $statements)
+{
+	$link = install_matrix_mysql($state['spec']);
+	mysqli_set_charset($link, 'utf8mb4');
+
+	foreach ($statements as $sql)
+		mysqli_query($link, str_replace('%p', $state['spec']['prefix'], $sql));
+
+	mysqli_close($link);
+}
+
+
+/** Config values written to the database, and the cache that holds them dropped. */
+function user_flows_configure($state, $values)
+{
+	$statements = array();
+
+	foreach ($values as $name => $value)
+		$statements[] = 'UPDATE `%pconfig` SET conf_value = \''.addslashes($value).'\' WHERE conf_name = \''.$name.'\'';
+
+	user_flows_execute($state, $statements);
+	install_matrix_clear_cache();
+}
+
+
+/**
+ * A relay for the rest of the walk, with the forum's SMTP host pointed at it.
+ * The pass runs in the container that serves the forum, so 127.0.0.1 is the
+ * same host for both.
+ */
+function user_flows_relay(&$state, $mode)
+{
+	$relay = smtp_relay_start($mode);
+	$state['relays'][] = $relay;
+
+	user_flows_configure($state, array('o_smtp_host' => '127.0.0.1:'.$relay['port']));
+
+	return $relay;
+}
+
+
+/** The one answer the reset form gives, whoever the address belongs to. */
+function user_flows_request_reset(&$state)
+{
+	$form = user_flows_get($state, 'guest', 'login.php?action=forget');
+
+	$response = user_flows_submit($state, 'guest', $form, 'name="req_email"', array(
+		'req_email' => USER_FLOWS_EMAIL,
+		'request_pass' => '1',
+	));
+
+	$response = user_flows_follow($state, 'guest', $response);
+
+	user_flows_assert(strpos((string) $response['body'], 'If that email address belongs to an account') !== false,
+		'the reset form did not give its one answer: '.user_flows_summary($response['body']));
+
+	return $response;
+}
+
+
+function user_flows_step_mail_reset(&$state)
+{
+	$relay = user_flows_relay($state, 'accept');
+
+	$state['reset_answer'] = user_flows_summary(user_flows_request_reset($state)['body']);
+
+	// Sent after the response is finished, so it may still be on its way.
+	$records = smtp_relay_wait($relay, 1);
+	user_flows_assert(count($records) === 1, 'the relay received '.count($records).' messages, expected the reset');
+
+	$mail = $records[0];
+	$key = (string) user_flows_value($state, 'SELECT activate_key FROM `%pusers` WHERE id = '.$state['user_id']);
+
+	user_flows_assert($mail['to'] === array(USER_FLOWS_EMAIL), 'the reset went to '.implode(', ', $mail['to']));
+	user_flows_assert(smtp_relay_header($mail['data'], 'To') === USER_FLOWS_EMAIL, 'the reset names '.smtp_relay_header($mail['data'], 'To'));
+	user_flows_assert($key !== '' && strpos(smtp_relay_body($mail['data']), $key) !== false, 'the reset mail does not carry the key the forum stored');
+}
+
+
+function user_flows_step_mail_report(&$state)
+{
+	$relay = end($state['relays']);
+	$admin_email = (string) user_flows_value($state, 'SELECT email FROM `%pusers` WHERE group_id = 1 ORDER BY id LIMIT 1');
+
+	user_flows_configure($state, array('o_report_method' => '2', 'o_mailing_list' => $admin_email.USER_FLOWS_MAILING_JUNK));
+
+	$form = user_flows_get($state, 'admin', 'misc.php?report='.$state['reply_id']);
+
+	$response = user_flows_submit($state, 'admin', $form, 'name="req_reason"', array(
+		'req_reason' => USER_FLOWS_REPORT_REASON,
+		'submit' => '1',
+	));
+
+	user_flows_follow($state, 'admin', $response);
+
+	$records = smtp_relay_wait($relay, 2);
+	user_flows_assert(count($records) === 2, 'the relay received '.count($records).' messages, expected the reset and the report');
+
+	$mail = $records[1];
+
+	user_flows_assert($mail['to'] === array($admin_email), 'the report went to '.implode(', ', $mail['to']));
+	user_flows_assert(strpos($mail['data'], 'victim') === false, 'the report mail names the address the mailing list smuggled in');
+	user_flows_assert(strpos(smtp_relay_body($mail['data']), USER_FLOWS_REPORT_REASON) !== false, 'the report mail does not carry the reason');
+}
+
+
+/**
+ * A relay that turns every connection away. The reset still gives its one
+ * answer, the same one it gave when the mail went out; the report, which is
+ * nobody's secret, renders the error page naming nothing about the relay.
+ */
+function user_flows_step_mail_refused(&$state)
+{
+	$relay = user_flows_relay($state, 'refuse');
+
+	// The reset just issued would otherwise hold back a second one.
+	user_flows_execute($state, array('UPDATE `%pusers` SET last_email_sent = NULL WHERE id = '.$state['user_id']));
+
+	$answer = user_flows_summary(user_flows_request_reset($state)['body']);
+	user_flows_assert($answer === $state['reset_answer'], 'the reset answered differently with the relay down: '.$answer);
+
+	$records = smtp_relay_wait($relay, 1);
+	user_flows_assert(count($records) === 1 && $records[0]['refused'], 'the reset never reached the refusing relay');
+
+	$form = user_flows_get($state, 'admin', 'misc.php?report='.$state['reply_id']);
+
+	$response = user_flows_submit($state, 'admin', $form, 'name="req_reason"', array(
+		'req_reason' => USER_FLOWS_REPORT_REASON,
+		'submit' => '1',
+	), array(503));
+
+	$body = (string) $response['body'];
+
+	user_flows_assert(strpos($body, 'Unable to send e-mail.') !== false, 'the refused report rendered no error page: '.user_flows_summary($body));
+	user_flows_assert(strpos($body, '127.0.0.1') === false && strpos($body, 'refuses') === false,
+		'the error page names the relay without FORUM_DEBUG: '.user_flows_summary($body));
+
+	user_flows_configure($state, array('o_smtp_host' => ''));
+}
+
+
 function user_flows_steps()
 {
 	return array(
@@ -1111,6 +1266,9 @@ function user_flows_steps()
 		array('maintenance mode', 'user_flows_step_maintenance'),
 		array('search index rebuild', 'user_flows_step_reindex'),
 		array('syndication feeds', 'user_flows_step_feeds'),
+		array('mail: password reset', 'user_flows_step_mail_reset'),
+		array('mail: report to the mailing list', 'user_flows_step_mail_report'),
+		array('mail: refused relay', 'user_flows_step_mail_refused'),
 	);
 }
 
@@ -1251,6 +1409,8 @@ function user_flows_walk($base_url, $spec, $admin, &$diagnostics, &$user_id)
 		'quote_id' => 0,
 		'new_forum_id' => 0,
 		'emoji_stored' => false,
+		'relays' => array(),
+		'reset_answer' => '',
 	);
 
 	$reason = install_matrix_login($base_url, $state['jars']['admin'], $state['diagnostics'], $admin[0], $admin[1]);
@@ -1288,6 +1448,9 @@ function user_flows_walk($base_url, $spec, $admin, &$diagnostics, &$user_id)
 
 	foreach ($state['jars'] as $jar)
 		@unlink($jar);
+
+	foreach ($state['relays'] as $relay)
+		smtp_relay_stop($relay);
 
 	$diagnostics = array_merge($diagnostics, $state['diagnostics']);
 	$user_id = $state['user_id'];

@@ -331,7 +331,6 @@ class LoaderTest extends TestCase {
 
 		$loader->add_js('var PUNBB={};', array('type' => 'inline', 'weight' => 50, 'group' => FORUM_JS_GROUP_SYSTEM));
 		$loader->add_js('http://localhost/include/js/min/punbb.common.min.js', array('weight' => 55, 'async' => false, 'group' => FORUM_JS_GROUP_SYSTEM));
-		$loader->add_js('http://localhost/style/Oxygen/responsive-nav.min.js', array('weight' => 55, 'async' => false, 'group' => FORUM_JS_GROUP_SYSTEM));
 		$loader->add_js('PUNBB.common.quickjump();', array('type' => 'inline', 'weight' => 60, 'group' => FORUM_JS_GROUP_SYSTEM));
 		$loader->add_js('http://localhost/include/js/min/punbb.timezone.min.js');
 		$loader->add_js('PUNBB.timezone.detect_on_register_form();', array('type' => 'inline'));

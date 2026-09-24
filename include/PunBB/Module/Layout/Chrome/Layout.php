@@ -88,7 +88,7 @@ final class Layout {
 	 *
 	 * @param array<string, Html> $regions
 	 */
-	public function render(ChromeSourceInterface $source, string $chrome, array $regions): string {
+	public function render(string $chrome, array $regions): string {
 		$names = self::regions($chrome);
 
 		$values = array();
@@ -98,13 +98,6 @@ final class Layout {
 		$unknown = array_diff(array_keys($regions), $names);
 		if ($unknown !== array())
 			throw new ChromeException(sprintf('Chrome %s places no region %s', $chrome, implode(', ', $unknown)));
-
-		if (isset(self::BARE_REGIONS[$chrome]))
-			return $this->templates->render(self::template($chrome), $values);
-
-		$values['nav_board_title'] = Html::script($source->board()->title);
-		$values['nav_menu_admin'] = Html::script($source->text('Menu admin')->html);
-		$values['nav_menu_profile'] = Html::script($source->text('Menu profile')->html);
 
 		return $this->templates->render(self::template($chrome), $values);
 	}

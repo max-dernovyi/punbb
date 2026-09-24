@@ -49,6 +49,6 @@ final class BareChrome implements BareChromeInterface {
 	}
 
 	public function close(array $regions): string {
-		return $this->layout->render($this->source, $this->chrome, $this->regions($regions));
+		return $this->layout->render($this->chrome, $this->regions($regions));
 	}
 }

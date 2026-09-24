@@ -2,11 +2,13 @@
 /**
  * What reaches an SMTP envelope and a mail header.
  *
- * forum_mail() assembles every header by concatenation, and smtp_mail() writes
- * the envelope one "RCPT TO" line at a time from a comma-separated $to that no
- * caller is required to have validated. The contract here is that the split and
- * the headers only ever see an address is_valid_email() accepted, and that
- * is_valid_email() no longer accepts the characters those two read.
+ * forum_mail() is handed a comma-separated $to that no caller is required to
+ * have validated, and the transport writes one "RCPT TO" per address it is
+ * given. The contract here is that the envelope and the headers only ever see
+ * an address is_valid_email() accepted, and that is_valid_email() no longer
+ * accepts the characters an envelope or a header reads. The sending cases go
+ * through the real forum_mail() to a relay, or to mail() with sendmail_path
+ * pointed at a file.
  *
  * @copyright (C) 2008-2012 PunBB, partially based on code (C) 2008-2009 FluxBB.org
  * @license http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
@@ -15,6 +17,8 @@
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+
+require_once __DIR__.'/MailHarness.php';
 
 class MailEnvelopeTest extends TestCase
 {
@@ -118,9 +122,152 @@ class MailEnvelopeTest extends TestCase
 		);
 	}
 
-	public function testSmtpMailFiltersTheEnvelopeItself(): void
+	private const HOSTILE_LIST = 'a@example.com, not an address, Bcc: victim@evil.com, b@example.org';
+
+	public function testTheRelayIsHandedOnlyValidatedAddresses(): void
 	{
-		$this->assertFalse(smtp_mail('Bcc: victim@evil.com', 'subject', 'message'));
+		[$output, $records] = MailHarness::relay('accept', array('to' => self::HOSTILE_LIST));
+
+		$this->assertSame("RESULT=true\n", $output);
+		$this->assertCount(1, $records);
+		$this->assertSame(array('a@example.com', 'b@example.org'), $records[0]['to']);
+		$this->assertSame('a@example.com, b@example.org', smtp_relay_header($records[0]['data'], 'To'));
+		$this->assertStringNotContainsString('victim', $records[0]['data']);
+	}
+
+	public function testMailIsHandedOnlyValidatedAddresses(): void
+	{
+		$file = (string) tempnam(sys_get_temp_dir(), 'sendmail');
+
+		try
+		{
+			$this->assertSame("RESULT=true\n", MailHarness::send(array('to' => self::HOSTILE_LIST), 'cat > '.escapeshellarg($file)));
+
+			$message = str_replace("\r\n", "\n", (string) file_get_contents($file));
+			$this->assertStringContainsString("To: a@example.com, b@example.org\n", $message);
+			$this->assertStringNotContainsString('victim', $message);
+		}
+		finally
+		{
+			unlink($file);
+		}
+	}
+
+	/** is_valid_email() is the one judge: the library's own validator would refuse this address. */
+	public function testAnAddressTheForumAcceptsIsSent(): void
+	{
+		[$output, $records] = MailHarness::relay('accept', array('to' => '"one two"@example.com'));
+
+		$this->assertSame("RESULT=true\n", $output);
+		$this->assertSame(array('"one two"@example.com'), $records[0]['to']);
+		$this->assertFalse(filter_var('"one two"@example.com', FILTER_VALIDATE_EMAIL));
+	}
+
+	public function testNothingIsSentWhenNoAddressValidates(): void
+	{
+		[$output, $records] = MailHarness::relay('accept', array('to' => 'Bcc: victim@evil.com'));
+
+		$this->assertSame("RESULT=NULL\n", $output);
+		$this->assertSame(array(), $records);
+	}
+
+	/**
+	 * Extension code at em_fn_forum_mail_pre_send still sees $to and $headers.
+	 * What it adds to $to is filtered again, and a header it appends is carried
+	 * over unless it names a recipient: those would reach the envelope through
+	 * a sendmail that reads them.
+	 */
+	public function testAPreSendHookCannotSmuggleARecipientIn(): void
+	{
+		[$output, $records] = MailHarness::relay('accept', array(
+			'to' => 'a@example.com',
+			'pre_send' => '$to .= ",not an address,Bcc: x@evil.com"; $headers .= "\r\nX-Extension: kept\r\nBcc: hidden@evil.com\r\nCc: copy@evil.com";',
+		));
+
+		$this->assertSame("RESULT=true\n", $output);
+		$this->assertSame(array('a@example.com'), $records[0]['to']);
+		$this->assertSame('kept', smtp_relay_header($records[0]['data'], 'X-Extension'));
+		$this->assertStringNotContainsString('evil.com', $records[0]['data']);
+	}
+
+	/** A hook that rewrites a header the library writes is still heard: HTML mail and a custom sender keep working. */
+	public function testAPreSendHookRewritesContentTypeAndSender(): void
+	{
+		[$output, $records] = MailHarness::relay('accept', array(
+			'to' => 'a@example.com',
+			'reply_to' => 'reply@example.net',
+			'pre_send' => '$headers = str_replace(array("Content-type: text/plain; charset=utf-8", "From: ".$from, "Reply-To: ".$reply_to), array("Content-type: text/html; charset=utf-8", "From: Ext <ext@example.org>", "Reply-To: other@example.org"), $headers);',
+		));
+
+		$this->assertSame("RESULT=true\n", $output);
+		$this->assertSame('text/html; charset=utf-8', strtolower((string) smtp_relay_header($records[0]['data'], 'Content-Type')));
+		$this->assertSame('Ext <ext@example.org>', smtp_relay_header($records[0]['data'], 'From'));
+		$this->assertSame('forum@example.com', $records[0]['from']);
+		$this->assertSame('other@example.org', smtp_relay_header($records[0]['data'], 'Reply-To'));
+		$this->assertSame(1, substr_count(strtolower($records[0]['data']), "\r\nreply-to:"));
+	}
+
+	public function testAPreSendHookCannotSetAnInvalidSender(): void
+	{
+		[$output, $records] = MailHarness::relay('accept', array(
+			'to' => 'a@example.com',
+			'pre_send' => '$headers = str_replace("From: ".$from, "From: not an address", $headers);',
+		));
+
+		$this->assertSame("RESULT=true\n", $output);
+		$this->assertStringNotContainsString('not an address', $records[0]['data']);
+	}
+
+	/** sendmail -t, PHP's default, takes its recipients from Resent-To/Cc/Bcc when any is present; the other Resent-* fields name no recipient. */
+	public function testAPreSendHookCannotAddAResentRecipientForSendmail(): void
+	{
+		$file = (string) tempnam(sys_get_temp_dir(), 'sendmail');
+
+		try
+		{
+			$output = MailHarness::send(array(
+				'to' => 'a@example.com',
+				'pre_send' => '$headers .= "\r\nX-Extension: kept\r\nResent-From: resender@example.com\r\nResent-To: to@evil.com\r\nresent-cc: cc@evil.com\r\nResent-Bcc:\r\n\tbcc@evil.com";',
+			), 'cat > '.escapeshellarg($file));
+
+			$message = str_replace("\r\n", "\n", (string) file_get_contents($file));
+			$this->assertSame("RESULT=true\n", $output);
+			$this->assertStringContainsString("X-Extension: kept\n", $message);
+			$this->assertStringContainsString("Resent-From: resender@example.com\n", $message);
+			$this->assertStringNotContainsStringIgnoringCase('resent-to', $message);
+			$this->assertStringNotContainsStringIgnoringCase('resent-cc', $message);
+			$this->assertStringNotContainsStringIgnoringCase('resent-bcc', $message);
+			$this->assertStringNotContainsString('evil.com', $message);
+		}
+		finally
+		{
+			unlink($file);
+		}
+	}
+
+	public function testAPreSendHookThatLeavesNoRecipientSuppressesTheMail(): void
+	{
+		[$output, $records] = MailHarness::relay('accept', array('to' => 'a@example.com', 'pre_send' => '$to = "not an address";'));
+
+		$this->assertSame("RESULT=true\n", $output);
+		$this->assertSame(array(), $records);
+	}
+
+	public function testAValidReplyToBecomesTheHeader(): void
+	{
+		[, $records] = MailHarness::relay('accept', array('reply_to' => 'reply@example.net'));
+
+		$this->assertSame('Replier <reply@example.net>', smtp_relay_header($records[0]['data'], 'Reply-To'));
+	}
+
+	/** The spring cleaning strips the line break, and what is left is no address. */
+	public function testAnInjectedReplyToIsDropped(): void
+	{
+		[$output, $records] = MailHarness::relay('accept', array('reply_to' => "reply@example.net\r\nBcc: victim@evil.com"));
+
+		$this->assertSame("RESULT=true\n", $output);
+		$this->assertSame('', smtp_relay_header($records[0]['data'], 'Reply-To'));
+		$this->assertStringNotContainsString('victim', $records[0]['data']);
 	}
 
 	public function testForumMailFiltersBeforeAnyHeaderIsBuilt(): void

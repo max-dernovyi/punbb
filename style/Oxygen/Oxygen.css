@@ -2752,9 +2752,6 @@ a.nav-toggle:hover,a.nav-toggle:focus{color:#fff; text-decoration:none;}
 	#brd-navlinks a, .main-menu a, .admin-menu a{padding:0.43em 1.45em;}
 	#brd-navlinks li, .main-menu li, .admin-menu li{border-top:1px solid rgba(0,0,0,0.1)}
 
-  #brd-navlinks li+li, .main-menu li+li, .admin-menu li+li{display: none;}
-  #brd-navlinks.nav-collapse li+li, .main-menu.nav-collapse li+li, .admin-menu.nav-collapse li+li{display: block;}
-
 	/*admin-submenu*/
 	.admin-submenu{font-size:1.2em; line-height:1.5}
 	.admin-submenu li{margin-right:0.5em; display:inline-block; margin-bottom:0.25em; margin-top:0.25em}

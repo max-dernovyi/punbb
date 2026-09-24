@@ -2,7 +2,8 @@
 /**
  * Covers the asset half of `make smoke` (.dev/bin/smoke.php): every script and
  * stylesheet a page renders must resolve to a file in the checkout, and no page
- * may still emit the LABjs loader chain.
+ * may still emit the LABjs loader chain, an IE conditional comment or
+ * responsive-nav.
  *
  * @copyright (C) 2008-2012 PunBB, partially based on code (C) 2008-2009 FluxBB.org
  * @license http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
@@ -145,6 +146,25 @@ class SmokeAssetGateTest extends TestCase {
 	public function testTheLabjsGateFiresOnTheLoaderChain(): void {
 		$this->assertTrue(smoke_labjs_references('<script>$LAB.script("x.js").wait();</script>'));
 		$this->assertFalse(smoke_labjs_references('<script src="/include/js/punbb.common.js"></script>'));
+	}
+
+	/** @return array<string, array{string, list<string>}> */
+	public static function deadMarkup(): array {
+		return array(
+			'a downlevel-hidden comment'	=> array('<!--[if lt IE 7 ]> <html class="oldie ie6" lang="en"> <![endif]-->', array('an IE conditional comment')),
+			'a downlevel-revealed comment'	=> array('<!--[if gt IE 8]><!--> <html lang="en"> <!--<![endif]-->', array('an IE conditional comment')),
+			'the loader\'s browsers option'	=> array('<!--[if lte IE 7]><link rel="stylesheet" href="ie7.css" /><![endif]-->', array('an IE conditional comment')),
+			'the script'					=> array('<script src="https://punbb.loc/style/Oxygen/responsive-nav.min.js"></script>', array('responsive-nav')),
+			'its call'						=> array('<script>var main_menu = responsiveNav("#brd-navlinks", {label: "PunBB"});</script>', array('responsive-nav')),
+			'both'							=> array("<!--[if IE 8 ]><html><![endif]-->\n<script>responsiveNav('.admin-menu');</script>", array('an IE conditional comment', 'responsive-nav')),
+			'a page the chrome renders'		=> array("<!DOCTYPE html>\n<html lang=\"en\" dir=\"ltr\">\n<!-- forum_about -->\n<div id=\"brd-navlinks\" class=\"gen-content\">", array()),
+		);
+	}
+
+	/** @param list<string> $expected */
+	#[DataProvider('deadMarkup')]
+	public function testTheDeadMarkupGateNamesWhatAPageCarries(string $body, array $expected): void {
+		$this->assertSame($expected, smoke_dead_markup($body));
 	}
 
 	/** The tags admin/install.php and admin/db_update.php emit outside the Loader. */

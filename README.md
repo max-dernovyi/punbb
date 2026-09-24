@@ -13,7 +13,7 @@ PunBB is a fast and lightweight PHP-powered discussion board. It is released und
 
 ## Requirements
  - A webserver that hands a path that is not a file to `index.php` (Apache with mod_rewrite, or the equivalent rule)
- - PHP 8.4 or later, with the `mbstring`, `intl`, `json` and `xml` extensions, plus `openssl` on a host that has neither cURL nor `allow_url_fopen` (the socket fallback fetches over TLS)
+ - PHP 8.4 or later, with the `mbstring`, `intl`, `json`, `xml`, `ctype` and `filter` extensions. The update check and extension hotfixes need cURL, or `fsockopen()` and `stream_socket_client()` with `openssl` for https
  - [Composer 2](https://getcomposer.org/)
  - A database where forum data is to be stored, created in one of: MySQL 8.0 or later, PostgreSQL 13 or later or SQLite 3 (verified on MySQL 8.4 and PostgreSQL 17)
 

@@ -44,6 +44,13 @@ class UserFlowsTest extends TestCase {
 		$this->assertTrue((bool) is_valid_email(USER_FLOWS_EMAIL));
 	}
 
+	/** The mail step expects the relay to be handed the administrator's address and nothing the list appends. */
+	public function testTheMailingListJunkNamesNoAddress(): void {
+		require_once FORUM_ROOT.'include/email.php';
+
+		$this->assertSame(array('admin@example.com'), forum_mail_recipients('admin@example.com'.USER_FLOWS_MAILING_JUNK));
+	}
+
 	/**
 	 * The topic subject and the searchable keyword are asserted on in feeds,
 	 * search results and rendered pages, so both have to survive the forum's

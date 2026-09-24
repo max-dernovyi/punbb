@@ -8,7 +8,8 @@
  *
  * The Legacy fixture style is the 1.4 default templates with the stylesheet
  * script that went with them, so a page in it must match the page in Oxygen
- * byte for byte, but for the style's name.
+ * byte for byte, but for the style's name and the markup those templates carry
+ * and the chrome's do not: the IE conditional comments and responsive-nav.
  *
  * @copyright (C) 2008-2012 PunBB, partially based on code (C) 2008-2009 FluxBB.org
  * @license http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
@@ -102,6 +103,15 @@ XML;
 		return $page;
 	}
 
+	/** $page without the markup a 1.4 template may still carry: its business, not the chrome's. */
+	private static function withoutDeadMarkup(string $page): string {
+		return (string) preg_replace(array(
+			'#<!--\[if lt IE 7 \]>.*?<!--\[if gt IE 8\]><!--> (<html [^\n]*>) <!--<!\[endif\]-->#s',
+			'#<script src="[^"]*/responsive-nav\.min\.js"></script>\n#',
+			'#[ \t]*<script>\s*var main_menu = responsiveNav\(.*?</script>\n#s',
+		), array('$1', '', ''), $page);
+	}
+
 	/** @return array<string, array{string, array<string, string>}> */
 	public static function pageProvider(): array {
 		$pages = array();
@@ -119,7 +129,8 @@ XML;
 
 		$this->assertStringContainsString('<div id="brd-messages" class="brd">', $oxygen);
 		$this->assertStringContainsString('user_style: "Oxygen"', $oxygen);
-		$this->assertSame(str_replace('user_style: "Oxygen"', 'user_style: "Legacy"', $oxygen), $legacy);
+		$this->assertStringContainsString('<!--[if lt IE 7 ]>', $legacy);
+		$this->assertSame(str_replace('user_style: "Oxygen"', 'user_style: "Legacy"', $oxygen), self::withoutDeadMarkup($legacy));
 	}
 
 	/** A 1.4 redirect.tpl left the regions redirect() never filled as markers; the theme's still does. */
@@ -135,7 +146,7 @@ XML;
 		}
 
 		$this->assertStringContainsString('<span>Operation cancelled. Redirecting…</span>', $pages['Oxygen']);
-		$this->assertSame(str_replace(array("<body>\n", "</div>\n</div>\n</body>"), array("<body>\n<!-- forum_messages -->\n", "</div>\n</div>\n<!-- forum_javascript -->\n</body>"), $pages['Oxygen']), $pages['Legacy']);
+		$this->assertSame(str_replace(array("<body>\n", "</div>\n</div>\n</body>"), array("<body>\n<!-- forum_messages -->\n", "</div>\n</div>\n<!-- forum_javascript -->\n</body>"), $pages['Oxygen']), self::withoutDeadMarkup($pages['Legacy']));
 	}
 
 	public function testExtensionCodeRunsAtTheHeaderAndFooterPointsInEitherTemplate(): void {

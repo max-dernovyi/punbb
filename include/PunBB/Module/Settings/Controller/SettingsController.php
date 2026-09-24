@@ -36,6 +36,9 @@ use PunBB\Module\Site\Mail\EmailAddressesInterface;
 use PunBB\Module\Site\Security\CsrfTokensInterface;
 use PunBB\Module\Site\Url\UrlsInterface;
 use PunBB\Module\Site\Visitor\VisitorInterface;
+use WpOrg\Requests\Capability;
+use WpOrg\Requests\Transport\Curl;
+use WpOrg\Requests\Transport\Fsockopen;
 
 /**
  * admin/settings.php, for administrators: a section's form, and the settings
@@ -364,9 +367,11 @@ final class SettingsController implements ControllerInterface {
 				$form->set($name, '0');
 	}
 
-	/** Whether the board can reach another server to check for updates. */
+	/** Whether the board can reach another server over HTTPS to check for updates: cURL, or fsockopen() and stream_socket_client(), with TLS. */
 	private static function checksUpdates(): bool {
-		return function_exists('curl_init') || function_exists('stream_socket_client') || in_array(strtolower((string) ini_get('allow_url_fopen')), array('on', 'true', '1'), true);
+		$capabilities = array(Capability::SSL => true);
+
+		return Curl::test($capabilities) || (function_exists('stream_socket_client') && Fsockopen::test($capabilities));
 	}
 
 	/** Whether $value is what empty() takes for nothing. */

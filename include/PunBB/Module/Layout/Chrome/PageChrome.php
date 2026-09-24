@@ -178,7 +178,7 @@ final class PageChrome implements ChromeInterface {
 		$header = $this->header();
 		$footer = $this->footer();
 
-		return $this->finish($this->layout->render($this->source, Layout::chrome($this->source->pageId()), $header + $content + $footer));
+		return $this->finish($this->layout->render(Layout::chrome($this->source->pageId()), $header + $content + $footer));
 	}
 
 	private function head(): Html {

@@ -7,7 +7,8 @@
  * line: the sweep is the deprecation gate for the migration.
  *
  * It is also the asset gate: every script/stylesheet URL a page renders must
- * resolve to a file in the checkout, and no page may still reference $LAB.
+ * resolve to a file in the checkout, and no page may still reference $LAB, an
+ * IE conditional comment or responsive-nav.
  *
  * Compile-time diagnostics surface only on a cold opcache, so restart the web
  * container before sweeping (`make smoke` does).
@@ -183,6 +184,21 @@ function smoke_labjs_references($body)
 }
 
 
+// The markup for browsers nobody runs that a page may no longer carry, by name.
+function smoke_dead_markup($body)
+{
+	$found = array();
+
+	if (preg_match('#<!--\s*\[if\b|<!\[endif\]#i', (string) $body))
+		$found[] = 'an IE conditional comment';
+
+	if (preg_match('#responsive-nav|responsiveNav#', (string) $body))
+		$found[] = 'responsive-nav';
+
+	return $found;
+}
+
+
 function smoke_is_fatal($diagnostic)
 {
 	return stripos($diagnostic, 'fatal error:') === 0 || stripos($diagnostic, 'parse error:') === 0;
@@ -315,6 +331,12 @@ function smoke_pass($label, $base, $jar, $resolve, &$diagnostics, &$fatals)
 		{
 			echo "      \$LAB reference in the rendered page\n";
 			$fatals[] = $label.' '.$target.' -> $LAB reference';
+		}
+
+		foreach (smoke_dead_markup($response['body']) as $markup)
+		{
+			echo '      '.$markup." in the rendered page\n";
+			$fatals[] = $label.' '.$target.' -> '.$markup;
 		}
 	}
 

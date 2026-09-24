@@ -54,7 +54,7 @@ final class TemplateProtocol {
 		if (LegacyScope::attached('hd_pre_template_loaded'))
 			$this->points->run('hd_pre_template_loaded', LegacyScope::with(array('tpl_path' => &$tpl_path)));
 
-		$tpl_main = $tpl_path === Layout::template($chrome) ? $this->layout->render($source, $chrome, self::markerRegions()) : (string) file_get_contents($tpl_path);
+		$tpl_main = $tpl_path === Layout::template($chrome) ? $this->layout->render($chrome, self::markerRegions()) : (string) file_get_contents($tpl_path);
 		if (LegacyScope::attached('hd_template_loaded'))
 			$this->points->run('hd_template_loaded', LegacyScope::with(array('tpl_main' => &$tpl_main, 'tpl_path' => &$tpl_path)));
 

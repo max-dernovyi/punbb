@@ -68,52 +68,11 @@ class RuntimeApiGuardTest extends TestCase {
 		$this->assertSame(0, preg_match('/(?<![\w>$])xml_parser_free\s*\(/', '$this->xml_parser_free($p);'));
 	}
 
-	//
-	// get_remote_file()'s allow_url_fopen branch has to report the same shape
-	// as the curl and fsockopen branches above it: a list of header lines.
-	//
-	public function testRemoteHeadersComeFromTheAccessorAndAlwaysHaveAList(): void {
-		$source = (string)file_get_contents(FORUM_ROOT.'include/functions.php');
-
-		$this->assertTrue(function_exists('http_get_last_response_headers'), 'added in PHP 8.4, the floor of this fork');
-		$this->assertStringContainsString(
-			'$headers = http_get_last_response_headers() ?? array();',
-			$source,
-			'the accessor returns null until a stream wrapper request has run'
-		);
-		$this->assertStringContainsString(
-			"\$result['headers'] = \$headers;",
-			$source,
-			'the branch has to report the header list it just read'
-		);
-	}
-
-	public function testGetRemoteFileDoesNotAssumeCurlInitSucceeded(): void {
-		$source = (string)file_get_contents(FORUM_ROOT.'include/functions.php');
-
-		$this->assertMatchesRegularExpression(
-			'/\$ch = curl_init\(\);\s*\n\s*if \(\$ch === false\)/',
-			$source,
-			'curl_init() returns CurlHandle|false; curl_setopt(false, ...) is a TypeError'
-		);
-		$this->assertStringNotContainsString('is_resource($ch)', $source);
-	}
-
-	public function testGetRemoteFileChecksTheStatusLineMatchBeforeUsingIt(): void {
-		$source = (string)file_get_contents(FORUM_ROOT.'include/functions.php');
-
-		$this->assertStringNotContainsString(
-			"preg_match('#HTTP/1.[01] 200 OK#', \$content, \$match, PREG_OFFSET_CAPTURE);\n",
-			$source,
-			'an unmatched status line leaves $match empty and $match[0][1] warns'
-		);
-	}
-
-	public function testSmtpPortIsAnIntBeforeItReachesFsockopen(): void {
+	public function testSmtpPortIsAnIntBeforeItReachesTheMailer(): void {
 		$source = (string)file_get_contents(FORUM_ROOT.'include/email.php');
 
 		$this->assertStringContainsString('$smtp_port = (int) $smtp_port;', $source);
-		$this->assertMatchesRegularExpression('/fsockopen\(\$smtp_host, \$smtp_port,/', $source);
+		$this->assertStringContainsString('$mail->Port = $smtp_port;', $source);
 	}
 
 	public function testSessionCookieParamsGoThroughTheOptionsArrayApi(): void {

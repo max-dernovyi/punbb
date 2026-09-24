@@ -14,13 +14,19 @@ if (!defined('FORUM'))
 
 
 //
-// Raised when the SMTP conversation fails
+// PHPMailer, judging an address the way the forum does
 //
-// forum_mail() decides what a failure looks like: the error page normally, a
-// silent false when the caller has to answer the same whether the address is
-// registered or not.
+// forum_mail_recipients() decides what may enter an envelope. Without this the
+// library would apply filter_var() on top and drop addresses the forum
+// accepts, or keep ones an extension's em_fn_is_valid_email_start refuses.
 //
-class ForumMailException extends Exception {}
+class ForumMailer extends \PHPMailer\PHPMailer\PHPMailer
+{
+	public static function validateAddress($address, $patternselect = null)
+	{
+		return (bool) is_valid_email($address);
+	}
+}
 
 
 //
@@ -95,7 +101,7 @@ function forum_mail_recipients($to)
 
 
 //
-// Wrapper for PHP's mail()
+// Send a message through the configured SMTP relay, or through PHP's mail()
 //
 function forum_mail($to, $subject, $message, $reply_to_email = '', $reply_to_name = '', $quiet = false)
 {
@@ -126,9 +132,9 @@ function forum_mail($to, $subject, $message, $reply_to_email = '', $reply_to_nam
 	if ($reply_to_email !== '' && !is_valid_email($reply_to_email))
 		$reply_to_email = '';
 
-	// Set up some headers to take advantage of UTF-8
+	// The headers em_fn_forum_mail_pre_send has always been shown. The
+	// library encodes the message itself, $subject included.
 	$from = "=?UTF-8?B?".base64_encode($from_name)."?=".' <'.$from_email.'>';
-	$subject = "=?UTF-8?B?".base64_encode($subject)."?=";
 
 	$headers = 'From: '.$from."\r\n".'Date: '.gmdate('r')."\r\n".'MIME-Version: 1.0'."\r\n".'Content-transfer-encoding: 8bit'."\r\n".'Content-type: text/plain; charset=utf-8'."\r\n".'X-Mailer: PunBB Mailer';
 
@@ -145,133 +151,127 @@ function forum_mail($to, $subject, $message, $reply_to_email = '', $reply_to_nam
 
 	($hook = get_hook('em_fn_forum_mail_pre_send')) ? eval($hook) : null;
 
-	if ($forum_config['o_smtp_host'] != '')
-	{
-		try
-		{
-			smtp_mail($to, $subject, $message, $headers);
-		}
-		catch (ForumMailException $e)
-		{
-			// A quiet caller answers the same for every address, so a relay
-			// that is down must not turn the send into the tell.
-			if ($quiet)
-				return false;
-
-			error($e->getMessage(), __FILE__, __LINE__);
-		}
-	}
-	else
-	{
-		// Change the linebreaks used in the headers according to OS
-		if (strtoupper(substr(PHP_OS, 0, 3)) != 'WIN')
-			$headers = str_replace("\r\n", "\n", $headers);
-
-		// mail() warns when the handoff fails, and with display_errors on that
-		// warning is the tell a quiet caller must not give.
-		if ($quiet)
-			return (bool) @mail($to, $subject, $message, $headers);
-
-		mail($to, $subject, $message, $headers);
-	}
-
-	return true;
-}
-
-
-//
-// This function was originally a part of the phpBB Group forum software phpBB2 (http://www.phpbb.com).
-// They deserve all the credit for writing it. I made small modifications for it to suit PunBB and it's coding standards.
-//
-function server_parse($socket, $expected_response)
-{
-	$server_response = '';
-	while (substr($server_response, 3, 1) != ' ')
-	{
-		if (!($server_response = @fgets($socket, 256)))
-			throw new ForumMailException('Unable to send e-mail.<br />Please contact the forum administrator.'.(defined('FORUM_DEBUG') ? ' No response to the '.forum_htmlencode($expected_response).' command.' : ''));
-	}
-
-	if (!(substr($server_response, 0, 3) == $expected_response))
-		throw new ForumMailException('Unable to send e-mail.<br />Please contact the forum administrator.'.(defined('FORUM_DEBUG') ? ' Expected '.forum_htmlencode($expected_response).', the SMTP server reported: "'.forum_htmlencode($server_response).'".' : ''));
-}
-
-
-//
-// This function was originally a part of the phpBB Group forum software phpBB2 (http://www.phpbb.com).
-// They deserve all the credit for writing it. I made small modifications for it to suit PunBB and it's coding standards.
-//
-function smtp_mail($to, $subject, $message, $headers = '')
-{
-	global $forum_config;
-
+	// The hook may have rewritten $to, so the envelope is filtered again. A
+	// hook that leaves no recipient suppresses the mail.
 	$recipients = forum_mail_recipients($to);
 	if (empty($recipients))
-		return false;
+		return true;
 
-	// Sanitize the message
-	$message = str_replace("\r\n.", "\r\n..", $message);
-	$message = (substr($message, 0, 1) == '.' ? '.'.$message : $message);
+	$mail = new ForumMailer(true);
+	$mail->CharSet = 'UTF-8';
+	$mail->XMailer = 'PunBB Mailer';
+	$mail->AllowEmpty = true;
 
-	// Are we using port 25 or a custom port?
-	if (strpos($forum_config['o_smtp_host'], ':') !== false)
+	if ($forum_config['o_smtp_host'] != '')
 	{
-		list($smtp_host, $smtp_port) = explode(':', $forum_config['o_smtp_host']);
-		$smtp_port = (int) $smtp_port;
-	}
-	else
-	{
-		$smtp_host = $forum_config['o_smtp_host'];
-		$smtp_port = 25;
-	}
+		// Are we using port 25 or a custom port?
+		if (strpos($forum_config['o_smtp_host'], ':') !== false)
+		{
+			list($smtp_host, $smtp_port) = explode(':', $forum_config['o_smtp_host']);
+			$smtp_port = (int) $smtp_port;
+		}
+		else
+		{
+			$smtp_host = $forum_config['o_smtp_host'];
+			$smtp_port = 25;
+		}
 
-	if ($forum_config['o_smtp_ssl'] == '1')
-		$smtp_host = 'ssl://'.$smtp_host;
+		$mail->isSMTP();
+		$mail->Host = $smtp_host;
+		$mail->Port = $smtp_port;
+		$mail->Timeout = 15;
 
-	if (!($socket = @fsockopen($smtp_host, $smtp_port, $errno, $errstr, 15)))
-		throw new ForumMailException('Unable to send e-mail.<br />Please contact the forum administrator.'.(defined('FORUM_DEBUG') ? ' Could not connect to smtp host "'.forum_htmlencode($forum_config['o_smtp_host']).'" ('.forum_htmlencode((string) $errno).') ('.forum_htmlencode($errstr).').' : ''));
+		// The relay was never asked for STARTTLS: upgrading on its own offer
+		// would verify a certificate nobody configured and stop working mail.
+		$mail->SMTPAutoTLS = false;
 
-	server_parse($socket, '220');
+		if ($forum_config['o_smtp_ssl'] == '1')
+			$mail->SMTPSecure = ForumMailer::ENCRYPTION_SMTPS;
 
-	if ($forum_config['o_smtp_user'] != '' && $forum_config['o_smtp_pass'] != '')
-	{
-		@fwrite($socket, 'EHLO '.$smtp_host."\r\n");
-		server_parse($socket, '250');
-
-		@fwrite($socket, 'AUTH LOGIN'."\r\n");
-		server_parse($socket, '334');
-
-		@fwrite($socket, base64_encode($forum_config['o_smtp_user'])."\r\n");
-		server_parse($socket, '334');
-
-		@fwrite($socket, base64_encode($forum_config['o_smtp_pass'])."\r\n");
-		server_parse($socket, '235');
-	}
-	else
-	{
-		@fwrite($socket, 'HELO '.$smtp_host."\r\n");
-		server_parse($socket, '250');
+		if ($forum_config['o_smtp_user'] != '' && $forum_config['o_smtp_pass'] != '')
+		{
+			$mail->SMTPAuth = true;
+			$mail->Username = $forum_config['o_smtp_user'];
+			$mail->Password = $forum_config['o_smtp_pass'];
+		}
 	}
 
-	@fwrite($socket, 'MAIL FROM: <'.$forum_config['o_webmaster_email'].'>'."\r\n");
-	server_parse($socket, '250');
-
-	foreach ($recipients as $email)
+	try
 	{
-		@fwrite($socket, 'RCPT TO: <'.$email.'>'."\r\n");
-		server_parse($socket, '250');
+		$mail->setFrom($from_email, $from_name, false);
+
+		foreach ($recipients as $cur_recipient)
+			$mail->addAddress($cur_recipient);
+
+		if ($reply_to_email !== '')
+			$mail->addReplyTo($reply_to_email, $reply_to_name);
+
+		// The hook saw the hand-built headers. The library writes its own, so
+		// Content-type, From and Reply-To reach it as settings, what the hook
+		// added is carried over, and nothing naming a recipient: the envelope
+		// is $to's, and sendmail -t reads Resent-To/Cc/Bcc.
+		foreach (preg_split('#\r?\n(?![ \t])#', $headers) as $cur_header)
+		{
+			$cur_header = explode(':', preg_replace('#\r?\n[ \t]+#', ' ', $cur_header), 2);
+			$cur_name = count($cur_header) == 2 ? strtolower(trim($cur_header[0])) : '';
+			$cur_value = count($cur_header) == 2 ? trim($cur_header[1]) : '';
+
+			if ($cur_name === 'content-type' && strcasecmp($cur_value, 'text/plain; charset=utf-8') !== 0)
+			{
+				// The library appends the charset, so it is taken out of the
+				// value; anything else in it, a multipart boundary, stays.
+				if (preg_match('#;\s*charset\s*=\s*"?([^";\s]+)"?#i', $cur_value, $matches))
+					$mail->CharSet = $matches[1];
+
+				$content_type = trim(preg_replace('#;\s*charset\s*=\s*"?[^";\s]+"?#i', '', $cur_value));
+				if ($content_type !== '')
+					$mail->ContentType = $content_type;
+			}
+			else if (($cur_name === 'from' && $cur_value !== $from) || ($cur_name === 'reply-to' && $cur_value !== ($reply_to ?? null)))
+			{
+				// A rewritten sender is taken only when it is an address the
+				// forum accepts.
+				if (preg_match('#^(.*?)<([^<>]*)>$#', $cur_value, $matches))
+					list($address_name, $address) = array(mb_decode_mimeheader(trim($matches[1], " \t\"")), trim($matches[2]));
+				else
+					list($address_name, $address) = array('', $cur_value);
+
+				if (!is_valid_email($address))
+					continue;
+
+				if ($cur_name === 'from')
+				{
+					// The SMTP envelope keeps the forum's sender, as it always had.
+					if ($mail->Mailer == 'smtp')
+						$mail->Sender = $from_email;
+
+					$mail->setFrom($address, $address_name, false);
+				}
+				else
+				{
+					$mail->clearReplyTos();
+					$mail->addReplyTo($address, $address_name);
+				}
+			}
+			else if ($cur_name !== '' && !in_array($cur_name, array('from', 'date', 'mime-version', 'content-transfer-encoding', 'content-type', 'x-mailer', 'reply-to', 'to', 'cc', 'bcc', 'resent-to', 'resent-cc', 'resent-bcc', 'subject', 'message-id'), true))
+				$mail->addCustomHeader($cur_header[0], $cur_header[1]);
+		}
+
+		$mail->Subject = $subject;
+		$mail->Body = $message;
+
+		$mail->send();
 	}
+	catch (\PHPMailer\PHPMailer\Exception $e)
+	{
+		// A quiet caller answers the same for every address, so a relay that
+		// is down must not turn the send into the tell. mail() failing never
+		// rendered a page: the local mailer is the host's to report.
+		if ($quiet || $mail->Mailer != 'smtp')
+			return false;
 
-	@fwrite($socket, 'DATA'."\r\n");
-	server_parse($socket, '354');
-
-	@fwrite($socket, 'Subject: '.$subject."\r\n".'To: <'.implode('>, <', $recipients).'>'."\r\n".$headers."\r\n\r\n".$message."\r\n");
-
-	@fwrite($socket, '.'."\r\n");
-	server_parse($socket, '250');
-
-	@fwrite($socket, 'QUIT'."\r\n");
-	@fclose($socket);
+		error('Unable to send e-mail.<br />Please contact the forum administrator.'.(defined('FORUM_DEBUG') ? ' The SMTP server "'.forum_htmlencode($forum_config['o_smtp_host']).'" reported: "'.forum_htmlencode($mail->ErrorInfo).'".' : ''), __FILE__, __LINE__);
+	}
 
 	return true;
 }

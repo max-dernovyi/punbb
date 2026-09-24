@@ -22,15 +22,14 @@ use PHPUnit\Framework\TestCase;
 class OutputEscapingTest extends TestCase
 {
 	//
-	// The JavaScript contexts. Both put a value inside a string literal in an
+	// The JavaScript context. It puts a value inside a string literal in an
 	// inline <script>, where HTML escaping is the wrong escaper: see
 	// JsEscapeTest.
 	//
 	public static function javascriptSites(): array
 	{
 		return array(
-			'responsive-nav labels'	=> array('include/PunBB/Module/Layout/Chrome/Layout.php', 3),
-			'PUNBB.env'				=> array('include/PunBB/Module/Layout/Chrome/PageChrome.php', 4),
+			'PUNBB.env'	=> array('include/PunBB/Module/Layout/Chrome/PageChrome.php', 4),
 		);
 	}
 
@@ -41,27 +40,5 @@ class OutputEscapingTest extends TestCase
 
 		$this->assertSame($values, substr_count($source, 'Html::script('),
 			$file.': the inline script no longer escapes every value for the JavaScript context');
-	}
-
-	//
-	// The labels the layout escapes for a script have to stay inside the string
-	// literals the escaper assumes; if one moves out, the escaping is aimed at
-	// the wrong context.
-	//
-	#[DataProvider('templates')]
-	public function testTheResponsiveNavLabelsSitInsideJavascriptStringLiterals(string $template): void
-	{
-		$source = (string) file_get_contents(FORUM_ROOT.$template);
-
-		foreach (array('nav_board_title', 'nav_menu_admin', 'nav_menu_profile') as $label)
-			$this->assertStringContainsString('label: "<?= $'.$label.' ?>"', $source);
-	}
-
-	public static function templates(): array
-	{
-		return array(
-			array('include/PunBB/Module/Layout/templates/chrome/main.phtml'),
-			array('include/PunBB/Module/Layout/templates/chrome/admin.phtml'),
-		);
 	}
 }

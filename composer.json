@@ -9,7 +9,9 @@
         "ext-json": "*",
         "ext-mbstring": "*",
         "ext-xml": "*",
-        "psr/container": "^2.0"
+        "phpmailer/phpmailer": "^7.1",
+        "psr/container": "^2.0",
+        "rmccue/requests": "^2.0"
     },
     "require-dev": {
         "php-parallel-lint/php-parallel-lint": "^1.4",

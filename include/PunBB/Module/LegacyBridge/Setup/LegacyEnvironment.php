@@ -38,9 +38,9 @@ final class LegacyEnvironment implements EnvironmentInterface {
 		return self::enabled('file_uploads');
 	}
 
-	/** cURL, stream_socket_client() or allow_url_fopen, which get_remote_file() tries in turn. */
+	/** cURL, or fsockopen() and stream_socket_client(): the transports of get_remote_file(). */
 	public function fetchesRemoteFiles(): bool {
-		return function_exists('curl_init') || function_exists('stream_socket_client') || self::enabled('allow_url_fopen');
+		return (bool) \forum_remote_transport_available();
 	}
 
 	private static function enabled(string $setting): bool {

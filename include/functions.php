@@ -274,7 +274,7 @@ function forum_remote_url_parts($url)
 	$url = trim($url);
 
 	// parse_url() keeps CR, LF and spaces inside the host and the path, and the
-	// socket branch writes both into the request line and the Host: header - a
+	// socket transport writes both into the request line and the Host: header - a
 	// redirect naming "example.com\r\nX-Injected: 1" would append a header of
 	// the remote server's choosing. Nothing the forum fetches carries them.
 	if (preg_match('/[\x00-\x20\x7F]/', $url))
@@ -295,10 +295,9 @@ function forum_remote_url_parts($url)
 	return array(
 		'scheme'	=> $scheme,
 		// The trimmed form, because trim() strips a leading or trailing NUL
-		// before the control-byte check sees it: cURL must be handed the value
-		// that was validated, not the caller's, or the NUL raises a ValueError.
+		// before the control-byte check sees it: the client must be handed the
+		// value that was validated, not the caller's.
 		'url'		=> $url,
-		'transport'	=> $scheme === 'https' ? 'ssl' : 'tcp',
 		'host'		=> $parsed_url['host'],
 		'port'		=> $port,
 		'path'		=> (!empty($parsed_url['path']) ? $parsed_url['path'] : '/').(!empty($parsed_url['query']) ? '?'.$parsed_url['query'] : '')
@@ -351,11 +350,10 @@ function forum_remote_redirect_url($location, $parsed_url)
 
 
 // The header lines of the response that answered the request. $content must be
-// the header region alone -- CURLINFO_HEADER_SIZE bytes for cURL, the first
-// block for a socket -- because a body is free to open with "HTTP/" itself and
-// would otherwise be read as another header block. A CONNECT proxy replies
-// first ("200 Connection established") and cURL keeps both blocks, so within
-// that region the Location: belongs to the last one opening with a status line.
+// the header region alone, because a body is free to open with "HTTP/" itself
+// and would otherwise be read as another header block. Within that region the
+// Location: belongs to the last block opening with a status line, the one after
+// an interim reply or a CONNECT proxy's "200 Connection established".
 function forum_remote_response_headers($content)
 {
 	$headers = array();
@@ -392,6 +390,17 @@ function forum_remote_location_header($headers)
 }
 
 
+// Whether get_remote_file() has a transport, one that speaks TLS unless $tls is
+// false. Each transport is judged whole: the client's socket probe does not
+// check stream_socket_client(), which that transport connects with.
+function forum_remote_transport_available($tls = true)
+{
+	$capabilities = $tls ? array(\WpOrg\Requests\Capability::SSL => true) : array();
+
+	return \WpOrg\Requests\Transport\Curl::test($capabilities) || (function_exists('stream_socket_client') && \WpOrg\Requests\Transport\Fsockopen::test($capabilities));
+}
+
+
 // Returns the entry point a rewrite rule routes to, or false.
 // index.php looks this value up in the route map, and a rule may only reach one
 // plain script name in the forum root: no directory separator, no traversal, no
@@ -413,7 +422,8 @@ function forum_rewrite_target($rewritten_url)
 }
 
 
-// Attempts to fetch the provided URL using any available means
+// Attempts to fetch the provided URL. A 200 is array('headers' => the header
+// lines, 'content' => the body), anything else is null.
 function get_remote_file($url, $timeout, $head_only = false, $max_redirects = 10)
 {
 	$result = null;
@@ -421,205 +431,54 @@ function get_remote_file($url, $timeout, $head_only = false, $max_redirects = 10
 	if ($parsed_url === false)
 		return null;
 
-	$allow_url_fopen = strtolower(@ini_get('allow_url_fopen'));
+	if (!forum_remote_transport_available($parsed_url['scheme'] == 'https'))
+		return null;
 
-	// Quite unlikely that this will be allowed on a shared host, but it can't hurt
-	if (function_exists('ini_set'))
-		@ini_set('default_socket_timeout', $timeout);
-
-	// If we have cURL, we might as well use it
-	if (function_exists('curl_init'))
+	try
 	{
-		// Setup the transfer
-		$ch = curl_init();
-		if ($ch === false)
-			return null;
-
-		curl_setopt($ch, CURLOPT_URL, $parsed_url['url']);
-		curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_0);
-		curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-		curl_setopt($ch, CURLOPT_HEADER, true);
-		curl_setopt($ch, CURLOPT_NOBODY, $head_only);
-		curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
-		curl_setopt($ch, CURLOPT_USERAGENT, 'PunBB');
-
-		// Grab the page
-		$content = @curl_exec($ch);
-		$responce_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-		$header_size = (int) curl_getinfo($ch, CURLINFO_HEADER_SIZE);
-
-		// Process a redirect
-		if ($content !== false && in_array((string) $responce_code, array('301', '302', '303', '307', '308')) && $max_redirects > 0)
-		{
-			$headers = forum_remote_response_headers($header_size > 0 ? substr($content, 0, $header_size) : $content);
-			$location = forum_remote_location_header($headers);
-
-			if ($location !== null)
-			{
-				$location = forum_remote_redirect_url($location, $parsed_url);
-				if ($location === false)
-					return null;
-
-				$responce = get_remote_file($location, $timeout, $head_only, $max_redirects - 1);
-				if ($responce !== null)
-					$responce['headers'] = array_merge($headers, $responce['headers']);
-				return $responce;
-			}
-		}
-
-		// Ignore everything except a 200 response code
-		if ($content !== false && $responce_code == '200')
-		{
-			if ($head_only)
-				$result['headers'] = explode("\r\n", str_replace("\r\n\r\n", "\r\n", trim($content)));
-			else
-			{
-				if (!preg_match('#HTTP/1.[01] 200 OK#', $content, $match, PREG_OFFSET_CAPTURE))
-					return $result;
-
-				$last_content = substr($content, $match[0][1]);
-				$content_start = strpos($last_content, "\r\n\r\n");
-				if ($content_start !== false)
-				{
-					$result['headers'] = explode("\r\n", str_replace("\r\n\r\n", "\r\n", substr($content, 0, $match[0][1] + $content_start)));
-					$result['content'] = substr($last_content, $content_start + 4);
-				}
-			}
-		}
-	}
-	// A raw socket is the second best thing
-	else if (function_exists('stream_socket_client'))
-	{
-		// The transport follows the scheme: an https:// URL is never fetched in
-		// cleartext on port 80, and the peer certificate is verified.
-		$stream_context = stream_context_create(array(
-			'ssl' => array(
-				'verify_peer'		=> true,
-				'verify_peer_name'	=> true,
-				'peer_name'			=> $parsed_url['host'],
-				'SNI_enabled'		=> true,
-				'allow_self_signed'	=> false
-			)
+		// The certificate is checked against the system store rather than the
+		// bundle that ships with the library and ages with the release. A
+		// redirect is not followed here: every hop re-enters this function.
+		$response = \WpOrg\Requests\Requests::request($parsed_url['url'], array(), array(), $head_only ? \WpOrg\Requests\Requests::HEAD : \WpOrg\Requests\Requests::GET, array(
+			'timeout'			=> $timeout,
+			'connect_timeout'	=> $timeout,
+			'useragent'			=> 'PunBB',
+			'protocol_version'	=> 1.0,
+			'follow_redirects'	=> false,
+			'verify'			=> true,
 		));
+	}
+	catch (\WpOrg\Requests\Exception $e)
+	{
+		return null;
+	}
 
-		$remote = @stream_socket_client(
-			$parsed_url['transport'].'://'.$parsed_url['host'].':'.$parsed_url['port'],
-			$errno, $errstr, $timeout, STREAM_CLIENT_CONNECT, $stream_context
-		);
-		if ($remote)
+	$headers = forum_remote_response_headers(substr($response->raw, 0, (int) strpos($response->raw, "\r\n\r\n")));
+
+	// Process a redirect
+	if ($max_redirects > 0 && forum_remote_is_redirect($headers[0] ?? ''))
+	{
+		$location = forum_remote_location_header($headers);
+
+		if ($location !== null)
 		{
-			// Send a standard HTTP 1.0 request for the page
-			fwrite($remote, ($head_only ? 'HEAD' : 'GET').' '.$parsed_url['path'].' HTTP/1.0'."\r\n");
-			$default_port = ($parsed_url['scheme'] === 'https') ? 443 : 80;
-			fwrite($remote, 'Host: '.$parsed_url['host'].($parsed_url['port'] !== $default_port ? ':'.$parsed_url['port'] : '')."\r\n");
-			fwrite($remote, 'User-Agent: PunBB'."\r\n");
-			fwrite($remote, 'Connection: Close'."\r\n\r\n");
+			$location = forum_remote_redirect_url($location, $parsed_url);
+			if ($location === false)
+				return null;
 
-			stream_set_timeout($remote, $timeout);
-			$stream_meta = stream_get_meta_data($remote);
-
-			// Fetch the response 1024 bytes at a time and watch out for a timeout
-			$content = false;
-			while (!feof($remote) && !$stream_meta['timed_out'])
-			{
-				$content .= fgets($remote, 1024);
-				$stream_meta = stream_get_meta_data($remote);
-			}
-
-			fclose($remote);
-
-			// Process a redirect
-			if ($content !== false && $max_redirects > 0 && forum_remote_is_redirect($content))
-			{
-				$header_end = strpos($content, "\r\n\r\n");
-				$headers = forum_remote_response_headers($header_end !== false ? substr($content, 0, $header_end) : $content);
-				$location = forum_remote_location_header($headers);
-
-				if ($location !== null)
-				{
-					$location = forum_remote_redirect_url($location, $parsed_url);
-					if ($location === false)
-						return null;
-
-					$responce = get_remote_file($location, $timeout, $head_only, $max_redirects - 1);
-					if ($responce !== null)
-						$responce['headers'] = array_merge($headers, $responce['headers']);
-					return $responce;
-				}
-			}
-
-			// Ignore everything except a 200 response code
-			if ($content !== false && preg_match('#^HTTP/1.[01] 200 OK#', $content))
-			{
-				if ($head_only)
-					$result['headers'] = explode("\r\n", trim($content));
-				else
-				{
-					$content_start = strpos($content, "\r\n\r\n");
-					if ($content_start !== false)
-					{
-						$result['headers'] = explode("\r\n", substr($content, 0, $content_start));
-						$result['content'] = substr($content, $content_start + 4);
-					}
-				}
-			}
+			$responce = get_remote_file($location, $timeout, $head_only, $max_redirects - 1);
+			if ($responce !== null)
+				$responce['headers'] = array_merge($headers, $responce['headers']);
+			return $responce;
 		}
 	}
-	// Last case scenario, we use file_get_contents provided allow_url_fopen is enabled (any non 200 response results in a failure)
-	else if (in_array($allow_url_fopen, array('on', 'true', '1')))
+
+	// Ignore everything except a 200 response code
+	if ($response->status_code === 200)
 	{
-		// Setup a stream context
-		$stream_context = stream_context_create(
-			array(
-				'http' => array(
-					'method'		=> $head_only ? 'HEAD' : 'GET',
-					'user_agent'	=> 'PunBB',
-					// The wrapper would follow a redirect itself, to a scheme
-					// forum_remote_url_parts() never saw; a hop re-enters this
-					// function instead, and ignore_errors keeps the response
-					// readable so its status line can be told from a 200.
-					'follow_location'	=> 0,
-					'ignore_errors'		=> true,
-					'timeout'		=> $timeout
-				)
-			)
-		);
-
-		$content = @file_get_contents($parsed_url['url'], false, $stream_context);
-
-		// Did we get anything?
-		if ($content !== false)
-		{
-			// The local the stream wrapper used to conjure up is deprecated in
-			// 8.5; this accessor has replaced it since 8.4.
-			$headers = http_get_last_response_headers() ?? array();
-			$status = isset($headers[0]) ? $headers[0] : '';
-
-			// Process a redirect
-			if ($max_redirects > 0 && forum_remote_is_redirect($status))
-			{
-				$location = forum_remote_location_header($headers);
-
-				if ($location !== null)
-				{
-					$location = forum_remote_redirect_url($location, $parsed_url);
-					if ($location === false)
-						return null;
-
-					$responce = get_remote_file($location, $timeout, $head_only, $max_redirects - 1);
-					if ($responce !== null)
-						$responce['headers'] = array_merge($headers, $responce['headers']);
-					return $responce;
-				}
-			}
-			// Ignore everything except a 200 response code
-			else if (preg_match('#^HTTP/1.[01] 200#', $status))
-			{
-				$result['headers'] = $headers;
-				if (!$head_only)
-					$result['content'] = $content;
-			}
-		}
+		$result['headers'] = $headers;
+		if (!$head_only)
+			$result['content'] = $response->body;
 	}
 
 	return $result;

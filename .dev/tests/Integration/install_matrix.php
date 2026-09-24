@@ -6,7 +6,7 @@
  * asserts, for each of them, that the install completes, config.php is written
  * for that driver, the whole schema exists as the modules declare it and is
  * populated, the admin account can log in, and not one PHP diagnostic was
- * emitted along the way.
+ * emitted along the way, nor any markup smoke_dead_markup() names.
  *
  * Run it from inside the web container — it needs the forum both as files (it
  * moves config.php aside and back) and as a running site on $base_url.
@@ -456,8 +456,15 @@ function install_matrix_run_driver($db_type, $spec, $base_url, $log)
 
 	$jar = (string) tempnam(sys_get_temp_dir(), 'matrix');
 
+	$form = smoke_request($base_url.'/admin/install.php', $jar);
+	$diagnostics = array_merge($diagnostics, smoke_diagnostics($form['body']));
+
 	$response = smoke_request($base_url.'/admin/install.php', $jar, install_matrix_form_fields($db_type, $spec, $base_url));
 	$diagnostics = array_merge($diagnostics, smoke_diagnostics($response['body']));
+
+	foreach (array('the installer form' => $form, 'the installer\'s last page' => $response) as $page => $rendered)
+		foreach (smoke_dead_markup($rendered['body']) as $markup)
+			$failures[] = $page.' carries '.$markup;
 
 	if ($response['status'] !== 200)
 		$failures[] = 'installer returned HTTP '.$response['status'].($response['error'] !== '' ? ' ('.$response['error'].')' : '');

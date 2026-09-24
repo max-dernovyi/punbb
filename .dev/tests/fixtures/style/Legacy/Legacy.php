@@ -1,6 +1,6 @@
 <?php
 /**
- * A legacy theme's stylesheet script: it registers what Oxygen registers and
+ * A legacy theme's stylesheet script: it registers what Oxygen registered and
  * fills the markers of its own templates — the default templates of 1.4 —
  * into $tpl_main, as Oxygen.php did while those templates were the forum's.
  */

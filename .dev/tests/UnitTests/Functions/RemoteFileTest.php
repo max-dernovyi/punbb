@@ -8,7 +8,8 @@
  * transport therefore decides whether an administrator clicking "install
  * hotfix" runs code from punbb.informer.com or code from whoever is on the
  * wire, so the URL is split by forum_remote_url_parts() before anything is
- * opened.
+ * opened. The live cases fetch through the real client on both of its
+ * transports, from remote_server.php, with a CA of the harness's own trusted.
  *
  * @copyright (C) 2008-2012 PunBB, partially based on code (C) 2008-2009 FluxBB.org
  * @license http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
@@ -18,30 +19,20 @@
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
+require_once __DIR__.'/RemoteHarness.php';
+
 class RemoteFileTest extends TestCase
 {
-	/**
-	 * The socket branch used to call fsockopen($host, $port ?: 80) whatever
-	 * the scheme said, so every https:// caller was fetched in cleartext on
-	 * port 80 whenever cURL was absent. The pre-fix port is the control.
-	 */
-	public function testHttpsIsNeverFetchedInCleartext(): void
+	/** The port a redirect's origin is rebuilt from follows the scheme. */
+	public function testTheDefaultPortFollowsTheScheme(): void
 	{
-		$parts = forum_remote_url_parts('https://punbb.informer.com/update/manifest/foo.xml');
+		$https = forum_remote_url_parts('https://punbb.informer.com/update/manifest/foo.xml');
+		$http = forum_remote_url_parts('http://example.com/feed');
 
-		$this->assertIsArray($parts);
-		$this->assertSame('ssl', $parts['transport']);
-		$this->assertSame(443, $parts['port']);
-		$this->assertNotSame(80, $parts['port'], 'an https:// URL is back on the cleartext port');
-	}
-
-	public function testHttpKeepsThePlainTransport(): void
-	{
-		$parts = forum_remote_url_parts('http://example.com/feed');
-
-		$this->assertIsArray($parts);
-		$this->assertSame('tcp', $parts['transport']);
-		$this->assertSame(80, $parts['port']);
+		$this->assertIsArray($https);
+		$this->assertIsArray($http);
+		$this->assertSame(array('https', 443), array($https['scheme'], $https['port']));
+		$this->assertSame(array('http', 80), array($http['scheme'], $http['port']));
 	}
 
 	public function testTheSchemeIsReadCaseInsensitively(): void
@@ -49,7 +40,7 @@ class RemoteFileTest extends TestCase
 		$parts = forum_remote_url_parts('HTTPS://Example.COM/x');
 
 		$this->assertIsArray($parts);
-		$this->assertSame('ssl', $parts['transport']);
+		$this->assertSame('https', $parts['scheme']);
 		$this->assertSame(443, $parts['port']);
 	}
 
@@ -59,12 +50,12 @@ class RemoteFileTest extends TestCase
 
 		$this->assertIsArray($parts);
 		$this->assertSame(8443, $parts['port']);
-		$this->assertSame('ssl', $parts['transport']);
+		$this->assertSame('https', $parts['scheme']);
 	}
 
 	/**
-	 * The request line is built from this, so the query has to survive and an
-	 * empty path has to become "/".
+	 * A relative Location: is resolved against this, so the query has to
+	 * survive and an empty path has to become "/".
 	 *
 	 * @return array<string, array{string, string}>
 	 */
@@ -90,8 +81,7 @@ class RemoteFileTest extends TestCase
 
 	/**
 	 * trim() strips a leading or trailing NUL, so the control-byte check never
-	 * sees one and cURL would be handed a URL that raises a ValueError. The
-	 * validated form is what goes on the wire.
+	 * sees one. The validated form is what goes on the wire.
 	 */
 	public function testTheValidatedUrlIsWhatIsFetched(): void
 	{
@@ -100,10 +90,6 @@ class RemoteFileTest extends TestCase
 		$this->assertIsArray($parts);
 		$this->assertSame('https://example.com/x', $parts['url']);
 		$this->assertStringNotContainsString("\0", $parts['url']);
-
-		$source = (string) file_get_contents(FORUM_ROOT.'include/functions.php');
-		$this->assertStringContainsString('curl_setopt($ch, CURLOPT_URL, $parsed_url[\'url\']);', $source);
-		$this->assertStringNotContainsString('curl_setopt($ch, CURLOPT_URL, $url);', $source);
 	}
 
 	/**
@@ -149,25 +135,6 @@ class RemoteFileTest extends TestCase
 	public function testGetRemoteFileRefusesTheSameUrls(mixed $url): void
 	{
 		$this->assertNull(get_remote_file($url, 1));
-	}
-
-	/**
-	 * Source guards: the transport must follow the scheme, and the certificate
-	 * must be verified. Each carries the pre-fix line as its control.
-	 */
-	public function testTheSocketBranchFollowsTheSchemeAndVerifiesThePeer(): void
-	{
-		$source = (string) file_get_contents(FORUM_ROOT.'include/functions.php');
-
-		$this->assertStringNotContainsString(
-			'@fsockopen($parsed_url[\'host\'], !empty($parsed_url[\'port\']) ? intval($parsed_url[\'port\']) : 80',
-			$source,
-			'get_remote_file() is back to connecting on port 80 whatever the scheme says'
-		);
-		$this->assertStringContainsString('$parsed_url[\'transport\'].\'://\'', $source);
-		$this->assertStringContainsString('\'verify_peer\'', $source);
-		$this->assertStringContainsString('\'verify_peer_name\'', $source);
-		$this->assertStringContainsString('\'allow_self_signed\'	=> false', $source);
 	}
 
 	/** The scheme check has to sit at the entry, because redirects recurse through it. */
@@ -256,31 +223,8 @@ class RemoteFileTest extends TestCase
 	}
 
 	/**
-	 * Every redirect branch resolves before it recurses. Without this the
-	 * fopen branch (the only one that used to delegate redirects to the
-	 * stream wrapper) drops a relative Location on the floor.
-	 */
-	public function testEveryRedirectBranchResolvesTheLocation(): void
-	{
-		$source = (string) file_get_contents(FORUM_ROOT.'include/functions.php');
-		$body = substr($source, (int) strpos($source, 'function get_remote_file('));
-
-		$this->assertSame(0, substr_count($body, 'forum_remote_response_headers($content)'),
-			'a branch that parses a raw response passes the header region, never the body');
-		$this->assertSame(2, substr_count($body, 'forum_remote_response_headers('),
-			'the branches that parse a raw response read the origin header block');
-		$this->assertSame(3, substr_count($body, 'forum_remote_location_header($headers)'),
-			'a redirect branch reads the Location: header itself');
-		$this->assertSame(3, substr_count($body, 'forum_remote_redirect_url($location, $parsed_url)'),
-			'a redirect branch recurses on the raw Location: value');
-		$this->assertSame(0, substr_count($body, 'get_remote_file(substr($header, 10)'),
-			'a redirect branch recurses on the raw Location: value');
-	}
-
-	/**
-	 * cURL is handed the response of a CONNECT proxy in front of the origin's
-	 * own, and CURLINFO_HTTP_CODE reports the origin's status. Reading the
-	 * first block would look for the Location: in "200 Connection established".
+	 * A CONNECT proxy answers in front of the origin. Reading the first block
+	 * would look for the Location: in "200 Connection established".
 	 */
 	public function testTheHeadersOfTheOriginResponseAreRead(): void
 	{
@@ -363,5 +307,213 @@ class RemoteFileTest extends TestCase
 	public function testAStatusLineIsRecognisedAsARedirect(string $status, bool $expected): void
 	{
 		$this->assertSame($expected, forum_remote_is_redirect($status));
+	}
+
+	/** @return array<string, array{string}> */
+	public static function transportProvider(): array
+	{
+		return array(
+			'cURL'		=> array('curl'),
+			'socket'	=> array('socket'),
+		);
+	}
+
+	/**
+	 * What get_remote_file() returned for $path on a server over $certificate
+	 * ('' for cleartext), fetched as $scheme on $transport. Nothing else may
+	 * have been printed.
+	 */
+	private function fetch(string $transport, string $certificate, string $scheme, string $path, int $timeout = 2, bool $headOnly = false): mixed
+	{
+		$server = RemoteHarness::server($certificate);
+
+		try
+		{
+			$fetched = RemoteHarness::fetch($scheme.'://'.RemoteHarness::HOST.':'.$server['port'].$path, $transport, $timeout, $headOnly);
+		}
+		finally
+		{
+			RemoteHarness::stop($server);
+		}
+
+		$this->assertSame('', $fetched['output']);
+		$this->assertTrue($fetched['fetches'], 'fetchesRemoteFiles() denies a transport the client used');
+
+		return $fetched['result'];
+	}
+
+	/** The control for every refusal below: the harness's CA is trusted, and the server answers. */
+	#[DataProvider('transportProvider')]
+	public function testACertificateTheTrustedCaIssuedIsFetched(string $transport): void
+	{
+		$this->assertSame(
+			array('headers' => array('HTTP/1.1 200 OK', 'Content-Type: text/plain', 'Content-Length: 11'), 'content' => 'remote body'),
+			$this->fetch($transport, 'trusted', 'https', '/ok')
+		);
+	}
+
+	/** @return array<string, array{string, string}> */
+	public static function badCertificateProvider(): array
+	{
+		$cases = array();
+		foreach (self::transportProvider() as $name => list($transport))
+			foreach (array('wrong-host', 'expired', 'self-signed') as $certificate)
+				$cases[$certificate.' on '.$name] = array($transport, $certificate);
+
+		return $cases;
+	}
+
+	/** A hotfix manifest is eval()ed: whoever is on the wire must not be able to answer for the host. */
+	#[DataProvider('badCertificateProvider')]
+	public function testABadCertificateIsRefused(string $transport, string $certificate): void
+	{
+		$this->assertNull($this->fetch($transport, $certificate, 'https', '/ok'));
+	}
+
+	/**
+	 * Every built-in update and hotfix URL is HTTPS, so a transport without TLS
+	 * must not offer update checks, while plain HTTP still fetches.
+	 */
+	public function testATransportWithoutTlsDoesNotClaimToFetch(): void
+	{
+		$server = RemoteHarness::server();
+
+		try
+		{
+			$fetched = RemoteHarness::fetch('http://'.RemoteHarness::HOST.':'.$server['port'].'/ok', 'no-tls');
+		}
+		finally
+		{
+			RemoteHarness::stop($server);
+		}
+
+		$this->assertSame('', $fetched['output']);
+		$this->assertSame('remote body', $fetched['result']['content'] ?? null);
+		$this->assertFalse($fetched['fetches'], 'fetchesRemoteFiles() claims HTTPS without a TLS transport');
+		$this->assertFalse(RemoteHarness::fetch('https://'.RemoteHarness::HOST.':'.RemoteHarness::closedPort().'/ok', 'no-tls')['fetches']);
+	}
+
+	/**
+	 * The scheme picks the transport: an https:// URL is never fetched in
+	 * cleartext, even from a server that answers in cleartext what it takes
+	 * for a request. The http:// fetch from the same server is the control.
+	 */
+	#[DataProvider('transportProvider')]
+	public function testHttpsIsNeverFetchedInCleartext(string $transport): void
+	{
+		$this->assertNull($this->fetch($transport, '', 'https', '/ok'));
+		$this->assertSame('remote body', $this->fetch($transport, '', 'http', '/ok')['content'] ?? null);
+	}
+
+	/** Each hop re-enters get_remote_file(), and so its check: the headers of every hop are kept in order. */
+	#[DataProvider('transportProvider')]
+	public function testARedirectIsFollowedThroughGetRemoteFile(string $transport): void
+	{
+		$this->assertSame(
+			array(
+				'headers' => array('HTTP/1.1 302 Found', 'Location: /ok', 'Content-Length: 0', 'HTTP/1.1 200 OK', 'Content-Type: text/plain', 'Content-Length: 11'),
+				'content' => 'remote body',
+			),
+			$this->fetch($transport, 'trusted', 'https', '/moved')
+		);
+	}
+
+	#[DataProvider('transportProvider')]
+	public function testARedirectToAnotherSchemeIsRefused(string $transport): void
+	{
+		$this->assertNull($this->fetch($transport, '', 'http', '/moved-file'));
+	}
+
+	#[DataProvider('transportProvider')]
+	public function testARedirectLoopEnds(string $transport): void
+	{
+		$this->assertNull($this->fetch($transport, '', 'http', '/moved-loop'));
+	}
+
+	#[DataProvider('transportProvider')]
+	public function testAnythingButA200IsNull(string $transport): void
+	{
+		$this->assertNull($this->fetch($transport, '', 'http', '/missing'));
+	}
+
+	/** A server that never answers costs the caller its timeout, then a null. */
+	#[DataProvider('transportProvider')]
+	public function testATimeoutIsAValue(string $transport): void
+	{
+		$started = microtime(true);
+
+		$this->assertNull($this->fetch($transport, '', 'http', '/silent', 1));
+		$this->assertLessThan(5, microtime(true) - $started);
+	}
+
+	#[DataProvider('transportProvider')]
+	public function testARefusedConnectionIsAValue(string $transport): void
+	{
+		$fetched = RemoteHarness::fetch('http://'.RemoteHarness::HOST.':'.RemoteHarness::closedPort().'/ok', $transport);
+
+		$this->assertSame(array('result' => null, 'fetches' => true, 'output' => ''), $fetched);
+	}
+
+	#[DataProvider('transportProvider')]
+	public function testAHeadRequestHasNoContent(string $transport): void
+	{
+		$this->assertSame(
+			array('headers' => array('HTTP/1.1 200 OK', 'Content-Type: text/plain', 'Content-Length: 11')),
+			$this->fetch($transport, '', 'http', '/ok', 2, true)
+		);
+	}
+
+	/** What the forum puts on the wire: the validated URL, HTTP/1.0 and its own name. */
+	#[DataProvider('transportProvider')]
+	public function testTheRequestCarriesTheValidatedUrl(string $transport): void
+	{
+		$server = RemoteHarness::server();
+
+		try
+		{
+			$fetched = RemoteHarness::fetch("  http://".RemoteHarness::HOST.':'.$server['port']."/echo\0 ", $transport);
+		}
+		finally
+		{
+			RemoteHarness::stop($server);
+		}
+
+		$this->assertSame('', $fetched['output']);
+		$this->assertIsArray($fetched['result']);
+		$this->assertStringStartsWith("GET /echo HTTP/1.0\r\nHost: ".RemoteHarness::HOST.':'.$server['port']."\r\nUser-Agent: PunBB\r\n", $fetched['result']['content']);
+	}
+
+	/**
+	 * Without cURL the client picks its socket transport by fsockopen() alone
+	 * and would call a disabled stream_socket_client(). Nothing is fetched,
+	 * nothing is printed, and the installer and the settings page are told.
+	 */
+	public function testWithoutATransportNothingIsFetched(): void
+	{
+		$server = RemoteHarness::server();
+
+		try
+		{
+			$fetched = RemoteHarness::fetch('http://'.RemoteHarness::HOST.':'.$server['port'].'/ok', 'none');
+		}
+		finally
+		{
+			RemoteHarness::stop($server);
+		}
+
+		$this->assertSame(array('result' => null, 'fetches' => false, 'output' => ''), $fetched);
+	}
+
+	/** The request is the library's to make; nothing in the tree speaks HTTP by hand. */
+	public function testTheHandRolledTransportsAreGone(): void
+	{
+		$source = (string) file_get_contents(FORUM_ROOT.'include/functions.php');
+		$body = substr($source, (int) strpos($source, 'function get_remote_file('));
+		$body = substr($body, 0, (int) strpos($body, "\n}\n"));
+
+		$this->assertStringContainsString('\\WpOrg\\Requests\\Requests::request($parsed_url[\'url\']', $body);
+
+		foreach (array('curl_init', 'curl_exec', 'stream_socket_client', 'fsockopen', 'file_get_contents', 'fwrite', 'ini_set') as $call)
+			$this->assertStringNotContainsString($call.'(', $body);
 	}
 }

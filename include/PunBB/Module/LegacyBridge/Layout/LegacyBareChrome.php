@@ -52,7 +52,7 @@ final class LegacyBareChrome implements BareChromeInterface {
 		else if ($name === Layout::MAINTENANCE && LegacyScope::attached('fn_maintenance_message_pre_template_loaded'))
 			$points->run('fn_maintenance_message_pre_template_loaded', LegacyScope::with($path));
 
-		$template = $tpl_path === $own ? $layout->render($source, $name, $this->markerRegions()) : Markers::markup(\forum_trim((string) file_get_contents(Markers::markup($tpl_path))));
+		$template = $tpl_path === $own ? $layout->render($name, $this->markerRegions()) : Markers::markup(\forum_trim((string) file_get_contents(Markers::markup($tpl_path))));
 		$loaded = array($variable => &$template, 'tpl_path' => &$tpl_path);
 
 		if ($name === Layout::REDIRECT && LegacyScope::attached('fn_redirect_template_loaded'))

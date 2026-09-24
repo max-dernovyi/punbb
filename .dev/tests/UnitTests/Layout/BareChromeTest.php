@@ -50,7 +50,7 @@ class BareChromeTest extends TestCase {
 
 		$page = $chrome->close(array('head' => new Html('<title>Redirecting</title>'), 'main' => new Html('<div id="brd-main">Done</div>')));
 
-		$this->assertStringStartsWith("<!DOCTYPE html>\n<!--[if lt IE 7 ]> <html class=\"oldie ie6\" xml:lang=\"en\" lang=\"en\" dir=\"ltr\"> <![endif]-->\n", $page);
+		$this->assertStringStartsWith("<!DOCTYPE html>\n<html xml:lang=\"en\" lang=\"en\" dir=\"ltr\">\n<head>\n", $page);
 		$this->assertStringContainsString("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>Redirecting</title>\n</head>\n<body>\n<div id=\"brd-wrap\" class=\"brd-page\">\n<div id=\"brd-redirect\" class=\"brd\">\n<div id=\"brd-main\">Done</div>\n\n</div>\n</div>\n</body>\n</html>", $page);
 		$this->assertStringEndsWith('</html>', $page);
 

@@ -9,7 +9,8 @@
  * piece of non-ASCII content came through untouched, that the schema, the
  * recorded patches and the recorded module versions are the fresh install's,
  * that a second run changes nothing, and that not one PHP diagnostic was
- * emitted along the way.
+ * emitted along the way, nor, on the form and the completion page, any markup
+ * smoke_dead_markup() names.
  * It then walks the upgraded forum over HTTP — pages, the fixture extension's
  * hook, login, posting and search, the extension flows and, on MySQL, the user
  * flows — so the upgraded data is exercised, not only asserted on. It also
@@ -613,7 +614,7 @@ function upgrade_path_drive($base_url, $jar, &$diagnostics, &$stages, $max_stage
 			return array($next.' returned HTTP '.$response['status'].($response['error'] !== '' ? ' ('.$response['error'].')' : ''));
 
 		if (upgrade_path_completed($response['body']))
-			return array();
+			return array_map(static fn(string $markup): string => 'the completion page carries '.$markup, smoke_dead_markup($response['body']));
 
 		$next = upgrade_path_next_url($response['body']);
 
@@ -891,6 +892,10 @@ function upgrade_path_run($release, $db_type, $spec, $fresh, $base_url, $log)
 	{
 		$stages = array();
 		$diagnostics = array_merge($diagnostics, smoke_diagnostics($form['body']));
+
+		foreach (smoke_dead_markup($form['body']) as $markup)
+			$failures[] = 'the update form carries '.$markup;
+
 		$failures = array_merge($failures, upgrade_path_drive($base_url, $jar, $diagnostics, $stages));
 	}
 

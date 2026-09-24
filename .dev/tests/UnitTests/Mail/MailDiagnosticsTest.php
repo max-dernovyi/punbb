@@ -1,11 +1,12 @@
 <?php
 /**
- * What an SMTP failure tells the visitor who triggered it.
+ * What a failed send tells the visitor who triggered it.
  *
  * Registration and a password-reset request send mail on behalf of an
- * unauthenticated visitor, so every error() in the SMTP path renders on a
- * public page. The host, the port and the server's own responses belong behind
- * FORUM_DEBUG, and nothing that comes off the socket is HTML.
+ * unauthenticated visitor, so a failure rendered as a page is public. The host,
+ * the port and the server's own responses belong behind FORUM_DEBUG, and
+ * nothing that comes off the socket is HTML. Every case sends through the real
+ * forum_mail() to a relay that fails in one of the ways a relay can.
  *
  * @copyright (C) 2008-2012 PunBB, partially based on code (C) 2008-2009 FluxBB.org
  * @license http://www.gnu.org/licenses/gpl.html GPL version 2 or higher
@@ -15,11 +16,30 @@
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
+require_once __DIR__.'/MailHarness.php';
+
 class MailDiagnosticsTest extends TestCase
 {
-	private static function source(): string
+	private const GENERIC = 'Unable to send e-mail.<br />Please contact the forum administrator.';
+
+	/** @var array<string, string> */
+	private static array $output = array();
+
+	/** What forum_mail() printed when the relay failed as $failure. */
+	private static function failed(string $failure, bool $quiet, bool $debug): string
 	{
-		return (string) file_get_contents(FORUM_ROOT.'include/email.php');
+		$key = $failure.'/'.(int) $quiet.'/'.(int) $debug;
+
+		if (!isset(self::$output[$key]))
+		{
+			$options = array('quiet' => $quiet, 'debug' => $debug);
+
+			self::$output[$key] = ($failure === 'closed')
+				? MailHarness::send($options + array('smtp_host' => '127.0.0.1:'.MailHarness::closedPort()))
+				: MailHarness::relay($failure, $options)[0];
+		}
+
+		return self::$output[$key];
 	}
 
 	/** The three pre-fix messages, each of which reached the browser unconditionally. */
@@ -35,90 +55,84 @@ class MailDiagnosticsTest extends TestCase
 	#[DataProvider('preFixMessages')]
 	public function testThePreFixMessageIsGone(string $fragment): void
 	{
-		$this->assertStringNotContainsString($fragment, self::source());
+		$this->assertStringNotContainsString($fragment, (string) file_get_contents(FORUM_ROOT.'include/email.php'));
 	}
 
-	/** Every failure in this file says the same thing before it says anything else. */
-	public function testEveryFailureStartsWithTheGenericSentence(): void
+	/** The SMTP conversation is the library's: no socket of our own is left to leak through. */
+	public function testTheHandRolledClientIsGone(): void
 	{
-		$source = self::source();
+		require_once FORUM_ROOT.'include/email.php';
 
-		preg_match_all('/\bthrow new ForumMailException\(([^\n]*)/', $source, $matches);
+		$this->assertFalse(function_exists('smtp_mail'));
+		$this->assertFalse(function_exists('server_parse'));
+		$this->assertFalse(class_exists('ForumMailException', false));
+		$this->assertStringNotContainsString('fsockopen', (string) file_get_contents(FORUM_ROOT.'include/email.php'));
+	}
 
-		$this->assertCount(3, $matches[1]);
+	/** A relay that turns the connection away, one that refuses every recipient, and none at all. */
+	public static function failures(): array
+	{
+		return array(
+			'refused greeting'		=> array('refuse'),
+			'rejected recipients'	=> array('reject'),
+			'closed port'			=> array('closed'),
+		);
+	}
 
-		foreach ($matches[1] as $cur_call)
-		{
-			$this->assertStringStartsWith(
-				"'Unable to send e-mail.<br />Please contact the forum administrator.'",
-				$cur_call
-			);
-		}
+	#[DataProvider('failures')]
+	public function testALoudFailureRendersTheGenericSentenceAlone(string $failure): void
+	{
+		$page = self::failed($failure, false, false);
 
-		// The one place a failure becomes a page, and it renders what was thrown.
-		preg_match_all('/\berror\(([^\n]*)/', $source, $matches);
-
-		$this->assertCount(1, $matches[1]);
-		$this->assertStringStartsWith('$e->getMessage()', $matches[1][0]);
+		$this->assertStringContainsString('<p>'.self::GENERIC.'</p>', $page);
+		$this->assertStringNotContainsString('127.0.0.1', $page);
+		$this->assertStringNotContainsString('SMTP', $page);
+		$this->assertStringNotContainsString('RESULT=', $page, 'error() ends the request');
 	}
 
 	/**
 	 * A caller that has to answer the same whether the address is registered or
 	 * not gets false instead of the error page: rendering one for the matched
-	 * address alone is the account oracle the generic message closes.
+	 * address alone is the account oracle the generic message closes. Nothing
+	 * else is printed either, not under FORUM_DEBUG and not as a PHP warning:
+	 * with display_errors on, a warning is as much of a tell as the page.
 	 */
-	public function testAQuietCallerGetsNoErrorPage(): void
+	#[DataProvider('failures')]
+	public function testAQuietCallerGetsFalseAndNothingElse(string $failure): void
 	{
-		$source = self::source();
-
-		$this->assertStringContainsString('$quiet = false', $source);
-		$this->assertMatchesRegularExpression(
-			'/catch \(ForumMailException \$e\)\s*\{.*?if \(\$quiet\)\s*return false;.*?error\(/s',
-			$source
-		);
+		$this->assertSame("RESULT=false\n", self::failed($failure, true, true));
 	}
 
-	/** Each of the three appends its detail only under FORUM_DEBUG. */
-	public function testEveryDetailIsBehindTheDebugConstant(): void
+	#[DataProvider('failures')]
+	public function testTheDetailIsBehindTheDebugConstant(string $failure): void
 	{
-		$this->assertSame(3, substr_count(self::source(), "defined('FORUM_DEBUG')"));
+		$page = self::failed($failure, false, true);
+
+		$this->assertStringContainsString('<p>'.self::GENERIC.' The SMTP server "127.0.0.1:', $page);
+		$this->assertStringNotContainsString('Warning:', $page);
 	}
 
-	public static function untrustedValues(): array
+	/** error() echoes its message raw, so what the server said has to be encoded. */
+	public function testTheServersAnswerIsEncoded(): void
 	{
-		return array(
-			array('$server_response'),
-			array('$expected_response'),
-			array("$"."forum_config['o_smtp_host']"),
-			array('$errstr'),
-		);
+		$page = self::failed('reject', false, true);
+
+		$this->assertStringContainsString(forum_htmlencode(substr(SMTP_RELAY_REJECTION, 4)), $page);
+		$this->assertStringNotContainsString('<i>no</i>', $page);
 	}
 
-	/** error() echoes its message raw, so a value off the socket has to be encoded. */
-	#[DataProvider('untrustedValues')]
-	public function testAnUntrustedValueIsEncoded(string $value): void
+	public function testTheConfiguredHostIsEncoded(): void
 	{
-		$this->assertStringContainsString('forum_htmlencode('.$value.')', self::source());
+		$page = MailHarness::send(array('smtp_host' => '<i>relay</i>:25', 'debug' => true));
+
+		$this->assertStringContainsString('"&lt;i&gt;relay&lt;/i&gt;:25"', $page);
+		$this->assertStringNotContainsString('<i>relay</i>', $page);
 	}
 
-	/**
-	 * A warning off the transport is as much of a tell as the error page:
-	 * with display_errors on it appears for the address that got a send and
-	 * not for the one that did not.
-	 */
-	public function testTheTransportEmitsNoWarning(): void
+	/** mail() failing is the host's to report: false for every caller, no page and no warning. */
+	public function testAFailingMailFunctionIsAValue(): void
 	{
-		$source = self::source();
-
-		$this->assertStringContainsString('return (bool) @mail($to, $subject, $message, $headers);', $source);
-		$this->assertSame(0, preg_match('/(?<!@)\bfwrite\(\$socket/', $source),
-			'a socket write warns on a dead relay');
-		$this->assertStringContainsString('@fgets($socket, 256)', $source);
-	}
-
-	/** The connect failure is reported by the function, not by a PHP warning naming the host. */
-	public function testTheConnectIsSuppressed(): void
-	{
-		$this->assertStringContainsString('@fsockopen($smtp_host, $smtp_port', self::source());
+		$this->assertSame("RESULT=false\n", MailHarness::send(array('quiet' => true, 'debug' => true), '/nonexistent/sendmail'));
+		$this->assertSame("RESULT=false\n", MailHarness::send(array('quiet' => false, 'debug' => true), '/nonexistent/sendmail'));
 	}
 }

@@ -185,13 +185,4 @@ class PhpRequirementsTest extends TestCase {
 		$this->assertIsInt($utf8, $file.' must require include/utf8.php');
 		$this->assertLessThan($utf8, $check, $file.' checks the requirements after loading utf8.php');
 	}
-
-	public function testGetRemoteFileKeepsOnlyTheStreamContextPath(): void {
-		$source = $this->source('include/functions.php');
-		$body = substr($source, strpos($source, 'function get_remote_file'));
-		$body = substr($body, 0, strpos($body, "\n}"));
-
-		$this->assertStringContainsString('stream_context_create', $body);
-		$this->assertStringNotContainsString('@file_get_contents($url)', $body, 'the context-less fallback is PHP 4 only');
-	}
 }
